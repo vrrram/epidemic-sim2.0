@@ -594,16 +594,18 @@ class EpidemicSimulation(QObject):
                     total_quarantined += len(to_q)
                     for p in to_q:
                         self._move_to_quarantine(p, comm['particles'])
-                    # Remove dead particles
-                    for p in to_dead:
-                        comm['particles'].remove(p)
+                    # Remove dead particles efficiently (build new list instead of removing)
+                    if to_dead:
+                        to_dead_set = set(to_dead)
+                        comm['particles'] = [p for p in comm['particles'] if p not in to_dead_set]
 
                 if self.quarantine_particles:
                     self._check_infections(self.quarantine_particles)
                     _, to_dead = self._update_infections(self.quarantine_particles)
-                    # Remove dead particles from quarantine
-                    for p in to_dead:
-                        self.quarantine_particles.remove(p)
+                    # Remove dead particles from quarantine efficiently
+                    if to_dead:
+                        to_dead_set = set(to_dead)
+                        self.quarantine_particles = [p for p in self.quarantine_particles if p not in to_dead_set]
 
                 if total_quarantined > 0:
                     self.log(f">> {total_quarantined} MOVED TO QUARANTINE")
