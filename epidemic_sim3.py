@@ -7,6 +7,10 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 import pyqtgraph as pg
+import matplotlib
+matplotlib.use('Qt5Agg')
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
+from matplotlib.figure import Figure
 
 # =================== NEON GREEN THEME ===================
 NEON_GREEN = "#00ff00"
@@ -509,7 +513,7 @@ class SimulationCanvas(QWidget):
     def __init__(self, sim):
         super().__init__()
         self.sim = sim
-        self.setMinimumSize(800, 800)
+        self.setMinimumSize(900, 900)
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -597,12 +601,84 @@ class SimulationCanvas(QWidget):
         size = params.particle_size
         painter.drawEllipse(pos[0] - size//2, pos[1] - size//2, size, size)
 
+# =================== PIE CHART WIDGET ===================
+class PieChartWidget(FigureCanvasQTAgg):
+    def __init__(self, parent=None, width=4, height=4, dpi=100):
+        self.fig = Figure(figsize=(width, height), dpi=dpi)
+        self.fig.patch.set_facecolor(BG_BLACK)
+        self.axes = self.fig.add_subplot(111)
+        super().__init__(self.fig)
+        self.setParent(parent)
+        self.setStyleSheet(f"background-color: {BG_BLACK};")
+
+    def update_chart(self, counts):
+        """Update pie chart with current population counts"""
+        self.axes.clear()
+
+        total = sum(counts.values())
+        if total == 0:
+            return
+
+        # Separate infected into symptomatic and asymptomatic
+        # We'll approximate this based on prob_no_symptoms
+        infected_total = counts['infected']
+        asymptomatic = infected_total * params.prob_no_symptoms
+        symptomatic = infected_total * (1 - params.prob_no_symptoms)
+
+        # Prepare data
+        labels = []
+        sizes = []
+        colors = []
+
+        if counts['susceptible'] > 0:
+            labels.append('Susceptible')
+            sizes.append(counts['susceptible'])
+            colors.append('#00bfff')  # Cyan
+
+        if symptomatic > 0.5:  # Only show if > 0.5 to avoid tiny slices
+            labels.append('Infected\n(Symptomatic)')
+            sizes.append(symptomatic)
+            colors.append('#ff4545')  # Red
+
+        if asymptomatic > 0.5:
+            labels.append('Infected\n(Asymptomatic)')
+            sizes.append(asymptomatic)
+            colors.append('#ffa500')  # Orange
+
+        if counts['removed'] > 0:
+            labels.append('Removed')
+            sizes.append(counts['removed'])
+            colors.append('#646464')  # Gray
+
+        if not sizes:
+            return
+
+        # Create pie chart
+        wedges, texts, autotexts = self.axes.pie(
+            sizes,
+            labels=labels,
+            colors=colors,
+            autopct='%1.1f%%',
+            startangle=90,
+            textprops={'color': NEON_GREEN, 'fontsize': 9, 'family': 'monospace'}
+        )
+
+        # Style percentage text
+        for autotext in autotexts:
+            autotext.set_color('black')
+            autotext.set_fontsize(8)
+            autotext.set_weight('bold')
+
+        self.axes.set_facecolor(BG_BLACK)
+        self.fig.tight_layout()
+        self.draw()
+
 # =================== MAIN WINDOW ===================
 class EpidemicApp(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("EPIDEMIC SIMULATION v3.0")
-        self.setGeometry(100, 100, 1600, 900)
+        self.setWindowTitle("EPIDEMIC SIMULATION v3.0 - Enhanced Edition")
+        self.setGeometry(50, 50, 1800, 1000)
 
         self.sim = EpidemicSimulation('simple')
         self.sim.stats_updated.connect(self.update_stats_display)
@@ -626,12 +702,15 @@ class EpidemicApp(QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
 
         self.canvas = SimulationCanvas(self.sim)
-        layout.addWidget(self.canvas, 2)
+        layout.addWidget(self.canvas, 3)
 
         right_panel = QWidget()
-        right_panel.setMaximumWidth(500)
+        right_panel.setMaximumWidth(550)
+        right_panel.setMinimumWidth(500)
         right_layout = QVBoxLayout(right_panel)
-        layout.addWidget(right_panel, 1)
+        right_layout.setSpacing(8)
+        right_layout.setContentsMargins(5, 5, 5, 5)
+        layout.addWidget(right_panel, 2)
 
         # PRESETS DROPDOWN
         preset_group = QGroupBox("[ PRESETS ]")
@@ -703,6 +782,27 @@ class EpidemicApp(QMainWindow):
         self.stats_label.setStyleSheet(f"font-size: 18px; padding: 15px; font-family: 'Courier New'; color: {NEON_GREEN};")
         right_layout.addWidget(self.stats_label)
 
+        # Visualization tabs
+        vis_tabs = QTabWidget()
+        vis_tabs.setStyleSheet(f"""
+            QTabWidget::pane {{
+                border: 2px solid {BORDER_GREEN};
+                background-color: {BG_BLACK};
+            }}
+            QTabBar::tab {{
+                background-color: {PANEL_BLACK};
+                color: {NEON_GREEN};
+                border: 2px solid {BORDER_GREEN};
+                padding: 8px 15px;
+                font-family: 'Courier New', monospace;
+                font-weight: bold;
+            }}
+            QTabBar::tab:selected {{
+                background-color: {BORDER_GREEN};
+                color: {BG_BLACK};
+            }}
+        """)
+
         # Graph (FIXED FILLING)
         self.graph_widget = pg.PlotWidget()
         self.graph_widget.setBackground(BG_BLACK)
@@ -717,12 +817,20 @@ class EpidemicApp(QMainWindow):
         self.graph_widget.getAxis('left').setTextPen(NEON_GREEN)
         self.graph_widget.getAxis('bottom').setTextPen(NEON_GREEN)
 
-        right_layout.addWidget(self.graph_widget)
+        # Pie chart
+        self.pie_chart = PieChartWidget(parent=self, width=4, height=4, dpi=80)
+
+        # Add both to tabs
+        vis_tabs.addTab(self.graph_widget, "TIME SERIES")
+        vis_tabs.addTab(self.pie_chart, "PIE CHART")
+
+        right_layout.addWidget(vis_tabs)
 
         # Parameter sliders
         sliders_scroll = QScrollArea()
         sliders_scroll.setWidgetResizable(True)
-        sliders_scroll.setMaximumHeight(350)
+        sliders_scroll.setMinimumHeight(280)
+        sliders_scroll.setMaximumHeight(320)
 
         sliders_widget = QWidget()
         sliders_layout = QVBoxLayout(sliders_widget)
@@ -996,7 +1104,7 @@ class EpidemicApp(QMainWindow):
         self.canvas.update()
 
     def update_stats_display(self, counts):
-        """FIXED: Proper stacked area graph"""
+        """Update stats display, graph, and pie chart"""
         total = sum(counts.values())
         if total == 0:
             return
@@ -1010,6 +1118,9 @@ class EpidemicApp(QMainWindow):
         text += f"> INFECTED:    {i_pct:5.1f}%\n"
         text += f"> REMOVED:     {r_pct:5.1f}%"
         self.stats_label.setText(text)
+
+        # Update pie chart
+        self.pie_chart.update_chart(counts)
 
         if len(self.sim.stats['day']) > 1:
             self.graph_widget.clear()
