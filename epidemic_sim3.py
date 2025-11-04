@@ -1004,23 +1004,141 @@ class EpidemicApp(QMainWindow):
         self.timer.start(16)
 
     def setup_ui(self):
-        """Setup UI with clean layout: main view + control panel + bottom toolbar"""
+        """Setup UI: Left params (collapsible) + Center canvas + Right controls"""
         central = QWidget()
         self.setCentralWidget(central)
-        root_layout = QVBoxLayout(central)
-        root_layout.setSpacing(0)
-        root_layout.setContentsMargins(0, 0, 0, 0)
-
-        # === TOP SECTION: Canvas + Control Panel ===
-        main_layout = QHBoxLayout()
+        main_layout = QHBoxLayout(central)
         main_layout.setSpacing(0)
         main_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Canvas
+        # === LEFT PANEL: PARAMETERS (COLLAPSIBLE) ===
+        self.left_panel = QWidget()
+        self.left_panel.setStyleSheet(f"background-color: {BG_BLACK};")
+        self.left_panel.setMaximumWidth(350)
+        self.left_panel.setMinimumWidth(300)
+
+        left_scroll = QScrollArea()
+        left_scroll.setWidgetResizable(True)
+        left_scroll.setWidget(self.left_panel)
+        left_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        left_scroll.setStyleSheet(f"""
+            QScrollArea {{ border: none; background-color: {BG_BLACK}; border-right: 2px solid {BORDER_GREEN}; }}
+            QScrollBar:vertical {{
+                background-color: {PANEL_BLACK}; width: 12px;
+                border: 1px solid {BORDER_GREEN};
+            }}
+            QScrollBar::handle:vertical {{
+                background-color: {BORDER_GREEN}; min-height: 20px;
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+                height: 0px;
+            }}
+        """)
+
+        left_layout = QVBoxLayout(self.left_panel)
+        left_layout.setSpacing(10)
+        left_layout.setContentsMargins(10, 10, 10, 10)
+
+        # Collapse button
+        collapse_btn = QPushButton("COLLAPSE PARAMETERS <<")
+        collapse_btn.clicked.connect(self.toggle_left_panel)
+        collapse_btn.setMinimumHeight(30)
+        left_layout.addWidget(collapse_btn)
+        self.left_collapse_btn = collapse_btn
+
+        # === LEFT PANEL: ALL PARAMETERS ===
+        self.sliders = {}
+
+        # DISEASE PARAMETERS
+        disease_box = CollapsibleBox("DISEASE PARAMETERS")
+        disease_params = [
+            ('infection_radius', 'Infection Radius', 0.01, 0.4, 0.15),
+            ('prob_infection', 'Infection Probability', 0, 0.1, 0.02),
+            ('infection_duration', 'Infection Duration (days)', 1, 100, 25),
+            ('mortality_rate', 'Mortality Rate', 0, 1.0, 0.0),
+            ('fraction_infected_init', 'Initial Infected %', 0, 0.05, 0.01),
+        ]
+        for param, label, min_val, max_val, default in disease_params:
+            lbl = QLabel(f"{label}: {default:.3g}")
+            lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+            disease_box.addWidget(lbl)
+            slider = QSlider(Qt.Horizontal)
+            slider.setMinimum(int(min_val * 100))
+            slider.setMaximum(int(max_val * 100))
+            slider.setValue(int(default * 100))
+            slider.setMinimumHeight(22)
+            slider.valueChanged.connect(
+                lambda val, p=param, l=lbl, label=label: self.update_param(p, val/100, l, label)
+            )
+            disease_box.addWidget(slider)
+            self.sliders[param] = (slider, lbl, label)
+        left_layout.addWidget(disease_box)
+
+        # POPULATION PARAMETERS
+        pop_box = CollapsibleBox("POPULATION PARAMETERS")
+        pop_params = [
+            ('social_distance_factor', 'Social Distancing Strength', 0, 2, 0),
+            ('social_distance_obedient', 'Social Distance Compliance', 0, 1, 1.0),
+        ]
+        for param, label, min_val, max_val, default in pop_params:
+            lbl = QLabel(f"{label}: {default:.3g}")
+            lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+            pop_box.addWidget(lbl)
+            slider = QSlider(Qt.Horizontal)
+            slider.setMinimum(int(min_val * 100))
+            slider.setMaximum(int(max_val * 100))
+            slider.setValue(int(default * 100))
+            slider.setMinimumHeight(22)
+            slider.valueChanged.connect(
+                lambda val, p=param, l=lbl, label=label: self.update_param(p, val/100, l, label)
+            )
+            pop_box.addWidget(slider)
+            self.sliders[param] = (slider, lbl, label)
+        left_layout.addWidget(pop_box)
+
+        # INTERVENTION PARAMETERS
+        interv_box = CollapsibleBox("INTERVENTION PARAMETERS")
+        interv_params = [
+            ('boxes_to_consider', 'Social Distance Range', 1, 10, 2),
+            ('quarantine_after', 'Quarantine After (days)', 1, 20, 5),
+            ('start_quarantine', 'Quarantine Start Day', 0, 30, 10),
+            ('prob_no_symptoms', 'Asymptomatic Rate', 0, 0.5, 0.20),
+        ]
+        for param, label, min_val, max_val, default in interv_params:
+            lbl = QLabel(f"{label}: {default:.3g}")
+            lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+            interv_box.addWidget(lbl)
+            slider = QSlider(Qt.Horizontal)
+            slider.setMinimum(int(min_val * 100))
+            slider.setMaximum(int(max_val * 100))
+            slider.setValue(int(default * 100))
+            slider.setMinimumHeight(22)
+            slider.valueChanged.connect(
+                lambda val, p=param, l=lbl, label=label: self.update_param(p, val/100, l, label)
+            )
+            interv_box.addWidget(slider)
+            self.sliders[param] = (slider, lbl, label)
+        left_layout.addWidget(interv_box)
+
+        # PRESETS
+        presets_box = CollapsibleBox("PRESETS")
+        self.preset_combo = QComboBox()
+        self.preset_combo.addItem("-- Select Preset --")
+        for preset_name in PRESETS.keys():
+            self.preset_combo.addItem(preset_name)
+        self.preset_combo.currentTextChanged.connect(self.load_preset)
+        presets_box.addWidget(self.preset_combo)
+        left_layout.addWidget(presets_box)
+
+        left_layout.addStretch()
+
+        main_layout.addWidget(left_scroll)
+
+        # === CENTER: CANVAS ===
         self.canvas = SimulationCanvas(self.sim)
         main_layout.addWidget(self.canvas, 5)
 
-        # Control Panel (right side)
+        # === RIGHT PANEL: CONTROLS ===
         self.right_panel = QWidget()
         self.right_panel.setStyleSheet(f"background-color: {BG_BLACK};")
         self.right_panel.setMaximumWidth(400)
@@ -1031,7 +1149,7 @@ class EpidemicApp(QMainWindow):
         right_scroll.setWidget(self.right_panel)
         right_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         right_scroll.setStyleSheet(f"""
-            QScrollArea {{ border: none; background-color: {BG_BLACK}; }}
+            QScrollArea {{ border: none; background-color: {BG_BLACK}; border-left: 2px solid {BORDER_GREEN}; }}
             QScrollBar:vertical {{
                 background-color: {PANEL_BLACK}; width: 12px;
                 border: 1px solid {BORDER_GREEN};
@@ -1049,26 +1167,68 @@ class EpidemicApp(QMainWindow):
         right_layout.setContentsMargins(10, 10, 10, 10)
         main_layout.addWidget(right_scroll, 2)
 
-        root_layout.addLayout(main_layout, 1)
-
         # === TITLE ===
         title = QLabel("EPIDEMIC SIMULATOR v3.0")
         title.setStyleSheet(f"""
-            font-size: 18px; font-weight: bold; color: {NEON_GREEN};
-            font-family: 'Courier New', monospace; padding: 10px;
+            font-size: 16px; font-weight: bold; color: {NEON_GREEN};
+            font-family: 'Courier New', monospace; padding: 8px;
             background-color: {PANEL_BLACK}; border: 2px solid {BORDER_GREEN};
         """)
         title.setAlignment(Qt.AlignCenter)
         right_layout.addWidget(title)
 
-        # === POPULATION CONTROL ===
+        # === CONTROLS ===
         ctrl_group = QWidget()
         ctrl_group.setStyleSheet(f"background-color: {PANEL_BLACK}; border: 2px solid {BORDER_GREEN}; padding: 8px;")
         ctrl_layout = QVBoxLayout(ctrl_group)
         ctrl_layout.setSpacing(8)
 
+        # Control buttons
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(4)
+
+        self.pause_btn = QPushButton("PAUSE")
+        self.pause_btn.clicked.connect(self.toggle_pause)
+        self.pause_btn.setMinimumHeight(32)
+        btn_row.addWidget(self.pause_btn)
+
+        reset_btn = QPushButton("RESET")
+        reset_btn.clicked.connect(self.reset_sim)
+        reset_btn.setMinimumHeight(32)
+        btn_row.addWidget(reset_btn)
+
+        self.fullscreen_btn = QPushButton("FULL")
+        self.fullscreen_btn.setToolTip("Fullscreen (F)")
+        self.fullscreen_btn.clicked.connect(self.toggle_fullscreen)
+        self.fullscreen_btn.setMinimumHeight(32)
+        self.fullscreen_btn.setMaximumWidth(50)
+        btn_row.addWidget(self.fullscreen_btn)
+
+        ctrl_layout.addLayout(btn_row)
+
+        # Speed buttons
+        speed_label = QLabel("Speed:")
+        speed_label.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 5px;")
+        ctrl_layout.addWidget(speed_label)
+
+        speed_row = QHBoxLayout()
+        speed_row.setSpacing(4)
+        self.speed_btns = QButtonGroup()
+        self.speed_btns.setExclusive(True)
+        for i, speed in enumerate([0.5, 1.0, 2.0, 5.0]):
+            btn = QPushButton(f"{speed}x")
+            btn.setCheckable(True)
+            btn.clicked.connect(lambda checked, s=speed: self.set_speed(s))
+            btn.setMinimumHeight(28)
+            self.speed_btns.addButton(btn, i)
+            speed_row.addWidget(btn)
+            if speed == 1.0:
+                btn.setChecked(True)
+        ctrl_layout.addLayout(speed_row)
+
+        # Population
         pop_label = QLabel("Population:")
-        pop_label.setStyleSheet(f"color: {NEON_GREEN}; font-size: 12px; font-weight: bold;")
+        pop_label.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 8px;")
         ctrl_layout.addWidget(pop_label)
 
         pop_row = QHBoxLayout()
@@ -1076,14 +1236,14 @@ class EpidemicApp(QMainWindow):
         self.population_spin.setRange(50, 2000)
         self.population_spin.setValue(params.num_particles)
         self.population_spin.setSingleStep(50)
-        self.population_spin.setMinimumHeight(30)
+        self.population_spin.setMinimumHeight(28)
         self.population_spin.valueChanged.connect(self.on_population_changed)
         self.population_spin.setToolTip("Change population size (requires reset)")
         pop_row.addWidget(self.population_spin)
 
         apply_pop_btn = QPushButton("Apply")
         apply_pop_btn.clicked.connect(self.apply_population)
-        apply_pop_btn.setMinimumHeight(30)
+        apply_pop_btn.setMinimumHeight(28)
         pop_row.addWidget(apply_pop_btn)
         ctrl_layout.addLayout(pop_row)
 
@@ -1103,16 +1263,6 @@ class EpidemicApp(QMainWindow):
         self.stats_label.setAlignment(Qt.AlignCenter)
         stats_layout.addWidget(self.stats_label)
         right_layout.addWidget(stats_container)
-
-        # === PRESETS ===
-        presets_box = CollapsibleBox("PRESETS")
-        self.preset_combo = QComboBox()
-        self.preset_combo.addItem("-- Select Preset --")
-        for preset_name in PRESETS.keys():
-            self.preset_combo.addItem(preset_name)
-        self.preset_combo.currentTextChanged.connect(self.load_preset)
-        presets_box.addWidget(self.preset_combo)
-        right_layout.addWidget(presets_box)
 
         # === MODE ===
         mode_box = CollapsibleBox("SIMULATION MODE")
@@ -1162,11 +1312,10 @@ class EpidemicApp(QMainWindow):
 
         # === VISUALIZATIONS ===
         vis_box = CollapsibleBox("VISUALIZATIONS")
-        vis_box.toggle()  # Start collapsed
+        # Start expanded (not collapsed) - graphs should be visible!
 
         vis_tabs = QTabWidget()
-        vis_tabs.setMinimumHeight(280)
-        vis_tabs.setMaximumHeight(350)
+        vis_tabs.setMinimumHeight(400)  # Much taller now!
         vis_tabs.setStyleSheet(f"""
             QTabWidget::pane {{
                 border: 2px solid {BORDER_GREEN}; background-color: {BG_BLACK};
@@ -1189,7 +1338,7 @@ class EpidemicApp(QMainWindow):
         self.graph_widget.setLabel('bottom', 'Day', color=NEON_GREEN)
         self.graph_widget.showGrid(x=True, y=True, alpha=0.15)
         self.graph_widget.setYRange(0, 100)
-        self.graph_widget.setMinimumHeight(250)
+        self.graph_widget.setMinimumHeight(380)  # Much taller!
 
         for side in ['left', 'bottom', 'right', 'top']:
             axis = self.graph_widget.getAxis(side)
@@ -1234,215 +1383,16 @@ class EpidemicApp(QMainWindow):
 
         right_layout.addStretch()
 
-        # === BOTTOM TOOLBAR: Speed + Parameters ===
-        bottom_toolbar = CollapsibleBox("SPEED & PARAMETERS")
-        bottom_toolbar.setStyleSheet(f"""
-            QWidget {{
-                background-color: {PANEL_BLACK};
-                border-top: 2px solid {BORDER_GREEN};
-            }}
-        """)
-
-        bottom_content = QWidget()
-        bottom_layout = QHBoxLayout(bottom_content)
-        bottom_layout.setSpacing(15)
-        bottom_layout.setContentsMargins(10, 10, 10, 10)
-
-        # CONTROLS: Speed + Pause/Reset/Fullscreen
-        controls_widget = QWidget()
-        controls_layout = QVBoxLayout(controls_widget)
-        controls_layout.setSpacing(8)
-        controls_layout.setContentsMargins(0, 0, 0, 0)
-
-        controls_title = QLabel("CONTROLS")
-        controls_title.setStyleSheet(f"color: {NEON_GREEN}; font-size: 12px; font-weight: bold; border-bottom: 1px solid {BORDER_GREEN}; padding-bottom: 3px;")
-        controls_layout.addWidget(controls_title)
-
-        # Main control buttons
-        btn_row = QHBoxLayout()
-        btn_row.setSpacing(4)
-
-        self.pause_btn = QPushButton("PAUSE")
-        self.pause_btn.clicked.connect(self.toggle_pause)
-        self.pause_btn.setMinimumHeight(32)
-        self.pause_btn.setMinimumWidth(60)
-        btn_row.addWidget(self.pause_btn)
-
-        reset_btn = QPushButton("RESET")
-        reset_btn.clicked.connect(self.reset_sim)
-        reset_btn.setMinimumHeight(32)
-        reset_btn.setMinimumWidth(60)
-        btn_row.addWidget(reset_btn)
-
-        self.fullscreen_btn = QPushButton("FULL")
-        self.fullscreen_btn.setToolTip("Fullscreen (F)")
-        self.fullscreen_btn.clicked.connect(self.toggle_fullscreen)
-        self.fullscreen_btn.setMinimumHeight(32)
-        self.fullscreen_btn.setMinimumWidth(50)
-        btn_row.addWidget(self.fullscreen_btn)
-
-        controls_layout.addLayout(btn_row)
-
-        # Speed buttons
-        speed_label = QLabel("Speed:")
-        speed_label.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 5px;")
-        controls_layout.addWidget(speed_label)
-
-        speed_row = QHBoxLayout()
-        speed_row.setSpacing(4)
-        self.speed_btns = QButtonGroup()
-        self.speed_btns.setExclusive(True)
-        for i, speed in enumerate([0.5, 1.0, 2.0, 5.0]):
-            btn = QPushButton(f"{speed}x")
-            btn.setCheckable(True)
-            btn.clicked.connect(lambda checked, s=speed: self.set_speed(s))
-            btn.setMinimumHeight(28)
-            btn.setMinimumWidth(42)
-            self.speed_btns.addButton(btn, i)
-            speed_row.addWidget(btn)
-            if speed == 1.0:
-                btn.setChecked(True)
-        controls_layout.addLayout(speed_row)
-        controls_layout.addStretch()
-        bottom_layout.addWidget(controls_widget)
-
-        # Vertical separator
-        sep1 = QLabel()
-        sep1.setFixedWidth(2)
-        sep1.setStyleSheet(f"background-color: {BORDER_GREEN};")
-        bottom_layout.addWidget(sep1)
-
-        self.sliders = {}
-
-        # === DISEASE PARAMETERS ===
-        disease_widget = QWidget()
-        disease_layout = QVBoxLayout(disease_widget)
-        disease_layout.setSpacing(8)  # Increased spacing
-        disease_layout.setContentsMargins(0, 0, 0, 0)
-
-        disease_title = QLabel("DISEASE PARAMETERS")
-        disease_title.setStyleSheet(f"color: {NEON_GREEN}; font-size: 12px; font-weight: bold; border-bottom: 1px solid {BORDER_GREEN}; padding-bottom: 3px; margin-bottom: 5px;")
-        disease_layout.addWidget(disease_title)
-
-        disease_params = [
-            ('infection_radius', 'Infection Radius', 0.01, 0.4, 0.15),
-            ('prob_infection', 'Infection Probability', 0, 0.1, 0.02),
-            ('infection_duration', 'Infection Duration (days)', 1, 100, 25),
-            ('mortality_rate', 'Mortality Rate', 0, 1.0, 0.0),
-            ('fraction_infected_init', 'Initial Infected %', 0, 0.05, 0.01),
-        ]
-
-        for param, label, min_val, max_val, default in disease_params:
-            lbl = QLabel(f"{label}: {default:.3g}")
-            lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 10px; margin-top: 3px;")
-            disease_layout.addWidget(lbl)
-
-            slider = QSlider(Qt.Horizontal)
-            slider.setMinimum(int(min_val * 100))
-            slider.setMaximum(int(max_val * 100))
-            slider.setValue(int(default * 100))
-            slider.setMinimumHeight(20)  # Slightly taller
-            slider.setMaximumWidth(220)  # Slightly wider
-            slider.valueChanged.connect(
-                lambda val, p=param, l=lbl, label=label: self.update_param(p, val/100, l, label)
-            )
-            disease_layout.addWidget(slider)
-
-            self.sliders[param] = (slider, lbl, label)
-
-        disease_layout.addStretch()
-        bottom_layout.addWidget(disease_widget)
-
-        # Vertical separator
-        sep2 = QLabel()
-        sep2.setFixedWidth(2)
-        sep2.setStyleSheet(f"background-color: {BORDER_GREEN};")
-        bottom_layout.addWidget(sep2)
-
-        # === POPULATION PARAMETERS ===
-        population_widget = QWidget()
-        population_layout = QVBoxLayout(population_widget)
-        population_layout.setSpacing(8)  # Increased spacing
-        population_layout.setContentsMargins(0, 0, 0, 0)
-
-        population_title = QLabel("POPULATION PARAMETERS")
-        population_title.setStyleSheet(f"color: {NEON_GREEN}; font-size: 12px; font-weight: bold; border-bottom: 1px solid {BORDER_GREEN}; padding-bottom: 3px; margin-bottom: 5px;")
-        population_layout.addWidget(population_title)
-
-        population_params = [
-            ('social_distance_factor', 'Social Distancing Strength', 0, 2, 0),
-            ('social_distance_obedient', 'Social Distance Compliance', 0, 1, 1.0),
-        ]
-
-        for param, label, min_val, max_val, default in population_params:
-            lbl = QLabel(f"{label}: {default:.3g}")
-            lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 10px; margin-top: 3px;")
-            population_layout.addWidget(lbl)
-
-            slider = QSlider(Qt.Horizontal)
-            slider.setMinimum(int(min_val * 100))
-            slider.setMaximum(int(max_val * 100))
-            slider.setValue(int(default * 100))
-            slider.setMinimumHeight(20)  # Slightly taller
-            slider.setMaximumWidth(220)  # Slightly wider
-            slider.valueChanged.connect(
-                lambda val, p=param, l=lbl, label=label: self.update_param(p, val/100, l, label)
-            )
-            population_layout.addWidget(slider)
-
-            self.sliders[param] = (slider, lbl, label)
-
-        population_layout.addStretch()
-        bottom_layout.addWidget(population_widget)
-
-        # Vertical separator
-        sep3 = QLabel()
-        sep3.setFixedWidth(2)
-        sep3.setStyleSheet(f"background-color: {BORDER_GREEN};")
-        bottom_layout.addWidget(sep3)
-
-        # === INTERVENTION PARAMETERS ===
-        intervention_widget = QWidget()
-        intervention_layout = QVBoxLayout(intervention_widget)
-        intervention_layout.setSpacing(8)  # Increased spacing
-        intervention_layout.setContentsMargins(0, 0, 0, 0)
-
-        intervention_title = QLabel("INTERVENTION PARAMETERS")
-        intervention_title.setStyleSheet(f"color: {NEON_GREEN}; font-size: 12px; font-weight: bold; border-bottom: 1px solid {BORDER_GREEN}; padding-bottom: 3px; margin-bottom: 5px;")
-        intervention_layout.addWidget(intervention_title)
-
-        intervention_params = [
-            ('boxes_to_consider', 'Social Distance Range', 1, 10, 2),
-            ('quarantine_after', 'Quarantine After (days)', 1, 20, 5),
-            ('start_quarantine', 'Quarantine Start Day', 0, 30, 10),
-            ('prob_no_symptoms', 'Asymptomatic Rate', 0, 0.5, 0.20),
-        ]
-
-        for param, label, min_val, max_val, default in intervention_params:
-            lbl = QLabel(f"{label}: {default:.3g}")
-            lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 10px; margin-top: 3px;")
-            intervention_layout.addWidget(lbl)
-
-            slider = QSlider(Qt.Horizontal)
-            slider.setMinimum(int(min_val * 100))
-            slider.setMaximum(int(max_val * 100))
-            slider.setValue(int(default * 100))
-            slider.setMinimumHeight(20)  # Slightly taller
-            slider.setMaximumWidth(220)  # Slightly wider
-            slider.valueChanged.connect(
-                lambda val, p=param, l=lbl, label=label: self.update_param(p, val/100, l, label)
-            )
-            intervention_layout.addWidget(slider)
-
-            self.sliders[param] = (slider, lbl, label)
-
-        intervention_layout.addStretch()
-        bottom_layout.addWidget(intervention_widget)
-
-        bottom_toolbar.addWidget(bottom_content)
-        root_layout.addWidget(bottom_toolbar)
-
         self.apply_theme()
+
+    def toggle_left_panel(self):
+        """Toggle left parameter panel visibility"""
+        is_visible = self.left_panel.parent().isVisible()
+        self.left_panel.parent().setVisible(not is_visible)
+        if is_visible:
+            self.left_collapse_btn.setText("SHOW PARAMETERS >>")
+        else:
+            self.left_collapse_btn.setText("COLLAPSE PARAMETERS <<")
 
     def on_population_changed(self, value):
         """Update status when population changes"""
