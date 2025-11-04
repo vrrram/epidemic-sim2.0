@@ -56,8 +56,9 @@ class SimParams:
         self.marketplace_interval = 7  # Days between gatherings (weekly)
         self.marketplace_duration = 2  # Time steps particles stay (hours)
         self.marketplace_attendance = 0.6  # 60% of population attends
-        self.marketplace_x = 0.0  # Center location
+        self.marketplace_x = 0.0  # Center location (simple/quarantine mode)
         self.marketplace_y = 0.0
+        self.marketplace_community_id = 4  # Center tile in 3x3 grid (communities mode)
 
 params = SimParams()
 
@@ -427,6 +428,21 @@ class EpidemicSimulation(QObject):
         from_list.remove(particle)
         self.quarantine_particles.append(particle)
 
+    def _get_marketplace_location(self):
+        """Get marketplace center location based on mode"""
+        if self.mode == 'communities':
+            # Use center community bounds
+            center_comm = self.communities[params.marketplace_community_id]
+            bounds = center_comm['bounds']
+            # Return center of center community
+            return (
+                (bounds[0] + bounds[1]) / 2,
+                (bounds[2] + bounds[3]) / 2
+            )
+        else:
+            # Simple/quarantine mode: use configured location
+            return (params.marketplace_x, params.marketplace_y)
+
     def _handle_marketplace(self, particle_list):
         """Handle marketplace gathering events with smooth movement"""
         if not params.marketplace_enabled:
@@ -435,24 +451,39 @@ class EpidemicSimulation(QObject):
         # Check if it's marketplace day
         days_since_last = self.day_count - self.last_marketplace_day
         if days_since_last >= params.marketplace_interval:
-            # Start new gathering
-            self.last_marketplace_day = self.day_count
-            attending = 0
-            for p in particle_list:
-                if not p.quarantined and not p.traveling_to_marketplace and not p.at_marketplace and random.random() < params.marketplace_attendance:
-                    p.traveling_to_marketplace = True
-                    p.marketplace_timer = params.marketplace_duration
-                    p.home_x = p.x
-                    p.home_y = p.y
-                    # Set target location at marketplace
-                    p.target_x = params.marketplace_x + random.uniform(-0.2, 0.2)
-                    p.target_y = params.marketplace_y + random.uniform(-0.2, 0.2)
-                    attending += 1
-            if attending > 0:
-                self.log(f">> MARKETPLACE EVENT: {attending} TRAVELING")
-            return attending
+            self._start_marketplace_gathering(particle_list)
 
         # Update marketplace timers
+        self._update_marketplace_timers(particle_list)
+        return 0
+
+    def _start_marketplace_gathering(self, particle_list):
+        """Start a new marketplace gathering event"""
+        self.last_marketplace_day = self.day_count
+        market_x, market_y = self._get_marketplace_location()
+
+        attending = 0
+        for p in particle_list:
+            if (not p.quarantined and
+                not p.traveling_to_marketplace and
+                not p.at_marketplace and
+                random.random() < params.marketplace_attendance):
+
+                p.traveling_to_marketplace = True
+                p.marketplace_timer = params.marketplace_duration
+                p.home_x = p.x
+                p.home_y = p.y
+                # Set target location at marketplace
+                p.target_x = market_x + random.uniform(-0.15, 0.15)
+                p.target_y = market_y + random.uniform(-0.15, 0.15)
+                attending += 1
+
+        if attending > 0:
+            location_desc = "CENTER TILE" if self.mode == 'communities' else "CENTER"
+            self.log(f">> MARKETPLACE @ {location_desc}: {attending} TRAVELING")
+
+    def _update_marketplace_timers(self, particle_list):
+        """Update marketplace attendance timers"""
         for p in particle_list:
             if p.at_marketplace:
                 p.marketplace_timer -= 1
@@ -462,8 +493,6 @@ class EpidemicSimulation(QObject):
                     p.returning_home = True
                     p.target_x = p.home_x + random.uniform(-0.1, 0.1)
                     p.target_y = p.home_y + random.uniform(-0.1, 0.1)
-
-        return 0
 
     def _update_marketplace_movement(self, particle):
         """Smoothly move particles to/from marketplace"""
@@ -555,6 +584,13 @@ class EpidemicSimulation(QObject):
                     if travelers > 0:
                         self.log(f">> {travelers} TRAVELED BETWEEN COMMUNITIES")
 
+                # Handle marketplace in communities mode - center tile becomes marketplace
+                if params.marketplace_enabled:
+                    all_comm_particles = []
+                    for comm in self.communities.values():
+                        all_comm_particles.extend(comm['particles'])
+                    self._handle_marketplace(all_comm_particles)
+
             else:
                 self._check_infections(self.particles)
                 to_q = self._update_infections(self.particles)
@@ -568,9 +604,8 @@ class EpidemicSimulation(QObject):
                     self._check_infections(self.quarantine_particles)
                     self._update_infections(self.quarantine_particles)
 
-                # Handle marketplace events
-                if self.mode != 'communities':  # Simple and quarantine modes
-                    self._handle_marketplace(self.particles)
+                # Handle marketplace events (simple/quarantine modes)
+                self._handle_marketplace(self.particles)
 
             self._update_stats()
             self.day_count += 1
@@ -678,12 +713,19 @@ class SimulationCanvas(QWidget):
                 self._draw_particle(painter, p)
 
     def _draw_communities(self, painter):
-        for comm in self.sim.communities.values():
+        for comm_id, comm in self.sim.communities.items():
             bounds = comm['bounds']
             tl = self._to_screen(bounds[0], bounds[3])
             br = self._to_screen(bounds[1], bounds[2])
-            painter.setPen(QPen(QColor(BORDER_GREEN), 2))
-            painter.setBrush(Qt.NoBrush)
+
+            # Highlight center tile (marketplace) if marketplace enabled
+            if params.marketplace_enabled and comm_id == params.marketplace_community_id:
+                painter.setPen(QPen(QColor("#ffaa00"), 3))  # Orange for marketplace
+                painter.setBrush(QBrush(QColor(255, 170, 0, 20)))  # Semi-transparent fill
+            else:
+                painter.setPen(QPen(QColor(BORDER_GREEN), 2))
+                painter.setBrush(Qt.NoBrush)
+
             painter.drawRect(tl[0], tl[1], br[0] - tl[0], br[1] - tl[1])
 
             for p in comm['particles']:
@@ -881,41 +923,35 @@ class EpidemicApp(QMainWindow):
         self.timer.start(16)
 
     def setup_ui(self):
-        """Setup the UI with polished design and proper collapsing"""
+        """Setup UI with proper parameter prominence and population control"""
         central = QWidget()
         self.setCentralWidget(central)
         main_layout = QHBoxLayout(central)
         main_layout.setSpacing(0)
         main_layout.setContentsMargins(0, 0, 0, 0)
 
-        # === LEFT: CANVAS ===
+        # === CANVAS ===
         self.canvas = SimulationCanvas(self.sim)
         main_layout.addWidget(self.canvas, 5)
 
-        # === RIGHT: CONTROL PANEL ===
+        # === CONTROL PANEL ===
         self.right_panel = QWidget()
         self.right_panel.setStyleSheet(f"background-color: {BG_BLACK};")
-        self.right_panel.setMaximumWidth(420)
-        self.right_panel.setMinimumWidth(380)
+        self.right_panel.setMaximumWidth(450)
+        self.right_panel.setMinimumWidth(400)
 
         right_scroll = QScrollArea()
         right_scroll.setWidgetResizable(True)
         right_scroll.setWidget(self.right_panel)
         right_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        right_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         right_scroll.setStyleSheet(f"""
-            QScrollArea {{
-                border: none;
-                background-color: {BG_BLACK};
-            }}
+            QScrollArea {{ border: none; background-color: {BG_BLACK}; }}
             QScrollBar:vertical {{
-                background-color: {PANEL_BLACK};
-                width: 12px;
+                background-color: {PANEL_BLACK}; width: 12px;
                 border: 1px solid {BORDER_GREEN};
             }}
             QScrollBar::handle:vertical {{
-                background-color: {BORDER_GREEN};
-                min-height: 20px;
+                background-color: {BORDER_GREEN}; min-height: 20px;
             }}
             QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
                 height: 0px;
@@ -923,95 +959,162 @@ class EpidemicApp(QMainWindow):
         """)
 
         right_layout = QVBoxLayout(self.right_panel)
-        right_layout.setSpacing(8)
-        right_layout.setContentsMargins(8, 8, 8, 8)
+        right_layout.setSpacing(10)
+        right_layout.setContentsMargins(10, 10, 10, 10)
         main_layout.addWidget(right_scroll, 2)
 
-        # === TITLE BAR ===
+        # === TITLE ===
         title = QLabel("⚕ EPIDEMIC SIMULATOR")
         title.setStyleSheet(f"""
-            font-size: 18px;
-            font-weight: bold;
-            color: {NEON_GREEN};
-            font-family: 'Courier New', monospace;
-            padding: 10px;
-            background-color: {PANEL_BLACK};
-            border: 2px solid {BORDER_GREEN};
-            border-radius: 0px;
+            font-size: 20px; font-weight: bold; color: {NEON_GREEN};
+            font-family: 'Courier New', monospace; padding: 12px;
+            background-color: {PANEL_BLACK}; border: 2px solid {BORDER_GREEN};
         """)
         title.setAlignment(Qt.AlignCenter)
         right_layout.addWidget(title)
 
-        # === CONTROL BUTTONS ===
-        btn_group = QWidget()
-        btn_group.setStyleSheet(f"background-color: {PANEL_BLACK}; border: 2px solid {BORDER_GREEN}; padding: 5px;")
-        btn_layout = QVBoxLayout(btn_group)
-        btn_layout.setSpacing(5)
-        btn_layout.setContentsMargins(5, 5, 5, 5)
+        # === CONTROLS ===
+        ctrl_group = QWidget()
+        ctrl_group.setStyleSheet(f"background-color: {PANEL_BLACK}; border: 2px solid {BORDER_GREEN}; padding: 8px;")
+        ctrl_layout = QVBoxLayout(ctrl_group)
+        ctrl_layout.setSpacing(6)
 
-        # Row 1: Main controls
-        main_controls = QHBoxLayout()
+        # Main buttons
+        btn_row = QHBoxLayout()
         self.pause_btn = QPushButton("⏸ PAUSE")
         self.pause_btn.clicked.connect(self.toggle_pause)
-        self.pause_btn.setMinimumHeight(35)
-        main_controls.addWidget(self.pause_btn)
+        self.pause_btn.setMinimumHeight(36)
+        btn_row.addWidget(self.pause_btn)
 
         reset_btn = QPushButton("⟲ RESET")
         reset_btn.clicked.connect(self.reset_sim)
-        reset_btn.setMinimumHeight(35)
-        main_controls.addWidget(reset_btn)
+        reset_btn.setMinimumHeight(36)
+        btn_row.addWidget(reset_btn)
 
         self.fullscreen_btn = QPushButton("⛶")
         self.fullscreen_btn.setToolTip("Fullscreen (F)")
         self.fullscreen_btn.clicked.connect(self.toggle_fullscreen)
         self.fullscreen_btn.setMaximumWidth(45)
-        self.fullscreen_btn.setMinimumHeight(35)
-        main_controls.addWidget(self.fullscreen_btn)
-        btn_layout.addLayout(main_controls)
+        self.fullscreen_btn.setMinimumHeight(36)
+        btn_row.addWidget(self.fullscreen_btn)
+        ctrl_layout.addLayout(btn_row)
 
-        # Row 2: Speed controls
-        speed_label = QLabel("Speed:")
-        speed_label.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; font-weight: bold;")
-        btn_layout.addWidget(speed_label)
+        # Speed
+        speed_label = QLabel("⚡ Speed:")
+        speed_label.setStyleSheet(f"color: {NEON_GREEN}; font-size: 12px; font-weight: bold;")
+        ctrl_layout.addWidget(speed_label)
 
-        speed_controls = QHBoxLayout()
-        speed_controls.setSpacing(3)
+        speed_row = QHBoxLayout()
+        speed_row.setSpacing(4)
         for speed in [0.5, 1.0, 2.0, 5.0]:
             btn = QPushButton(f"{speed}x")
             btn.clicked.connect(lambda checked, s=speed: self.set_speed(s))
-            btn.setMinimumHeight(30)
-            speed_controls.addWidget(btn)
-        btn_layout.addLayout(speed_controls)
+            btn.setMinimumHeight(32)
+            speed_row.addWidget(btn)
+        ctrl_layout.addLayout(speed_row)
 
-        right_layout.addWidget(btn_group)
+        # Population size control
+        pop_label = QLabel("👥 Population:")
+        pop_label.setStyleSheet(f"color: {NEON_GREEN}; font-size: 12px; font-weight: bold;")
+        ctrl_layout.addWidget(pop_label)
 
-        # === STATS DISPLAY ===
+        pop_row = QHBoxLayout()
+        self.population_spin = QSpinBox()
+        self.population_spin.setRange(50, 2000)
+        self.population_spin.setValue(params.num_particles)
+        self.population_spin.setSingleStep(50)
+        self.population_spin.setMinimumHeight(32)
+        self.population_spin.valueChanged.connect(self.on_population_changed)
+        self.population_spin.setToolTip("Change population size (requires reset)")
+        pop_row.addWidget(self.population_spin)
+
+        apply_pop_btn = QPushButton("Apply & Reset")
+        apply_pop_btn.clicked.connect(self.apply_population)
+        apply_pop_btn.setMinimumHeight(32)
+        pop_row.addWidget(apply_pop_btn)
+        ctrl_layout.addLayout(pop_row)
+
+        right_layout.addWidget(ctrl_group)
+
+        # === STATS ===
         stats_container = QWidget()
         stats_container.setStyleSheet(f"""
-            background-color: {PANEL_BLACK};
-            border: 2px solid {NEON_GREEN};
-            padding: 10px;
+            background-color: {PANEL_BLACK}; border: 2px solid {NEON_GREEN}; padding: 10px;
         """)
         stats_layout = QVBoxLayout(stats_container)
-        stats_layout.setContentsMargins(5, 5, 5, 5)
-
         self.stats_label = QLabel("DAY: 0\nS: 100.0% | I: 0.0% | R: 0.0%")
         self.stats_label.setStyleSheet(f"""
-            font-size: 16px;
-            font-weight: bold;
-            color: {NEON_GREEN};
-            font-family: 'Courier New', monospace;
-            background-color: transparent;
-            border: none;
+            font-size: 17px; font-weight: bold; color: {NEON_GREEN};
+            font-family: 'Courier New', monospace; background-color: transparent; border: none;
         """)
         self.stats_label.setAlignment(Qt.AlignCenter)
         stats_layout.addWidget(self.stats_label)
-
         right_layout.addWidget(stats_container)
 
-        # === COLLAPSIBLE SECTIONS ===
+        # === SIMULATION PARAMETERS (Prominent, not collapsed!) ===
+        params_box = CollapsibleBox("⚙️ SIMULATION PARAMETERS")
+        # DON'T collapse - parameters deserve prominence!
 
-        # PRESETS
+        params_scroll = QScrollArea()
+        params_scroll.setWidgetResizable(True)
+        params_scroll.setMaximumHeight(400)
+        params_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        params_scroll.setStyleSheet("QScrollArea { border: none; background-color: transparent; }")
+
+        params_widget = QWidget()
+        params_layout = QVBoxLayout(params_widget)
+        params_layout.setSpacing(10)
+
+        self.sliders = {}
+        # Full, descriptive parameter names!
+        slider_params = [
+            ('infection_radius', 'Infection Radius', 0.01, 0.4, 0.15),
+            ('prob_infection', 'Infection Probability', 0, 0.1, 0.02),
+            ('fraction_infected_init', 'Initial Infected %', 0, 0.05, 0.01),
+            ('infection_duration', 'Infection Duration (days)', 1, 100, 25),
+            ('social_distance_factor', 'Social Distancing Strength', 0, 2, 0),
+            ('social_distance_obedient', 'Social Distancing Compliance', 0, 1, 1.0),
+            ('boxes_to_consider', 'Social Distance Range', 1, 10, 2),
+            ('quarantine_after', 'Quarantine After (days)', 1, 20, 5),
+            ('start_quarantine', 'Quarantine Start Day', 0, 30, 10),
+            ('prob_no_symptoms', 'Asymptomatic Rate', 0, 0.5, 0.20),
+        ]
+
+        for param, label, min_val, max_val, default in slider_params:
+            param_container = QWidget()
+            param_container.setStyleSheet(f"""
+                background-color: {PANEL_BLACK}; padding: 8px;
+                border: 1px solid {BORDER_GREEN}; border-radius: 3px;
+            """)
+            param_layout = QVBoxLayout(param_container)
+            param_layout.setSpacing(5)
+            param_layout.setContentsMargins(8, 6, 8, 6)
+
+            lbl = QLabel(f"{label}: {default:.3g}")
+            lbl.setStyleSheet(f"""
+                color: {NEON_GREEN}; font-size: 12px; font-weight: bold;
+                border: none; background: transparent;
+            """)
+            param_layout.addWidget(lbl)
+
+            slider = QSlider(Qt.Horizontal)
+            slider.setMinimum(int(min_val * 100))
+            slider.setMaximum(int(max_val * 100))
+            slider.setValue(int(default * 100))
+            slider.setMinimumHeight(22)
+            slider.valueChanged.connect(
+                lambda val, p=param, l=lbl, label=label: self.update_param(p, val/100, l, label)
+            )
+            param_layout.addWidget(slider)
+
+            params_layout.addWidget(param_container)
+            self.sliders[param] = (slider, lbl, label)
+
+        params_scroll.setWidget(params_widget)
+        params_box.addWidget(params_scroll)
+        right_layout.addWidget(params_box)
+
+        # === PRESETS ===
         presets_box = CollapsibleBox("🎨 PRESETS")
         self.preset_combo = QComboBox()
         self.preset_combo.addItem("-- Select Preset --")
@@ -1021,20 +1124,20 @@ class EpidemicApp(QMainWindow):
         presets_box.addWidget(self.preset_combo)
         right_layout.addWidget(presets_box)
 
-        # MODE
-        mode_box = CollapsibleBox("🎮 MODE")
+        # === MODE ===
+        mode_box = CollapsibleBox("🎮 SIMULATION MODE")
         self.mode_btns = QButtonGroup()
         for i, (mode, icon) in enumerate([('simple', '●'), ('quarantine', '🔒'), ('communities', '🏘')]):
             btn = QPushButton(f"{icon} {mode.upper()}")
             btn.setCheckable(True)
             btn.clicked.connect(lambda checked, m=mode: self.change_mode(m))
-            btn.setMinimumHeight(32)
+            btn.setMinimumHeight(34)
             self.mode_btns.addButton(btn, i)
             mode_box.addWidget(btn)
         self.mode_btns.button(0).setChecked(True)
         right_layout.addWidget(mode_box)
 
-        # INTERVENTIONS
+        # === INTERVENTIONS ===
         interv_box = CollapsibleBox("💉 INTERVENTIONS")
 
         self.quarantine_checkbox = QCheckBox("🔒 Quarantine Zone")
@@ -1047,7 +1150,6 @@ class EpidemicApp(QMainWindow):
         self.marketplace_checkbox.stateChanged.connect(self.toggle_marketplace)
         interv_box.addWidget(self.marketplace_checkbox)
 
-        # Marketplace params in compact grid
         mp_grid = QGridLayout()
         mp_grid.setSpacing(5)
         mp_grid.addWidget(QLabel("Interval (days):"), 0, 0)
@@ -1068,7 +1170,7 @@ class EpidemicApp(QMainWindow):
         interv_box.addLayout(mp_grid)
         right_layout.addWidget(interv_box)
 
-        # VISUALIZATIONS (Start collapsed)
+        # === VISUALIZATIONS (collapsed) ===
         vis_box = CollapsibleBox("📊 VISUALIZATIONS")
         vis_box.toggle()  # Start collapsed
 
@@ -1077,29 +1179,20 @@ class EpidemicApp(QMainWindow):
         vis_tabs.setMaximumHeight(350)
         vis_tabs.setStyleSheet(f"""
             QTabWidget::pane {{
-                border: 2px solid {BORDER_GREEN};
-                background-color: {BG_BLACK};
+                border: 2px solid {BORDER_GREEN}; background-color: {BG_BLACK};
             }}
             QTabBar::tab {{
-                background-color: {PANEL_BLACK};
-                color: {NEON_GREEN};
-                border: 1px solid {BORDER_GREEN};
-                padding: 8px 15px;
-                margin-right: 2px;
-                font-family: 'Courier New', monospace;
-                font-size: 11px;
+                background-color: {PANEL_BLACK}; color: {NEON_GREEN};
+                border: 1px solid {BORDER_GREEN}; padding: 8px 15px;
+                margin-right: 2px; font-family: 'Courier New', monospace; font-size: 11px;
             }}
             QTabBar::tab:selected {{
-                background-color: {BORDER_GREEN};
-                color: {BG_BLACK};
-                font-weight: bold;
+                background-color: {BORDER_GREEN}; color: {BG_BLACK}; font-weight: bold;
             }}
-            QTabBar::tab:hover {{
-                background-color: #002200;
-            }}
+            QTabBar::tab:hover {{ background-color: #002200; }}
         """)
 
-        # Time Series Graph
+        # Graph
         self.graph_widget = pg.PlotWidget()
         self.graph_widget.setBackground(BG_BLACK)
         self.graph_widget.setLabel('left', '% Population', color=NEON_GREEN)
@@ -1108,18 +1201,15 @@ class EpidemicApp(QMainWindow):
         self.graph_widget.setYRange(0, 100)
         self.graph_widget.setMinimumHeight(250)
 
-        # Style graph axes
         for side in ['left', 'bottom', 'right', 'top']:
             axis = self.graph_widget.getAxis(side)
             axis.setPen(pg.mkPen(color=BORDER_GREEN, width=2))
             axis.setTextPen(NEON_GREEN)
 
-        # Add legend
         legend = self.graph_widget.addLegend(offset=(10, 10))
         legend.setBrush(pg.mkBrush(color=(10, 10, 10, 200)))
         legend.setPen(pg.mkPen(color=BORDER_GREEN, width=1))
 
-        # Pie Chart
         self.pie_chart = PieChartWidget(parent=self, width=3.8, height=3.8, dpi=80)
         self.pie_chart.setMinimumHeight(250)
 
@@ -1129,96 +1219,42 @@ class EpidemicApp(QMainWindow):
         vis_box.addWidget(vis_tabs)
         right_layout.addWidget(vis_box)
 
-        # PARAMETERS (Start collapsed)
-        params_box = CollapsibleBox("⚙️ PARAMETERS")
-        params_box.toggle()  # Start collapsed
-
-        params_scroll = QScrollArea()
-        params_scroll.setWidgetResizable(True)
-        params_scroll.setMaximumHeight(280)
-        params_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        params_scroll.setStyleSheet("QScrollArea { border: none; background-color: transparent; }")
-
-        params_widget = QWidget()
-        params_layout = QVBoxLayout(params_widget)
-        params_layout.setSpacing(8)
-
-        self.sliders = {}
-        slider_params = [
-            ('infection_radius', 'Infection Radius', 0.01, 0.4, 0.15),
-            ('prob_infection', 'Infection Prob', 0, 0.1, 0.02),
-            ('fraction_infected_init', 'Initial Infected %', 0, 0.05, 0.01),
-            ('infection_duration', 'Duration (days)', 1, 100, 25),
-            ('social_distance_factor', 'Social Distance', 0, 2, 0),
-            ('social_distance_obedient', 'SD Compliance %', 0, 1, 1.0),
-            ('boxes_to_consider', 'SD Range', 1, 10, 2),
-            ('quarantine_after', 'Quarantine After', 1, 20, 5),
-            ('start_quarantine', 'Q Start Day', 0, 30, 10),
-            ('prob_no_symptoms', 'Asymptomatic %', 0, 0.5, 0.20),
-        ]
-
-        for param, label, min_val, max_val, default in slider_params:
-            param_container = QWidget()
-            param_container.setStyleSheet(f"background-color: {PANEL_BLACK}; padding: 5px; border: 1px solid {BORDER_GREEN};")
-            param_layout = QVBoxLayout(param_container)
-            param_layout.setSpacing(2)
-            param_layout.setContentsMargins(5, 5, 5, 5)
-
-            lbl = QLabel(f"{label}: {default:.3g}")
-            lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; font-weight: bold; border: none; background: transparent;")
-            param_layout.addWidget(lbl)
-
-            slider = QSlider(Qt.Horizontal)
-            slider.setMinimum(int(min_val * 100))
-            slider.setMaximum(int(max_val * 100))
-            slider.setValue(int(default * 100))
-            slider.setMinimumHeight(20)
-            slider.valueChanged.connect(
-                lambda val, p=param, l=lbl, label=label: self.update_param(p, val/100, l, label)
-            )
-            param_layout.addWidget(slider)
-
-            params_layout.addWidget(param_container)
-            self.sliders[param] = (slider, lbl, label)
-
-        params_scroll.setWidget(params_widget)
-        params_box.addWidget(params_scroll)
-        right_layout.addWidget(params_box)
-
-        # === STATUS BAR ===
+        # === STATUS ===
         self.status_label = QLabel("🟢 Ready")
         self.status_label.setStyleSheet(f"""
-            font-size: 11px;
-            padding: 8px;
-            color: {NEON_GREEN};
-            background-color: {PANEL_BLACK};
-            border: 1px solid {BORDER_GREEN};
+            font-size: 11px; padding: 8px; color: {NEON_GREEN};
+            background-color: {PANEL_BLACK}; border: 1px solid {BORDER_GREEN};
             font-family: 'Courier New', monospace;
         """)
         self.status_label.setWordWrap(True)
         right_layout.addWidget(self.status_label)
 
-        # === KEYBOARD SHORTCUTS ===
+        # === SHORTCUTS ===
         shortcuts = QLabel(
-            "⌨️ SHORTCUTS: "
-            "SPACE=Pause | R=Reset | F=Fullscreen\n"
+            "⌨️ SHORTCUTS: SPACE=Pause | R=Reset | F=Fullscreen\n"
             "Q=Quarantine | M=Marketplace | 1-9=Presets"
         )
         shortcuts.setStyleSheet(f"""
-            font-size: 9px;
-            padding: 5px;
-            color: {BORDER_GREEN};
-            background-color: {BG_BLACK};
-            border: 1px solid {BORDER_GREEN};
+            font-size: 9px; padding: 5px; color: {NEON_GREEN};
+            background-color: {BG_BLACK}; border: 1px solid {BORDER_GREEN};
             font-family: 'Courier New', monospace;
         """)
         shortcuts.setWordWrap(True)
         right_layout.addWidget(shortcuts)
 
-        # Add stretch at bottom
         right_layout.addStretch()
-
         self.apply_theme()
+
+    def on_population_changed(self, value):
+        """Update status when population changes"""
+        self.status_label.setText(f"⚠️ Population set to {value}. Click 'Apply & Reset' to update.")
+
+    def apply_population(self):
+        """Apply new population size"""
+        new_pop = self.population_spin.value()
+        params.num_particles = new_pop
+        self.reset_sim()
+        self.status_label.setText(f"✅ Population changed to {new_pop}")
 
     def apply_theme(self):
         self.setStyleSheet(f"""
@@ -1513,27 +1549,36 @@ class EpidemicApp(QMainWindow):
             i_data = self.sim.stats['infected']
             r_data = self.sim.stats['removed']
 
-            # Plot as separate, clear lines (not stacked!)
+            # Plot as separate, clear lines (NO fill!)
             # Susceptible - Cyan line
-            s_curve = self.graph_widget.plot(
+            s_curve = pg.PlotDataItem(
                 days, s_data,
                 pen=pg.mkPen(color=(0, 191, 255), width=3),
+                brush=None,  # NO FILL
+                fillLevel=None,
                 name='Susceptible'
             )
+            self.graph_widget.addItem(s_curve)
 
             # Infected - Red line
-            i_curve = self.graph_widget.plot(
+            i_curve = pg.PlotDataItem(
                 days, i_data,
                 pen=pg.mkPen(color=(255, 69, 69), width=3),
+                brush=None,  # NO FILL
+                fillLevel=None,
                 name='Infected'
             )
+            self.graph_widget.addItem(i_curve)
 
             # Removed - Gray line
-            r_curve = self.graph_widget.plot(
+            r_curve = pg.PlotDataItem(
                 days, r_data,
                 pen=pg.mkPen(color=(120, 120, 120), width=3),
+                brush=None,  # NO FILL
+                fillLevel=None,
                 name='Removed'
             )
+            self.graph_widget.addItem(r_curve)
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
