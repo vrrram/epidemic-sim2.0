@@ -252,6 +252,82 @@ pyqtgraph>=0.12.0  # Real-time plotting
 numpy>=1.20.0      # Numerical operations
 ```
 
+## Planned Future Implementations
+
+### Priority Features
+
+#### 1. UI/UX Improvements
+- **Keyboard Usability**: Add keyboard shortcuts for common actions
+  - Space: Pause/Resume simulation
+  - R: Reset simulation
+  - 1-9: Quick preset selection
+  - Arrow keys: Adjust parameters
+- **Improved Layout**: Better organization of controls and displays
+- **Responsive Design**: Better handling of window resizing
+
+#### 2. Graph Display Enhancements
+- **Fix Current Graph Issues**: Address any rendering or performance issues
+- **Add Pie Chart**: Real-time pie chart showing current population distribution
+  - Susceptible (cyan)
+  - Infected - Symptomatic (red)
+  - Infected - Asymptomatic (orange)
+  - Removed (gray)
+- **Graph Toggle**: Option to show/hide different visualizations
+
+#### 3. Log Window Removal
+- **Remove Console Log**: The current log window doesn't provide useful real-time info
+- **Replace with**: More informative stats display or status bar
+- **Keep Critical Info**: Show important events (peak infections, quarantine start) in status bar
+
+#### 4. Quarantine Checkbox System
+- **Make Quarantine Optional**: Convert from mode-based to checkbox toggle
+- **Works in All Modes**: Enable quarantine in simple, community, or any mode
+- **Benefits**:
+  - Test quarantine effectiveness in different scenarios
+  - Compare runs with/without quarantine
+  - More flexible experimentation
+
+#### 5. Marketplace Feature
+- **Marketplace Checkbox**: Toggle marketplace gathering behavior
+- **Behavior**:
+  - Particles travel to central location every few days (configurable interval)
+  - Creates superspreader events
+  - Simulates markets, churches, schools, etc.
+- **Parameters to Add**:
+  - `marketplace_enabled`: Boolean toggle
+  - `marketplace_interval`: Days between gatherings (e.g., 7 for weekly)
+  - `marketplace_duration`: Hours particles stay at marketplace
+  - `marketplace_attendance`: Fraction of population that attends
+  - `marketplace_location`: Coordinates for gathering point
+- **Implementation Notes**:
+  - Can have multiple marketplace locations for community mode
+  - Particles return to original location after marketplace
+  - Creates realistic infection hotspots
+
+### Implementation Order (Suggested)
+
+1. **Phase 1** (Quick wins):
+   - Remove log window
+   - Add quarantine checkbox
+   - Basic keyboard shortcuts
+
+2. **Phase 2** (Enhanced visualization):
+   - Fix graph display issues
+   - Add pie chart
+   - Improve UI layout
+
+3. **Phase 3** (New mechanics):
+   - Implement marketplace feature
+   - Add marketplace parameters
+   - Test with various presets
+
+### Technical Considerations
+
+- **Marketplace Implementation**: Store original positions, move particles to marketplace location, return after duration
+- **Quarantine Checkbox**: Decouple quarantine logic from mode selection
+- **Pie Chart**: Use `matplotlib` or `pyqtgraph` pie chart widget
+- **Keyboard Shortcuts**: Use PyQt5 `QShortcut` or `keyPressEvent` overrides
+
 ## Contact & Support
 
 For issues with the simulation:
