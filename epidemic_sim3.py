@@ -1,0 +1,834 @@
+import sys
+import numpy as np
+import random
+import math
+from collections import defaultdict
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
+import pyqtgraph as pg
+
+# =================== NEON GREEN THEME ===================
+NEON_GREEN = "#00ff00"
+DARK_GREEN = "#003300"
+BG_BLACK = "#000000"
+PANEL_BLACK = "#0a0a0a"
+BORDER_GREEN = "#00aa00"
+
+# =================== SIMULATION PARAMETERS ===================
+class SimParams:
+    def __init__(self):
+        self.infection_radius = 0.1
+        self.prob_infection = 0.06
+        self.fraction_infected_init = 0.01
+        self.infection_duration = 25
+        self.social_distance_factor = 0.0
+        self.social_distance_obedient = 1.0
+        self.num_particles = 200
+        self.particle_size = 6
+        self.speed_limit = 0.1
+        self.boundary_force = 0.2
+        self.time_steps_per_day = 24
+        
+        # Quarantine
+        self.quarantine_after = 10
+        self.start_quarantine = 2
+        self.prob_no_symptoms = 0.02
+        
+        # Communities
+        self.travel_probability = 0.02
+        self.num_per_community = 60
+        self.communities_to_infect = 2
+
+params = SimParams()
+
+# =================== SPATIAL HASH GRID (OPTIMIZATION) ===================
+class SpatialGrid:
+    def __init__(self, cell_size=0.2):
+        self.cell_size = cell_size
+        self.grid = defaultdict(list)
+    
+    def clear(self):
+        self.grid.clear()
+    
+    def _hash(self, x, y):
+        return (int(x / self.cell_size), int(y / self.cell_size))
+    
+    def insert(self, particle):
+        cell = self._hash(particle.x, particle.y)
+        self.grid[cell].append(particle)
+    
+    def get_nearby(self, x, y, radius=1):
+        cell_x, cell_y = self._hash(x, y)
+        nearby = []
+        for dx in range(-radius, radius + 1):
+            for dy in range(-radius, radius + 1):
+                nearby.extend(self.grid.get((cell_x + dx, cell_y + dy), []))
+        return nearby
+
+# =================== PARTICLE CLASS ===================
+class Particle:
+    def __init__(self, x, y, state='susceptible'):
+        self.x = x
+        self.y = y
+        self.vx = random.uniform(-0.2, 0.2)
+        self.vy = random.uniform(-0.2, 0.2)
+        self.ax = 0
+        self.ay = 0
+        self.state = state
+        self.days_infected = 0
+        self.quarantined = False
+        self.shows_symptoms = True
+        self.obeys_social_distance = random.random() < params.social_distance_obedient
+        
+        if state == 'infected' and random.random() < params.prob_no_symptoms:
+            self.shows_symptoms = False
+    
+    def distance_to(self, other):
+        dx = self.x - other.x
+        dy = self.y - other.y
+        return math.sqrt(dx*dx + dy*dy)
+
+# =================== EPIDEMIC SIMULATION ===================
+class EpidemicSimulation(QObject):
+    stats_updated = pyqtSignal(dict)
+    log_message = pyqtSignal(str)
+    
+    def __init__(self, mode='simple'):
+        super().__init__()
+        self.mode = mode
+        self.bounds = (-1, 1, -1, 1)
+        self.particles = []
+        self.quarantine_particles = []
+        self.communities = {}
+        self.spatial_grid = SpatialGrid()
+        
+        self.time_count = 0
+        self.day_count = 0
+        self.time_step = 1.0 / params.time_steps_per_day
+        
+        self.stats = {
+            'susceptible': [100], 
+            'infected': [0], 
+            'removed': [0],
+            'day': [0]
+        }
+        
+    def log(self, message):
+        self.log_message.emit(f"[DAY {self.day_count:03d}] {message}")
+    
+    def initialize(self):
+        self.particles = []
+        self.quarantine_particles = []
+        self.communities = {}
+        self.time_count = 0
+        self.day_count = 0
+        self.stats = {
+            'susceptible': [100], 
+            'infected': [0], 
+            'removed': [0],
+            'day': [0]
+        }
+        
+        self.log(f"INITIALIZING {self.mode.upper()} SIMULATION...")
+        
+        if self.mode == 'communities':
+            self._init_communities()
+        else:
+            self._init_simple()
+        
+        self._update_stats()
+    
+    def _init_simple(self):
+        num_infected = max(1, int(params.num_particles * params.fraction_infected_init))
+        self.log(f"SPAWNING {params.num_particles} PARTICLES ({num_infected} INFECTED)")
+        
+        for i in range(params.num_particles):
+            x = random.uniform(self.bounds[0] + 0.15, self.bounds[1] - 0.15)
+            y = random.uniform(self.bounds[2] + 0.15, self.bounds[3] - 0.15)
+            state = 'infected' if i < num_infected else 'susceptible'
+            self.particles.append(Particle(x, y, state))
+    
+    def _init_communities(self):
+        infected_communities = random.sample(range(9), params.communities_to_infect)
+        self.log(f"CREATING 9 COMMUNITIES (INFECTING: {infected_communities})")
+        
+        total_infected = 0
+        for i in range(3):
+            for j in range(3):
+                comm_id = i * 3 + j
+                bounds = (-3 + i * 2.2, -1 + i * 2.2, -3 + j * 2.2, -1 + j * 2.2)
+                self.communities[comm_id] = {
+                    'bounds': bounds,
+                    'particles': []
+                }
+                
+                fraction_infected = params.fraction_infected_init if comm_id in infected_communities else 0
+                num_infected = int(params.num_per_community * fraction_infected)
+                total_infected += num_infected
+                
+                for k in range(params.num_per_community):
+                    x = random.uniform(bounds[0] + 0.1, bounds[1] - 0.1)
+                    y = random.uniform(bounds[2] + 0.1, bounds[3] - 0.1)
+                    state = 'infected' if k < num_infected else 'susceptible'
+                    self.communities[comm_id]['particles'].append(Particle(x, y, state))
+        
+        self.log(f"TOTAL: {params.num_per_community * 9} PARTICLES ({total_infected} INFECTED)")
+    
+    def get_all_particles(self):
+        if self.mode == 'communities':
+            all_p = []
+            for comm in self.communities.values():
+                all_p.extend(comm['particles'])
+            return all_p + self.quarantine_particles
+        return self.particles + self.quarantine_particles
+    
+    def _clamp_to_bounds(self, particle, bounds):
+        """Force particles to stay within bounds"""
+        margin = 0.05
+        
+        if particle.x < bounds[0] + margin:
+            particle.x = bounds[0] + margin
+            particle.vx = abs(particle.vx) * 0.5
+        elif particle.x > bounds[1] - margin:
+            particle.x = bounds[1] - margin
+            particle.vx = -abs(particle.vx) * 0.5
+            
+        if particle.y < bounds[2] + margin:
+            particle.y = bounds[2] + margin
+            particle.vy = abs(particle.vy) * 0.5
+        elif particle.y > bounds[3] - margin:
+            particle.y = bounds[3] - margin
+            particle.vy = -abs(particle.vy) * 0.5
+    
+    def _update_particle_physics(self, particle, bounds, nearby_particles):
+        # Boundary forces
+        fx, fy = 0, 0
+        min_dist = 0.15
+        
+        # Stronger boundary forces
+        dist_left = particle.x - bounds[0]
+        dist_right = bounds[1] - particle.x
+        dist_bottom = particle.y - bounds[2]
+        dist_top = bounds[3] - particle.y
+        
+        if dist_left < min_dist:
+            fx += params.boundary_force * (1 - dist_left/min_dist)
+        if dist_right < min_dist:
+            fx -= params.boundary_force * (1 - dist_right/min_dist)
+        if dist_bottom < min_dist:
+            fy += params.boundary_force * (1 - dist_bottom/min_dist)
+        if dist_top < min_dist:
+            fy -= params.boundary_force * (1 - dist_top/min_dist)
+        
+        # Social distancing (optimized with spatial grid)
+        if params.social_distance_factor > 0 and particle.obeys_social_distance:
+            for other in nearby_particles:
+                if other is particle:
+                    continue
+                dist = particle.distance_to(other)
+                if 0.001 < dist < params.infection_radius * 3:
+                    force = params.social_distance_factor / (dist ** 2 + 0.01)
+                    dx = particle.x - other.x
+                    dy = particle.y - other.y
+                    fx += force * dx / (dist + 0.001) / 50
+                    fy += force * dy / (dist + 0.001) / 50
+        
+        # Random movement
+        particle.ax = random.uniform(-0.002, 0.002)
+        particle.ay = random.uniform(-0.002, 0.002)
+        
+        # Update velocity
+        particle.vx += (particle.ax + fx) * self.time_step
+        particle.vy += (particle.ay + fy) * self.time_step
+        
+        # Speed limit
+        speed = math.sqrt(particle.vx**2 + particle.vy**2)
+        max_speed = 0.05 if params.social_distance_factor > 0.3 else params.speed_limit
+        if speed > max_speed:
+            particle.vx *= max_speed / speed
+            particle.vy *= max_speed / speed
+        
+        # Update position
+        particle.x += particle.vx * self.time_step
+        particle.y += particle.vy * self.time_step
+        
+        # Enforce hard boundary
+        self._clamp_to_bounds(particle, bounds)
+    
+    def _check_infections(self, particle_list):
+        """Use spatial grid for O(n) infection checking instead of O(n²)"""
+        self.spatial_grid.clear()
+        
+        # Insert susceptible particles into grid
+        susceptible = [p for p in particle_list if p.state == 'susceptible']
+        for p in susceptible:
+            self.spatial_grid.insert(p)
+        
+        # Check infections for infected particles
+        new_infections = 0
+        for inf_p in [p for p in particle_list if p.state == 'infected']:
+            nearby = self.spatial_grid.get_nearby(inf_p.x, inf_p.y, radius=2)
+            for sus_p in nearby:
+                if inf_p.distance_to(sus_p) < params.infection_radius:
+                    if random.random() < params.prob_infection / params.time_steps_per_day:
+                        sus_p.state = 'infected'
+                        sus_p.days_infected = 0
+                        if random.random() < params.prob_no_symptoms:
+                            sus_p.shows_symptoms = False
+                        new_infections += 1
+        
+        if new_infections > 0:
+            self.log(f">> {new_infections} NEW INFECTION(S)")
+        
+        return new_infections
+    
+    def _update_infections(self, particle_list):
+        to_quarantine = []
+        recovered = 0
+        
+        for p in particle_list:
+            if p.state == 'infected':
+                p.days_infected += 1
+                
+                # Recovery
+                if p.days_infected >= params.infection_duration:
+                    p.state = 'removed'
+                    recovered += 1
+                
+                # Quarantine
+                elif (self.mode in ['quarantine', 'communities'] and 
+                      p.days_infected >= params.quarantine_after and 
+                      self.day_count >= params.start_quarantine and
+                      p.shows_symptoms and not p.quarantined):
+                    to_quarantine.append(p)
+        
+        if recovered > 0:
+            self.log(f">> {recovered} RECOVERED")
+        
+        return to_quarantine
+    
+    def _move_to_quarantine(self, particle, from_list):
+        particle.quarantined = True
+        particle.x = random.uniform(-1.7, -1.2)
+        particle.y = random.uniform(-1, -0.5)
+        particle.vx = random.uniform(-0.05, 0.05)
+        particle.vy = random.uniform(-0.05, 0.05)
+        from_list.remove(particle)
+        self.quarantine_particles.append(particle)
+    
+    def step(self):
+        # Update physics
+        if self.mode == 'communities':
+            for comm in self.communities.values():
+                # Build spatial grid for this community
+                self.spatial_grid.clear()
+                for p in comm['particles']:
+                    self.spatial_grid.insert(p)
+                
+                for p in comm['particles']:
+                    nearby = self.spatial_grid.get_nearby(p.x, p.y, radius=2)
+                    self._update_particle_physics(p, comm['bounds'], nearby)
+        else:
+            self.spatial_grid.clear()
+            for p in self.particles:
+                self.spatial_grid.insert(p)
+            
+            for p in self.particles:
+                nearby = self.spatial_grid.get_nearby(p.x, p.y, radius=2)
+                self._update_particle_physics(p, self.bounds, nearby)
+        
+        # Quarantine zone physics
+        if self.quarantine_particles:
+            q_bounds = (-1.7, -1.2, -1, -0.5)
+            self.spatial_grid.clear()
+            for p in self.quarantine_particles:
+                self.spatial_grid.insert(p)
+            for p in self.quarantine_particles:
+                nearby = self.spatial_grid.get_nearby(p.x, p.y, radius=2)
+                self._update_particle_physics(p, q_bounds, nearby)
+        
+        # Daily updates
+        if self.time_count % params.time_steps_per_day == 0:
+            self.log(f"==================== DAY {self.day_count + 1} ====================")
+            
+            if self.mode == 'communities':
+                total_new_infections = 0
+                total_quarantined = 0
+                
+                for comm in self.communities.values():
+                    total_new_infections += self._check_infections(comm['particles'])
+                    to_q = self._update_infections(comm['particles'])
+                    total_quarantined += len(to_q)
+                    for p in to_q:
+                        self._move_to_quarantine(p, comm['particles'])
+                
+                if self.quarantine_particles:
+                    self._check_infections(self.quarantine_particles)
+                    self._update_infections(self.quarantine_particles)
+                
+                if total_quarantined > 0:
+                    self.log(f">> {total_quarantined} MOVED TO QUARANTINE")
+                
+                # Community travel
+                if random.random() < 0.3:
+                    travelers = self._handle_community_travel()
+                    if travelers > 0:
+                        self.log(f">> {travelers} TRAVELED BETWEEN COMMUNITIES")
+            
+            else:
+                self._check_infections(self.particles)
+                to_q = self._update_infections(self.particles)
+                
+                if self.mode == 'quarantine' and to_q:
+                    self.log(f">> {len(to_q)} MOVED TO QUARANTINE")
+                    for p in to_q:
+                        self._move_to_quarantine(p, self.particles)
+                
+                if self.quarantine_particles:
+                    self._check_infections(self.quarantine_particles)
+                    self._update_infections(self.quarantine_particles)
+            
+            self._update_stats()
+            self.day_count += 1
+        
+        self.time_count += 1
+    
+    def _handle_community_travel(self):
+        travelers = 0
+        for comm_id, comm in self.communities.items():
+            to_travel = []
+            for p in comm['particles']:
+                if not p.quarantined and random.random() < params.travel_probability / params.time_steps_per_day:
+                    to_travel.append(p)
+            
+            for p in to_travel:
+                other_comms = [c for c in range(9) if c != comm_id]
+                target_comm = random.choice(other_comms)
+                
+                comm['particles'].remove(p)
+                bounds = self.communities[target_comm]['bounds']
+                p.x = random.uniform(bounds[0] + 0.1, bounds[1] - 0.1)
+                p.y = random.uniform(bounds[2] + 0.1, bounds[3] - 0.1)
+                self.communities[target_comm]['particles'].append(p)
+                travelers += 1
+        
+        return travelers
+    
+    def _update_stats(self):
+        all_p = self.get_all_particles()
+        total = len(all_p)
+        if total == 0:
+            return
+        
+        counts = {'susceptible': 0, 'infected': 0, 'removed': 0}
+        for p in all_p:
+            counts[p.state] += 1
+        
+        for state in ['susceptible', 'infected', 'removed']:
+            percent = (counts[state] / total) * 100
+            self.stats[state].append(percent)
+        
+        self.stats['day'].append(self.day_count)
+        self.stats_updated.emit(counts)
+
+# =================== VISUALIZATION WIDGET ===================
+class SimulationCanvas(QWidget):
+    def __init__(self, sim):
+        super().__init__()
+        self.sim = sim
+        self.setMinimumSize(800, 800)
+        
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        
+        # Background
+        painter.fillRect(self.rect(), QColor(BG_BLACK))
+        
+        # Calculate scale based on widget size
+        w = self.width()
+        h = self.height()
+        self.scale = min(w, h) / 2.2  # Dynamic scale
+        self.offset_x = w / 2
+        self.offset_y = h / 2
+        
+        # Draw simulation
+        if self.sim.mode == 'communities':
+            self._draw_communities(painter)
+        else:
+            self._draw_simple(painter)
+    
+    def _to_screen(self, x, y):
+        """Convert simulation coordinates to screen coordinates"""
+        if self.sim.mode == 'communities':
+            # For communities, use different scaling
+            scale = self.scale / 3.5
+            sx = int(self.offset_x + x * scale)
+            sy = int(self.offset_y - y * scale)
+        else:
+            sx = int(self.offset_x + x * self.scale)
+            sy = int(self.offset_y - y * self.scale)
+        return sx, sy
+    
+    def _draw_simple(self, painter):
+        # Boundary
+        tl = self._to_screen(-1, 1)
+        br = self._to_screen(1, -1)
+        painter.setPen(QPen(QColor(NEON_GREEN), 3))
+        painter.setBrush(Qt.NoBrush)
+        painter.drawRect(tl[0], tl[1], br[0] - tl[0], br[1] - tl[1])
+        
+        # Particles
+        for p in self.sim.particles:
+            self._draw_particle(painter, p)
+        
+        # Quarantine zone
+        if self.sim.mode == 'quarantine' and self.sim.quarantine_particles:
+            tl = self._to_screen(-1.7, -0.5)
+            br = self._to_screen(-1.2, -1)
+            painter.setPen(QPen(QColor("#ff0000"), 3))
+            painter.drawRect(tl[0], tl[1], br[0] - tl[0], br[1] - tl[1])
+            
+            for p in self.sim.quarantine_particles:
+                self._draw_particle(painter, p)
+    
+    def _draw_communities(self, painter):
+        for comm in self.sim.communities.values():
+            bounds = comm['bounds']
+            tl = self._to_screen(bounds[0], bounds[3])
+            br = self._to_screen(bounds[1], bounds[2])
+            painter.setPen(QPen(QColor(BORDER_GREEN), 2))
+            painter.setBrush(Qt.NoBrush)
+            painter.drawRect(tl[0], tl[1], br[0] - tl[0], br[1] - tl[1])
+            
+            for p in comm['particles']:
+                self._draw_particle(painter, p)
+        
+        # Quarantine zone
+        if self.sim.quarantine_particles:
+            tl = self._to_screen(-1.7, -0.5)
+            br = self._to_screen(-1.2, -1)
+            painter.setPen(QPen(QColor("#ff0000"), 3))
+            painter.drawRect(tl[0], tl[1], br[0] - tl[0], br[1] - tl[1])
+            
+            for p in self.sim.quarantine_particles:
+                self._draw_particle(painter, p)
+    
+    def _draw_particle(self, painter, p):
+        pos = self._to_screen(p.x, p.y)
+        
+        # Color based on state
+        if p.state == 'susceptible':
+            color = QColor(0, 191, 255)
+        elif p.state == 'infected':
+            color = QColor(255, 165, 0) if not p.shows_symptoms else QColor(255, 69, 69)
+        else:  # removed
+            color = QColor(100, 100, 100)
+        
+        painter.setBrush(color)
+        painter.setPen(Qt.NoPen)
+        size = params.particle_size
+        painter.drawEllipse(pos[0] - size//2, pos[1] - size//2, size, size)
+
+# =================== MAIN WINDOW ===================
+class EpidemicApp(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("EPIDEMIC SIMULATION v2.0")
+        self.setGeometry(100, 100, 1600, 900)
+        
+        self.sim = EpidemicSimulation('simple')
+        self.sim.stats_updated.connect(self.update_stats_display)
+        self.sim.log_message.connect(self.add_log)
+        
+        self.speed = 1.0
+        self.paused = False
+        
+        self.setup_ui()
+        self.sim.initialize()
+        
+        # Timer for simulation
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.update_simulation)
+        self.timer.start(16)  # ~60 FPS
+    
+    def setup_ui(self):
+        central = QWidget()
+        self.setCentralWidget(central)
+        layout = QHBoxLayout(central)
+        layout.setSpacing(0)
+        layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Left: Simulation canvas
+        self.canvas = SimulationCanvas(self.sim)
+        layout.addWidget(self.canvas, 2)
+        
+        # Right: Controls
+        right_panel = QWidget()
+        right_panel.setMaximumWidth(500)
+        right_layout = QVBoxLayout(right_panel)
+        layout.addWidget(right_panel, 1)
+        
+        # Mode buttons
+        mode_group = QGroupBox("[ SIMULATION MODE ]")
+        mode_layout = QVBoxLayout()
+        self.mode_btns = QButtonGroup()
+        
+        for i, mode in enumerate(['simple', 'quarantine', 'communities']):
+            btn = QPushButton(f"  [{mode.upper()}]")
+            btn.setCheckable(True)
+            btn.clicked.connect(lambda checked, m=mode: self.change_mode(m))
+            self.mode_btns.addButton(btn, i)
+            mode_layout.addWidget(btn)
+        
+        self.mode_btns.button(0).setChecked(True)
+        mode_group.setLayout(mode_layout)
+        right_layout.addWidget(mode_group)
+        
+        # Control buttons
+        controls = QHBoxLayout()
+        self.pause_btn = QPushButton("[PAUSE]")
+        self.pause_btn.clicked.connect(self.toggle_pause)
+        controls.addWidget(self.pause_btn)
+        
+        reset_btn = QPushButton("[RESET]")
+        reset_btn.clicked.connect(self.reset_sim)
+        controls.addWidget(reset_btn)
+        right_layout.addLayout(controls)
+        
+        # Speed controls
+        speed_group = QGroupBox("[ SPEED CONTROL ]")
+        speed_layout = QHBoxLayout()
+        
+        for speed in [0.5, 1.0, 2.0, 5.0]:
+            btn = QPushButton(f"[{speed}x]")
+            btn.clicked.connect(lambda checked, s=speed: self.set_speed(s))
+            speed_layout.addWidget(btn)
+        
+        speed_group.setLayout(speed_layout)
+        right_layout.addWidget(speed_group)
+        
+        # Stats display
+        self.stats_label = QLabel("> DAY: 0\n> S: 100.0%\n> I: 0.0%\n> R: 0.0%")
+        self.stats_label.setStyleSheet(f"font-size: 18px; padding: 15px; font-family: 'Courier New'; color: {NEON_GREEN};")
+        right_layout.addWidget(self.stats_label)
+        
+        # Graph
+        self.graph_widget = pg.PlotWidget()
+        self.graph_widget.setBackground(BG_BLACK)
+        self.graph_widget.setLabel('left', '% POPULATION', color=NEON_GREEN)
+        self.graph_widget.setLabel('bottom', 'DAY', color=NEON_GREEN)
+        self.graph_widget.showGrid(x=True, y=True, alpha=0.2)
+        
+        # Style the graph axes
+        axis_pen = pg.mkPen(color=NEON_GREEN, width=2)
+        self.graph_widget.getAxis('left').setPen(axis_pen)
+        self.graph_widget.getAxis('bottom').setPen(axis_pen)
+        self.graph_widget.getAxis('left').setTextPen(NEON_GREEN)
+        self.graph_widget.getAxis('bottom').setTextPen(NEON_GREEN)
+        
+        right_layout.addWidget(self.graph_widget)
+        
+        # Parameter sliders
+        sliders_group = QGroupBox("[ PARAMETERS ]")
+        sliders_layout = QVBoxLayout()
+        
+        self.sliders = {}
+        slider_params = [
+            ('infection_radius', 'INFECTION_RADIUS', 0.01, 0.4, 0.1),
+            ('prob_infection', 'INFECTION_PROB', 0, 1, 0.06),
+            ('social_distance_factor', 'SOCIAL_DISTANCE', 0, 2, 0),
+            ('infection_duration', 'DURATION_DAYS', 1, 100, 25),
+        ]
+        
+        for param, label, min_val, max_val, default in slider_params:
+            hlayout = QHBoxLayout()
+            lbl = QLabel(f"{label}: {default:.2f}")
+            lbl.setMinimumWidth(200)
+            slider = QSlider(Qt.Horizontal)
+            slider.setMinimum(int(min_val * 100))
+            slider.setMaximum(int(max_val * 100))
+            slider.setValue(int(default * 100))
+            slider.valueChanged.connect(
+                lambda val, p=param, l=lbl, label=label: self.update_param(p, val/100, l, label)
+            )
+            hlayout.addWidget(lbl)
+            hlayout.addWidget(slider)
+            sliders_layout.addLayout(hlayout)
+            self.sliders[param] = (slider, lbl, label)
+        
+        sliders_group.setLayout(sliders_layout)
+        right_layout.addWidget(sliders_group)
+        
+        # Log window
+        log_group = QGroupBox("[ SYSTEM LOG ]")
+        log_layout = QVBoxLayout()
+        self.log_text = QTextEdit()
+        self.log_text.setReadOnly(True)
+        self.log_text.setMaximumHeight(250)
+        log_layout.addWidget(self.log_text)
+        log_group.setLayout(log_layout)
+        right_layout.addWidget(log_group)
+        
+        # Apply hacker theme
+        self.apply_theme()
+    
+    def apply_theme(self):
+        self.setStyleSheet(f"""
+            QMainWindow {{ 
+                background-color: {BG_BLACK}; 
+            }}
+            QWidget {{
+                background-color: {PANEL_BLACK};
+                color: {NEON_GREEN};
+                font-family: 'Courier New', monospace;
+            }}
+            QGroupBox {{ 
+                color: {NEON_GREEN};
+                border: 2px solid {BORDER_GREEN};
+                border-radius: 0px;
+                margin-top: 10px;
+                font-weight: bold;
+                font-size: 14px;
+                padding-top: 10px;
+            }}
+            QGroupBox::title {{
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px;
+            }}
+            QPushButton {{
+                background-color: {BG_BLACK};
+                color: {NEON_GREEN};
+                border: 2px solid {BORDER_GREEN};
+                padding: 10px;
+                font-weight: bold;
+                font-family: 'Courier New', monospace;
+                font-size: 13px;
+            }}
+            QPushButton:hover {{ 
+                background-color: {DARK_GREEN}; 
+                border: 2px solid {NEON_GREEN};
+            }}
+            QPushButton:checked {{ 
+                background-color: {BORDER_GREEN};
+                color: {BG_BLACK};
+            }}
+            QLabel {{ 
+                color: {NEON_GREEN}; 
+                font-family: 'Courier New', monospace;
+            }}
+            QTextEdit {{
+                background-color: {BG_BLACK};
+                color: {NEON_GREEN};
+                border: 2px solid {BORDER_GREEN};
+                font-family: 'Courier New', monospace;
+                font-size: 11px;
+            }}
+            QSlider::groove:horizontal {{
+                border: 1px solid {BORDER_GREEN};
+                height: 4px;
+                background: {BG_BLACK};
+            }}
+            QSlider::handle:horizontal {{
+                background: {NEON_GREEN};
+                border: 1px solid {BORDER_GREEN};
+                width: 14px;
+                margin: -5px 0;
+            }}
+        """)
+    
+    def update_param(self, param, value, label, label_text):
+        setattr(params, param, value)
+        label.setText(f"{label_text}: {value:.2f}")
+    
+    def change_mode(self, mode):
+        self.sim.mode = mode
+        self.reset_sim()
+    
+    def toggle_pause(self):
+        self.paused = not self.paused
+        self.pause_btn.setText("[RESUME]" if self.paused else "[PAUSE]")
+    
+    def reset_sim(self):
+        self.sim.initialize()
+        self.graph_widget.clear()
+        self.log_text.clear()
+        self.paused = False
+        self.pause_btn.setText("[PAUSE]")
+    
+    def set_speed(self, speed):
+        self.speed = speed
+        self.sim.log(f"SPEED SET TO {speed}x")
+    
+    def add_log(self, message):
+        self.log_text.append(message)
+        self.log_text.verticalScrollBar().setValue(
+            self.log_text.verticalScrollBar().maximum()
+        )
+    
+    def update_simulation(self):
+        if not self.paused:
+            steps = int(self.speed)
+            for _ in range(steps):
+                self.sim.step()
+        
+        self.canvas.update()
+    
+    def update_stats_display(self, counts):
+        total = sum(counts.values())
+        if total == 0:
+            return
+        
+        s_pct = counts['susceptible']/total*100
+        i_pct = counts['infected']/total*100
+        r_pct = counts['removed']/total*100
+        
+        text = f"> DAY: {self.sim.day_count:03d}\n"
+        text += f"> SUSCEPTIBLE: {s_pct:5.1f}%\n"
+        text += f"> INFECTED:    {i_pct:5.1f}%\n"
+        text += f"> REMOVED:     {r_pct:5.1f}%"
+        self.stats_label.setText(text)
+        
+        # Update graph
+        if len(self.sim.stats['day']) > 1:
+            self.graph_widget.clear()
+            
+            days = self.sim.stats['day']
+            s_data = self.sim.stats['susceptible']
+            i_data = self.sim.stats['infected']
+            r_data = self.sim.stats['removed']
+            
+            # Removed (bottom layer - gray)
+            self.graph_widget.plot(days, r_data, 
+                                  pen=pg.mkPen(color=(100, 100, 100), width=2), 
+                                  fillLevel=0, 
+                                  brush=(100, 100, 100, 150),
+                                  name='REMOVED')
+            
+            # Infected (middle layer - red)
+            combined_ir = [r_data[i] + i_data[i] for i in range(len(days))]
+            self.graph_widget.plot(days, combined_ir, 
+                                  pen=pg.mkPen(color=(255, 69, 69), width=2),
+                                  fillLevel=0, 
+                                  brush=(255, 69, 69, 150),
+                                  name='INFECTED')
+            
+            # Susceptible (top layer - cyan)
+            self.graph_widget.plot(days, [100]*len(days), 
+                                  pen=pg.mkPen(color=(0, 191, 255), width=2),
+                                  fillLevel=0, 
+                                  brush=(0, 191, 255, 150),
+                                  name='SUSCEPTIBLE')
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    
+    # Set monospace font globally
+    font = QFont("Courier New", 10)
+    app.setFont(font)
+    
+    window = EpidemicApp()
+    window.show()
+    sys.exit(app.exec_())
