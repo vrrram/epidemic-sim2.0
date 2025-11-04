@@ -168,6 +168,10 @@ class Particle:
         self.marketplace_timer = 0
         self.home_x = x
         self.home_y = y
+        self.traveling_to_marketplace = False
+        self.returning_home = False
+        self.target_x = x
+        self.target_y = y
 
         if state == 'infected' and random.random() < params.prob_no_symptoms:
             self.shows_symptoms = False
@@ -299,6 +303,16 @@ class EpidemicSimulation(QObject):
             particle.vy = -abs(particle.vy) * 0.5
 
     def _update_particle_physics(self, particle, bounds, nearby_particles):
+        # Handle marketplace movement first (overrides normal physics)
+        self._update_marketplace_movement(particle)
+
+        # Skip normal physics if traveling to/from marketplace
+        if particle.traveling_to_marketplace or particle.returning_home:
+            particle.x += particle.vx * self.time_step
+            particle.y += particle.vy * self.time_step
+            self._clamp_to_bounds(particle, bounds)
+            return
+
         fx, fy = 0, 0
         min_dist = 0.15
 
@@ -414,7 +428,7 @@ class EpidemicSimulation(QObject):
         self.quarantine_particles.append(particle)
 
     def _handle_marketplace(self, particle_list):
-        """Handle marketplace gathering events"""
+        """Handle marketplace gathering events with smooth movement"""
         if not params.marketplace_enabled:
             return 0
 
@@ -425,34 +439,66 @@ class EpidemicSimulation(QObject):
             self.last_marketplace_day = self.day_count
             attending = 0
             for p in particle_list:
-                if not p.quarantined and random.random() < params.marketplace_attendance:
-                    p.at_marketplace = True
+                if not p.quarantined and not p.traveling_to_marketplace and not p.at_marketplace and random.random() < params.marketplace_attendance:
+                    p.traveling_to_marketplace = True
                     p.marketplace_timer = params.marketplace_duration
                     p.home_x = p.x
                     p.home_y = p.y
-                    # Move to marketplace with some randomness
-                    p.x = params.marketplace_x + random.uniform(-0.2, 0.2)
-                    p.y = params.marketplace_y + random.uniform(-0.2, 0.2)
-                    p.vx = random.uniform(-0.02, 0.02)
-                    p.vy = random.uniform(-0.02, 0.02)
+                    # Set target location at marketplace
+                    p.target_x = params.marketplace_x + random.uniform(-0.2, 0.2)
+                    p.target_y = params.marketplace_y + random.uniform(-0.2, 0.2)
                     attending += 1
             if attending > 0:
-                self.log(f">> MARKETPLACE EVENT: {attending} ATTENDING")
+                self.log(f">> MARKETPLACE EVENT: {attending} TRAVELING")
             return attending
 
         # Update marketplace timers
-        returning = 0
         for p in particle_list:
             if p.at_marketplace:
                 p.marketplace_timer -= 1
                 if p.marketplace_timer <= 0:
-                    # Return home
+                    # Start returning home
                     p.at_marketplace = False
-                    p.x = p.home_x + random.uniform(-0.1, 0.1)
-                    p.y = p.home_y + random.uniform(-0.1, 0.1)
-                    returning += 1
+                    p.returning_home = True
+                    p.target_x = p.home_x + random.uniform(-0.1, 0.1)
+                    p.target_y = p.home_y + random.uniform(-0.1, 0.1)
 
         return 0
+
+    def _update_marketplace_movement(self, particle):
+        """Smoothly move particles to/from marketplace"""
+        if particle.traveling_to_marketplace:
+            # Move toward marketplace
+            dx = particle.target_x - particle.x
+            dy = particle.target_y - particle.y
+            dist = math.sqrt(dx*dx + dy*dy)
+
+            if dist < 0.05:  # Arrived
+                particle.traveling_to_marketplace = False
+                particle.at_marketplace = True
+                particle.vx = random.uniform(-0.02, 0.02)
+                particle.vy = random.uniform(-0.02, 0.02)
+            else:
+                # Move at constant speed toward target
+                speed = 0.08
+                particle.vx = (dx / dist) * speed
+                particle.vy = (dy / dist) * speed
+
+        elif particle.returning_home:
+            # Move toward home
+            dx = particle.target_x - particle.x
+            dy = particle.target_y - particle.y
+            dist = math.sqrt(dx*dx + dy*dy)
+
+            if dist < 0.05:  # Arrived home
+                particle.returning_home = False
+                particle.vx = random.uniform(-0.02, 0.02)
+                particle.vy = random.uniform(-0.02, 0.02)
+            else:
+                # Move at constant speed toward home
+                speed = 0.08
+                particle.vx = (dx / dist) * speed
+                particle.vy = (dy / dist) * speed
 
     def step(self):
         if self.mode == 'communities':
@@ -670,6 +716,50 @@ class SimulationCanvas(QWidget):
         size = params.particle_size
         painter.drawEllipse(pos[0] - size//2, pos[1] - size//2, size, size)
 
+# =================== COLLAPSIBLE GROUP BOX ===================
+class CollapsibleBox(QWidget):
+    def __init__(self, title, parent=None):
+        super().__init__(parent)
+        self.toggle_button = QPushButton(f"▼ {title}")
+        self.toggle_button.setCheckable(True)
+        self.toggle_button.setChecked(True)
+        self.toggle_button.setStyleSheet("""
+            QPushButton {
+                text-align: left;
+                padding: 8px;
+                font-weight: bold;
+                border: none;
+                background-color: #001a00;
+            }
+            QPushButton:hover {
+                background-color: #002200;
+            }
+        """)
+        self.toggle_button.clicked.connect(self.toggle)
+
+        self.content_area = QWidget()
+        self.content_layout = QVBoxLayout()
+        self.content_area.setLayout(self.content_layout)
+
+        layout = QVBoxLayout(self)
+        layout.setSpacing(0)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.toggle_button)
+        layout.addWidget(self.content_area)
+
+    def toggle(self):
+        checked = self.toggle_button.isChecked()
+        self.content_area.setVisible(checked)
+        icon = "▼" if checked else "▶"
+        current_text = self.toggle_button.text()
+        self.toggle_button.setText(f"{icon} {current_text[2:]}")
+
+    def addWidget(self, widget):
+        self.content_layout.addWidget(widget)
+
+    def addLayout(self, layout):
+        self.content_layout.addLayout(layout)
+
 # =================== PIE CHART WIDGET ===================
 class PieChartWidget(FigureCanvasQTAgg):
     def __init__(self, parent=None, width=4, height=4, dpi=100):
@@ -771,118 +861,122 @@ class EpidemicApp(QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
 
         self.canvas = SimulationCanvas(self.sim)
-        layout.addWidget(self.canvas, 3)
+        layout.addWidget(self.canvas, 4)
 
-        right_panel = QWidget()
-        right_panel.setMaximumWidth(550)
-        right_panel.setMinimumWidth(500)
-        right_layout = QVBoxLayout(right_panel)
-        right_layout.setSpacing(8)
-        right_layout.setContentsMargins(5, 5, 5, 5)
-        layout.addWidget(right_panel, 2)
+        self.right_panel = QWidget()
+        self.right_panel.setMaximumWidth(450)
+        self.right_panel.setMinimumWidth(400)
+        right_scroll = QScrollArea()
+        right_scroll.setWidgetResizable(True)
+        right_scroll.setWidget(self.right_panel)
+        right_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 
-        # PRESETS DROPDOWN
-        preset_group = QGroupBox("[ PRESETS ]")
-        preset_layout = QVBoxLayout()
+        right_layout = QVBoxLayout(self.right_panel)
+        right_layout.setSpacing(3)
+        right_layout.setContentsMargins(3, 3, 3, 3)
+        layout.addWidget(right_scroll, 2)
 
+        # === CONTROL BUTTONS (Always visible) ===
+        controls_container = QWidget()
+        controls_layout = QVBoxLayout(controls_container)
+        controls_layout.setContentsMargins(0, 0, 0, 5)
+
+        btn_row1 = QHBoxLayout()
+        self.pause_btn = QPushButton("[PAUSE]")
+        self.pause_btn.clicked.connect(self.toggle_pause)
+        btn_row1.addWidget(self.pause_btn)
+
+        reset_btn = QPushButton("[RESET]")
+        reset_btn.clicked.connect(self.reset_sim)
+        btn_row1.addWidget(reset_btn)
+
+        self.fullscreen_btn = QPushButton("[⛶]")
+        self.fullscreen_btn.setMaximumWidth(50)
+        self.fullscreen_btn.setToolTip("Toggle Fullscreen (F)")
+        self.fullscreen_btn.clicked.connect(self.toggle_fullscreen)
+        btn_row1.addWidget(self.fullscreen_btn)
+
+        controls_layout.addLayout(btn_row1)
+
+        # Speed controls
+        speed_row = QHBoxLayout()
+        for speed in [0.5, 1.0, 2.0, 5.0]:
+            btn = QPushButton(f"{speed}x")
+            btn.clicked.connect(lambda checked, s=speed: self.set_speed(s))
+            speed_row.addWidget(btn)
+        controls_layout.addLayout(speed_row)
+
+        right_layout.addWidget(controls_container)
+
+        # === STATS DISPLAY (Always visible) ===
+        self.stats_label = QLabel("> DAY: 0\n> S: 100.0%\n> I: 0.0%\n> R: 0.0%")
+        self.stats_label.setStyleSheet(f"font-size: 16px; padding: 8px; font-family: 'Courier New'; color: {NEON_GREEN}; background-color: {PANEL_BLACK}; border: 1px solid {BORDER_GREEN};")
+        self.stats_label.setAlignment(Qt.AlignCenter)
+        right_layout.addWidget(self.stats_label)
+
+        # === COLLAPSIBLE: PRESETS ===
+        presets_box = CollapsibleBox("PRESETS")
         self.preset_combo = QComboBox()
         self.preset_combo.addItem("-- Select Preset --")
         for preset_name in PRESETS.keys():
             self.preset_combo.addItem(preset_name)
         self.preset_combo.currentTextChanged.connect(self.load_preset)
-        preset_layout.addWidget(self.preset_combo)
+        presets_box.addWidget(self.preset_combo)
+        right_layout.addWidget(presets_box)
 
-        preset_group.setLayout(preset_layout)
-        right_layout.addWidget(preset_group)
-
-        # Mode buttons
-        mode_group = QGroupBox("[ SIMULATION MODE ]")
-        mode_layout = QVBoxLayout()
+        # === COLLAPSIBLE: MODE ===
+        mode_box = CollapsibleBox("SIMULATION MODE")
         self.mode_btns = QButtonGroup()
-
+        mode_layout = QVBoxLayout()
         for i, mode in enumerate(['simple', 'quarantine', 'communities']):
             btn = QPushButton(f"  [{mode.upper()}]")
             btn.setCheckable(True)
             btn.clicked.connect(lambda checked, m=mode: self.change_mode(m))
             self.mode_btns.addButton(btn, i)
             mode_layout.addWidget(btn)
-
         self.mode_btns.button(0).setChecked(True)
-        mode_group.setLayout(mode_layout)
-        right_layout.addWidget(mode_group)
+        mode_box.addLayout(mode_layout)
+        right_layout.addWidget(mode_box)
 
-        # Intervention controls
-        intervention_group = QGroupBox("[ INTERVENTIONS ]")
-        intervention_layout = QVBoxLayout()
+        # === COLLAPSIBLE: INTERVENTIONS ===
+        intervention_box = CollapsibleBox("INTERVENTIONS")
 
-        self.quarantine_checkbox = QCheckBox("  ENABLE QUARANTINE")
+        self.quarantine_checkbox = QCheckBox("  Enable Quarantine")
         self.quarantine_checkbox.setChecked(params.quarantine_enabled)
         self.quarantine_checkbox.stateChanged.connect(self.toggle_quarantine)
-        intervention_layout.addWidget(self.quarantine_checkbox)
+        intervention_box.addWidget(self.quarantine_checkbox)
 
-        self.marketplace_checkbox = QCheckBox("  ENABLE MARKETPLACE GATHERINGS")
+        self.marketplace_checkbox = QCheckBox("  Enable Marketplace")
         self.marketplace_checkbox.setChecked(params.marketplace_enabled)
         self.marketplace_checkbox.stateChanged.connect(self.toggle_marketplace)
-        intervention_layout.addWidget(self.marketplace_checkbox)
+        intervention_box.addWidget(self.marketplace_checkbox)
 
-        # Marketplace parameters (collapsible)
-        marketplace_params_layout = QHBoxLayout()
-
-        interval_label = QLabel("Interval (days):")
-        interval_label.setStyleSheet("font-size: 10px; padding: 2px;")
+        # Marketplace parameters
+        mp_params = QHBoxLayout()
+        mp_params.addWidget(QLabel("Interval:"))
         self.marketplace_interval_spin = QSpinBox()
         self.marketplace_interval_spin.setRange(1, 30)
         self.marketplace_interval_spin.setValue(params.marketplace_interval)
         self.marketplace_interval_spin.valueChanged.connect(lambda v: setattr(params, 'marketplace_interval', v))
         self.marketplace_interval_spin.setMaximumWidth(60)
-        marketplace_params_layout.addWidget(interval_label)
-        marketplace_params_layout.addWidget(self.marketplace_interval_spin)
+        mp_params.addWidget(self.marketplace_interval_spin)
 
-        attendance_label = QLabel("  Attendance:")
-        attendance_label.setStyleSheet("font-size: 10px; padding: 2px;")
+        mp_params.addWidget(QLabel("  Attend:"))
         self.marketplace_attendance_spin = QDoubleSpinBox()
         self.marketplace_attendance_spin.setRange(0.1, 1.0)
         self.marketplace_attendance_spin.setSingleStep(0.1)
         self.marketplace_attendance_spin.setValue(params.marketplace_attendance)
         self.marketplace_attendance_spin.valueChanged.connect(lambda v: setattr(params, 'marketplace_attendance', v))
         self.marketplace_attendance_spin.setMaximumWidth(60)
-        marketplace_params_layout.addWidget(attendance_label)
-        marketplace_params_layout.addWidget(self.marketplace_attendance_spin)
+        mp_params.addWidget(self.marketplace_attendance_spin)
+        intervention_box.addLayout(mp_params)
 
-        intervention_layout.addLayout(marketplace_params_layout)
+        right_layout.addWidget(intervention_box)
 
-        intervention_group.setLayout(intervention_layout)
-        right_layout.addWidget(intervention_group)
+        # === COLLAPSIBLE: VISUALIZATIONS ===
+        vis_box = CollapsibleBox("VISUALIZATIONS")
+        vis_box.toggle()  # Start collapsed
 
-        # Control buttons
-        controls = QHBoxLayout()
-        self.pause_btn = QPushButton("[PAUSE]")
-        self.pause_btn.clicked.connect(self.toggle_pause)
-        controls.addWidget(self.pause_btn)
-
-        reset_btn = QPushButton("[RESET]")
-        reset_btn.clicked.connect(self.reset_sim)
-        controls.addWidget(reset_btn)
-        right_layout.addLayout(controls)
-
-        # Speed controls
-        speed_group = QGroupBox("[ SPEED CONTROL ]")
-        speed_layout = QHBoxLayout()
-
-        for speed in [0.5, 1.0, 2.0, 5.0]:
-            btn = QPushButton(f"[{speed}x]")
-            btn.clicked.connect(lambda checked, s=speed: self.set_speed(s))
-            speed_layout.addWidget(btn)
-
-        speed_group.setLayout(speed_layout)
-        right_layout.addWidget(speed_group)
-
-        # Stats display
-        self.stats_label = QLabel("> DAY: 0\n> S: 100.0%\n> I: 0.0%\n> R: 0.0%")
-        self.stats_label.setStyleSheet(f"font-size: 18px; padding: 15px; font-family: 'Courier New'; color: {NEON_GREEN};")
-        right_layout.addWidget(self.stats_label)
-
-        # Visualization tabs
         vis_tabs = QTabWidget()
         vis_tabs.setStyleSheet(f"""
             QTabWidget::pane {{
@@ -893,9 +987,9 @@ class EpidemicApp(QMainWindow):
                 background-color: {PANEL_BLACK};
                 color: {NEON_GREEN};
                 border: 2px solid {BORDER_GREEN};
-                padding: 8px 15px;
+                padding: 5px 10px;
                 font-family: 'Courier New', monospace;
-                font-weight: bold;
+                font-size: 10px;
             }}
             QTabBar::tab:selected {{
                 background-color: {BORDER_GREEN};
@@ -903,13 +997,15 @@ class EpidemicApp(QMainWindow):
             }}
         """)
 
-        # Graph (FIXED FILLING)
+        # Graph
         self.graph_widget = pg.PlotWidget()
         self.graph_widget.setBackground(BG_BLACK)
-        self.graph_widget.setLabel('left', '% POPULATION', color=NEON_GREEN)
+        self.graph_widget.setLabel('left', '%', color=NEON_GREEN)
         self.graph_widget.setLabel('bottom', 'DAY', color=NEON_GREEN)
         self.graph_widget.showGrid(x=True, y=True, alpha=0.2)
         self.graph_widget.setYRange(0, 100)
+        self.graph_widget.setMinimumHeight(200)
+        self.graph_widget.setMaximumHeight(250)
 
         axis_pen = pg.mkPen(color=NEON_GREEN, width=2)
         self.graph_widget.getAxis('left').setPen(axis_pen)
@@ -918,42 +1014,45 @@ class EpidemicApp(QMainWindow):
         self.graph_widget.getAxis('bottom').setTextPen(NEON_GREEN)
 
         # Pie chart
-        self.pie_chart = PieChartWidget(parent=self, width=4, height=4, dpi=80)
+        self.pie_chart = PieChartWidget(parent=self, width=3.5, height=3.5, dpi=75)
 
-        # Add both to tabs
         vis_tabs.addTab(self.graph_widget, "TIME SERIES")
         vis_tabs.addTab(self.pie_chart, "PIE CHART")
 
-        right_layout.addWidget(vis_tabs)
+        vis_box.addWidget(vis_tabs)
+        right_layout.addWidget(vis_box)
 
-        # Parameter sliders
+        # === COLLAPSIBLE: PARAMETERS ===
+        params_box = CollapsibleBox("PARAMETERS")
+        params_box.toggle()  # Start collapsed
+
         sliders_scroll = QScrollArea()
         sliders_scroll.setWidgetResizable(True)
-        sliders_scroll.setMinimumHeight(280)
-        sliders_scroll.setMaximumHeight(320)
+        sliders_scroll.setMaximumHeight(250)
+        sliders_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 
         sliders_widget = QWidget()
         sliders_layout = QVBoxLayout(sliders_widget)
 
         self.sliders = {}
         slider_params = [
-            ('infection_radius', 'INFECTION_RADIUS', 0.01, 0.4, 0.15),
-            ('prob_infection', 'INFECTION_PROB', 0, 0.1, 0.02),
-            ('fraction_infected_init', 'INITIAL_INFECTED_%', 0, 0.05, 0.01),
-            ('infection_duration', 'DURATION_DAYS', 1, 100, 25),
-            ('social_distance_factor', 'SOCIAL_DISTANCE', 0, 2, 0),
-            ('social_distance_obedient', 'SD_OBEDIENT_%', 0, 1, 1.0),
-            ('boxes_to_consider', 'SD_RADIUS_MULT', 1, 10, 2),
-            ('quarantine_after', 'QUARANTINE_AFTER', 1, 20, 5),
-            ('start_quarantine', 'START_Q_DAY', 0, 30, 10),
-            ('prob_no_symptoms', 'ASYMPTOMATIC_%', 0, 0.5, 0.20),
+            ('infection_radius', 'INFECT_R', 0.01, 0.4, 0.15),
+            ('prob_infection', 'INFECT_P', 0, 0.1, 0.02),
+            ('fraction_infected_init', 'INIT_%', 0, 0.05, 0.01),
+            ('infection_duration', 'DURATION', 1, 100, 25),
+            ('social_distance_factor', 'SOC_DIST', 0, 2, 0),
+            ('social_distance_obedient', 'SD_%', 0, 1, 1.0),
+            ('boxes_to_consider', 'SD_RANGE', 1, 10, 2),
+            ('quarantine_after', 'Q_AFTER', 1, 20, 5),
+            ('start_quarantine', 'Q_START', 0, 30, 10),
+            ('prob_no_symptoms', 'ASYMP_%', 0, 0.5, 0.20),
         ]
 
         for param, label, min_val, max_val, default in slider_params:
             hlayout = QHBoxLayout()
             lbl = QLabel(f"{label}: {default:.2f}")
-            lbl.setMinimumWidth(200)
-            lbl.setStyleSheet("font-size: 11px;")
+            lbl.setMinimumWidth(130)
+            lbl.setStyleSheet("font-size: 10px;")
             slider = QSlider(Qt.Horizontal)
             slider.setMinimum(int(min_val * 100))
             slider.setMaximum(int(max_val * 100))
@@ -967,32 +1066,24 @@ class EpidemicApp(QMainWindow):
             self.sliders[param] = (slider, lbl, label)
 
         sliders_scroll.setWidget(sliders_widget)
-        right_layout.addWidget(sliders_scroll)
+        params_box.addWidget(sliders_scroll)
+        right_layout.addWidget(params_box)
 
-        # Status bar for important events
-        status_group = QGroupBox("[ STATUS ]")
-        status_layout = QVBoxLayout()
+        # === STATUS (Always visible) ===
         self.status_label = QLabel("Ready to start simulation")
-        self.status_label.setStyleSheet(f"font-size: 12px; padding: 10px; font-family: 'Courier New'; color: {NEON_GREEN};")
+        self.status_label.setStyleSheet(f"font-size: 11px; padding: 6px; font-family: 'Courier New'; color: {NEON_GREEN}; background-color: {PANEL_BLACK}; border: 1px solid {BORDER_GREEN};")
         self.status_label.setWordWrap(True)
-        status_layout.addWidget(self.status_label)
-        status_group.setLayout(status_layout)
-        right_layout.addWidget(status_group)
+        right_layout.addWidget(self.status_label)
 
-        # Keyboard shortcuts reference
-        shortcuts_group = QGroupBox("[ KEYBOARD SHORTCUTS ]")
-        shortcuts_layout = QVBoxLayout()
+        # === KEYBOARD SHORTCUTS (Always visible) ===
         shortcuts_text = QLabel(
-            "SPACE: Pause/Resume\n"
-            "R: Reset Simulation\n"
-            "Q: Toggle Quarantine\n"
-            "M: Toggle Marketplace\n"
-            "1-9: Load Preset (1-9)"
+            "⌨ SPACE:Pause | R:Reset | F:Fullscreen\n"
+            "   Q:Quarantine | M:Marketplace | 1-9:Presets"
         )
-        shortcuts_text.setStyleSheet(f"font-size: 11px; padding: 5px; font-family: 'Courier New'; color: {NEON_GREEN};")
-        shortcuts_layout.addWidget(shortcuts_text)
-        shortcuts_group.setLayout(shortcuts_layout)
-        right_layout.addWidget(shortcuts_group)
+        shortcuts_text.setStyleSheet(f"font-size: 9px; padding: 5px; font-family: 'Courier New'; color: {BORDER_GREEN}; background-color: {BG_BLACK}; border: 1px solid {BORDER_GREEN};")
+        right_layout.addWidget(shortcuts_text)
+
+        right_layout.addStretch()
 
         self.apply_theme()
 
@@ -1053,14 +1144,18 @@ class EpidemicApp(QMainWindow):
                 font-weight: bold;
                 font-family: 'Courier New', monospace;
                 font-size: 13px;
+                min-height: 20px;
             }}
             QPushButton:hover {{
-                background-color: {DARK_GREEN};
-                border: 2px solid {NEON_GREEN};
+                background-color: #001a00;
+                border-color: {NEON_GREEN};
             }}
             QPushButton:checked {{
                 background-color: {BORDER_GREEN};
                 color: {BG_BLACK};
+            }}
+            QPushButton:pressed {{
+                background-color: #002200;
             }}
             QLabel {{
                 color: {NEON_GREEN};
@@ -1176,6 +1271,15 @@ class EpidemicApp(QMainWindow):
         status = "ENABLED" if state else "DISABLED"
         self.status_label.setText(f"Marketplace gatherings {status}")
 
+    def toggle_fullscreen(self):
+        """Toggle fullscreen mode by hiding/showing right panel"""
+        self.right_panel.setVisible(not self.right_panel.isVisible())
+        if not self.right_panel.isVisible():
+            self.fullscreen_btn.setText("[◧]")
+            self.status_label.setText("Fullscreen mode (Press F to exit)")
+        else:
+            self.fullscreen_btn.setText("[⛶]")
+
     def toggle_pause(self):
         self.paused = not self.paused
         self.pause_btn.setText("[RESUME]" if self.paused else "[PAUSE]")
@@ -1233,6 +1337,11 @@ class EpidemicApp(QMainWindow):
             self.marketplace_checkbox.setChecked(new_state)
             return
 
+        # F: Toggle fullscreen
+        if key == Qt.Key_F:
+            self.toggle_fullscreen()
+            return
+
         # Pass other events to parent
         super().keyPressEvent(event)
 
@@ -1260,8 +1369,9 @@ class EpidemicApp(QMainWindow):
         text += f"> REMOVED:     {r_pct:5.1f}%"
         self.stats_label.setText(text)
 
-        # Update pie chart
-        self.pie_chart.update_chart(counts)
+        # Update pie chart only every 5 days to reduce stuttering
+        if self.sim.day_count % 5 == 0 or self.sim.day_count == 0:
+            self.pie_chart.update_chart(counts)
 
         if len(self.sim.stats['day']) > 1:
             self.graph_widget.clear()
