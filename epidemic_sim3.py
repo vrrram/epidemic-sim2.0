@@ -914,6 +914,7 @@ class EpidemicApp(QMainWindow):
 
         self.speed = 1.0
         self.paused = False
+        self.speed_accumulator = 0.0  # For smooth fractional speed
 
         self.setup_ui()
         self.sim.initialize()
@@ -1006,11 +1007,17 @@ class EpidemicApp(QMainWindow):
 
         speed_row = QHBoxLayout()
         speed_row.setSpacing(4)
-        for speed in [0.5, 1.0, 2.0, 5.0]:
+        self.speed_btns = QButtonGroup()
+        self.speed_btns.setExclusive(True)
+        for i, speed in enumerate([0.5, 1.0, 2.0, 5.0]):
             btn = QPushButton(f"{speed}x")
+            btn.setCheckable(True)
             btn.clicked.connect(lambda checked, s=speed: self.set_speed(s))
             btn.setMinimumHeight(32)
+            self.speed_btns.addButton(btn, i)
             speed_row.addWidget(btn)
+            if speed == 1.0:
+                btn.setChecked(True)  # Default speed
         ctrl_layout.addLayout(speed_row)
 
         # Population size control
@@ -1318,13 +1325,22 @@ class EpidemicApp(QMainWindow):
             QPushButton:hover {{
                 background-color: #001a00;
                 border-color: {NEON_GREEN};
+                border-width: 3px;
             }}
             QPushButton:checked {{
-                background-color: {BORDER_GREEN};
+                background-color: {NEON_GREEN};
                 color: {BG_BLACK};
+                border: 3px solid {NEON_GREEN};
+                font-weight: bold;
             }}
             QPushButton:pressed {{
-                background-color: #002200;
+                background-color: {BORDER_GREEN};
+                border: 3px solid {NEON_GREEN};
+                padding: 9px;
+            }}
+            QPushButton:checked:hover {{
+                background-color: {NEON_GREEN};
+                border: 3px solid #00ff66;
             }}
             QLabel {{
                 color: {NEON_GREEN};
@@ -1462,7 +1478,12 @@ class EpidemicApp(QMainWindow):
 
     def set_speed(self, speed):
         self.speed = speed
-        self.sim.log(f"SPEED SET TO {speed}x")
+        self.status_label.setText(f"⚡ Speed set to {speed}x")
+        # Visual feedback - find and check the button
+        for i, btn in enumerate(self.speed_btns.buttons()):
+            if btn.text() == f"{speed}x":
+                btn.setChecked(True)
+                break
 
     def add_log(self, message):
         """Update status bar with important events only"""
@@ -1516,9 +1537,15 @@ class EpidemicApp(QMainWindow):
 
     def update_simulation(self):
         if not self.paused:
-            steps = int(self.speed)
-            for _ in range(steps):
+            # Accumulate fractional speed for smooth slow speeds (0.5x)
+            self.speed_accumulator += self.speed
+            steps_to_run = int(self.speed_accumulator)
+
+            for _ in range(steps_to_run):
                 self.sim.step()
+
+            # Keep the fractional part for next frame
+            self.speed_accumulator -= steps_to_run
 
         self.canvas.update()
 
