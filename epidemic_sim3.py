@@ -211,6 +211,7 @@ class EpidemicSimulation(QObject):
             'dead': [0],  # Track deaths separately (SEIRD-ready)
             'day': [0]
         }
+        self.initial_population = 0  # Set during initialization
 
     def log(self, message):
         self.log_message.emit(f"[DAY {self.day_count:03d}] {message}")
@@ -229,6 +230,7 @@ class EpidemicSimulation(QObject):
             'dead': [0],
             'day': [0]
         }
+        self.initial_population = 0  # Will be set based on mode
 
         self.log(f"INITIALIZING {self.mode.upper()} SIMULATION...")
 
@@ -248,6 +250,8 @@ class EpidemicSimulation(QObject):
             y = random.uniform(self.bounds[2] + 0.15, self.bounds[3] - 0.15)
             state = 'infected' if i < num_infected else 'susceptible'
             self.particles.append(Particle(x, y, state))
+
+        self.initial_population = params.num_particles
 
         if num_infected > 0:
             self.log(f">> PATIENT ZERO INITIALIZED: {num_infected} INITIAL INFECTION(S)")
@@ -280,7 +284,8 @@ class EpidemicSimulation(QObject):
                     state = 'infected' if k < num_infected else 'susceptible'
                     self.communities[comm_id]['particles'].append(Particle(x, y, state))
 
-        self.log(f"TOTAL: {params.num_per_community * 9} PARTICLES ({total_infected} INFECTED)")
+        self.initial_population = params.num_per_community * 9
+        self.log(f"TOTAL: {self.initial_population} PARTICLES ({total_infected} INFECTED)")
         self.log(f">> PATIENT ZERO INITIALIZED IN {num_to_infect} COMMUNIT{'Y' if num_to_infect == 1 else 'IES'}")
 
     def get_all_particles(self):
@@ -429,7 +434,7 @@ class EpidemicSimulation(QObject):
         if recovered > 0:
             self.log(f">> {recovered} RECOVERED")
         if died > 0:
-            self.log(f">> ☠️ {died} DIED (mortality: {params.mortality_rate*100:.1f}%)")
+            self.log(f">> {died} DIED (mortality: {params.mortality_rate*100:.1f}%)")
 
         return to_quarantine, to_remove_dead
 
@@ -585,14 +590,20 @@ class EpidemicSimulation(QObject):
 
                 for comm in self.communities.values():
                     total_new_infections += self._check_infections(comm['particles'])
-                    to_q = self._update_infections(comm['particles'])
+                    to_q, to_dead = self._update_infections(comm['particles'])
                     total_quarantined += len(to_q)
                     for p in to_q:
                         self._move_to_quarantine(p, comm['particles'])
+                    # Remove dead particles
+                    for p in to_dead:
+                        comm['particles'].remove(p)
 
                 if self.quarantine_particles:
                     self._check_infections(self.quarantine_particles)
-                    self._update_infections(self.quarantine_particles)
+                    _, to_dead = self._update_infections(self.quarantine_particles)
+                    # Remove dead particles from quarantine
+                    for p in to_dead:
+                        self.quarantine_particles.remove(p)
 
                 if total_quarantined > 0:
                     self.log(f">> {total_quarantined} MOVED TO QUARANTINE")
@@ -611,16 +622,23 @@ class EpidemicSimulation(QObject):
 
             else:
                 self._check_infections(self.particles)
-                to_q = self._update_infections(self.particles)
+                to_q, to_dead = self._update_infections(self.particles)
 
                 if to_q:
                     self.log(f">> {len(to_q)} MOVED TO QUARANTINE")
                     for p in to_q:
                         self._move_to_quarantine(p, self.particles)
 
+                # Remove dead particles
+                for p in to_dead:
+                    self.particles.remove(p)
+
                 if self.quarantine_particles:
                     self._check_infections(self.quarantine_particles)
-                    self._update_infections(self.quarantine_particles)
+                    _, to_dead = self._update_infections(self.quarantine_particles)
+                    # Remove dead particles from quarantine
+                    for p in to_dead:
+                        self.quarantine_particles.remove(p)
 
                 # Handle marketplace events (simple/quarantine modes)
                 self._handle_marketplace(self.particles)
@@ -653,17 +671,26 @@ class EpidemicSimulation(QObject):
 
     def _update_stats(self):
         all_p = self.get_all_particles()
-        total = len(all_p)
-        if total == 0:
+        current_population = len(all_p)
+
+        # Calculate deaths as difference from initial population
+        deaths = self.initial_population - current_population
+
+        if self.initial_population == 0:
             return
 
-        counts = {'susceptible': 0, 'infected': 0, 'removed': 0}
+        counts = {'susceptible': 0, 'infected': 0, 'removed': 0, 'dead': deaths}
         for p in all_p:
             counts[p.state] += 1
 
+        # Calculate percentages based on initial population
         for state in ['susceptible', 'infected', 'removed']:
-            percent = (counts[state] / total) * 100
+            percent = (counts[state] / self.initial_population) * 100
             self.stats[state].append(percent)
+
+        # Deaths as percentage of initial population
+        death_percent = (deaths / self.initial_population) * 100
+        self.stats['dead'].append(death_percent)
 
         self.stats['day'].append(self.day_count)
         self.stats_updated.emit(counts)
@@ -884,6 +911,11 @@ class PieChartWidget(FigureCanvasQTAgg):
             labels.append('Removed')
             sizes.append(counts['removed'])
             colors.append('#787878')
+
+        if counts['dead'] > 0:
+            labels.append('Dead')
+            sizes.append(counts['dead'])
+            colors.append('#500000')  # Dark red/black
 
         if not sizes:
             return
@@ -1672,16 +1704,20 @@ class EpidemicApp(QMainWindow):
 
     def update_stats_display(self, counts):
         """Update stats display, graph, and pie chart"""
-        total = sum(counts.values())
-        if total == 0:
+        # Use initial population for percentages
+        initial = self.sim.initial_population
+        if initial == 0:
             return
 
-        s_pct = counts['susceptible']/total*100
-        i_pct = counts['infected']/total*100
-        r_pct = counts['removed']/total*100
+        s_pct = counts['susceptible']/initial*100
+        i_pct = counts['infected']/initial*100
+        r_pct = counts['removed']/initial*100
+        d_pct = counts['dead']/initial*100
 
         text = f"DAY: {self.sim.day_count:03d}\n"
         text += f"S: {s_pct:5.1f}% | I: {i_pct:5.1f}% | R: {r_pct:5.1f}%"
+        if counts['dead'] > 0:
+            text += f" | D: {d_pct:5.1f}%"
         self.stats_label.setText(text)
 
         # Update pie chart only every 5 days to reduce stuttering
@@ -1696,6 +1732,7 @@ class EpidemicApp(QMainWindow):
             s_data = self.sim.stats['susceptible']
             i_data = self.sim.stats['infected']
             r_data = self.sim.stats['removed']
+            d_data = self.sim.stats['dead']
 
             # Plot as separate, clear lines (NO fill!)
             # Susceptible - Cyan line
@@ -1727,6 +1764,17 @@ class EpidemicApp(QMainWindow):
                 name='Removed'
             )
             self.graph_widget.addItem(r_curve)
+
+            # Dead - Dark red/black line
+            if max(d_data) > 0:  # Only show if there are deaths
+                d_curve = pg.PlotDataItem(
+                    days, d_data,
+                    pen=pg.mkPen(color=(80, 0, 0), width=3),
+                    brush=None,  # NO FILL
+                    fillLevel=None,
+                    name='Dead'
+                )
+                self.graph_widget.addItem(d_curve)
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
