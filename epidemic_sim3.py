@@ -51,6 +51,14 @@ class SimParams:
         self.num_per_community = 60
         self.communities_to_infect = 2
 
+        # Marketplace gathering parameters
+        self.marketplace_enabled = False
+        self.marketplace_interval = 7  # Days between gatherings (weekly)
+        self.marketplace_duration = 2  # Time steps particles stay (hours)
+        self.marketplace_attendance = 0.6  # 60% of population attends
+        self.marketplace_x = 0.0  # Center location
+        self.marketplace_y = 0.0
+
 params = SimParams()
 
 # =================== PRESETS ===================
@@ -155,6 +163,12 @@ class Particle:
         self.obeys_social_distance = random.random() < params.social_distance_obedient
         self.infection_count = 0
 
+        # Marketplace tracking
+        self.at_marketplace = False
+        self.marketplace_timer = 0
+        self.home_x = x
+        self.home_y = y
+
         if state == 'infected' and random.random() < params.prob_no_symptoms:
             self.shows_symptoms = False
 
@@ -180,6 +194,7 @@ class EpidemicSimulation(QObject):
         self.time_count = 0
         self.day_count = 0
         self.time_step = 1.0 / params.time_steps_per_day
+        self.last_marketplace_day = -params.marketplace_interval  # Start ready
 
         self.stats = {
             'susceptible': [100],
@@ -197,6 +212,7 @@ class EpidemicSimulation(QObject):
         self.communities = {}
         self.time_count = 0
         self.day_count = 0
+        self.last_marketplace_day = -params.marketplace_interval  # Reset marketplace
         self.stats = {
             'susceptible': [100],
             'infected': [0],
@@ -397,6 +413,47 @@ class EpidemicSimulation(QObject):
         from_list.remove(particle)
         self.quarantine_particles.append(particle)
 
+    def _handle_marketplace(self, particle_list):
+        """Handle marketplace gathering events"""
+        if not params.marketplace_enabled:
+            return 0
+
+        # Check if it's marketplace day
+        days_since_last = self.day_count - self.last_marketplace_day
+        if days_since_last >= params.marketplace_interval:
+            # Start new gathering
+            self.last_marketplace_day = self.day_count
+            attending = 0
+            for p in particle_list:
+                if not p.quarantined and random.random() < params.marketplace_attendance:
+                    p.at_marketplace = True
+                    p.marketplace_timer = params.marketplace_duration
+                    p.home_x = p.x
+                    p.home_y = p.y
+                    # Move to marketplace with some randomness
+                    p.x = params.marketplace_x + random.uniform(-0.2, 0.2)
+                    p.y = params.marketplace_y + random.uniform(-0.2, 0.2)
+                    p.vx = random.uniform(-0.02, 0.02)
+                    p.vy = random.uniform(-0.02, 0.02)
+                    attending += 1
+            if attending > 0:
+                self.log(f">> MARKETPLACE EVENT: {attending} ATTENDING")
+            return attending
+
+        # Update marketplace timers
+        returning = 0
+        for p in particle_list:
+            if p.at_marketplace:
+                p.marketplace_timer -= 1
+                if p.marketplace_timer <= 0:
+                    # Return home
+                    p.at_marketplace = False
+                    p.x = p.home_x + random.uniform(-0.1, 0.1)
+                    p.y = p.home_y + random.uniform(-0.1, 0.1)
+                    returning += 1
+
+        return 0
+
     def step(self):
         if self.mode == 'communities':
             for comm in self.communities.values():
@@ -464,6 +521,10 @@ class EpidemicSimulation(QObject):
                 if self.quarantine_particles:
                     self._check_infections(self.quarantine_particles)
                     self._update_infections(self.quarantine_particles)
+
+                # Handle marketplace events
+                if self.mode != 'communities':  # Simple and quarantine modes
+                    self._handle_marketplace(self.particles)
 
             self._update_stats()
             self.day_count += 1
@@ -551,6 +612,14 @@ class SimulationCanvas(QWidget):
 
         for p in self.sim.particles:
             self._draw_particle(painter, p)
+
+        # Draw marketplace zone if enabled
+        if params.marketplace_enabled:
+            center = self._to_screen(params.marketplace_x, params.marketplace_y)
+            radius = int(0.25 * self.scale)  # Marketplace zone radius
+            painter.setPen(QPen(QColor("#ffaa00"), 2, Qt.DashLine))
+            painter.setBrush(QBrush(QColor(255, 170, 0, 30)))
+            painter.drawEllipse(center[0] - radius, center[1] - radius, radius * 2, radius * 2)
 
         if params.quarantine_enabled and self.sim.quarantine_particles:
             # Smaller quarantine box (top-left)
@@ -751,6 +820,37 @@ class EpidemicApp(QMainWindow):
         self.quarantine_checkbox.stateChanged.connect(self.toggle_quarantine)
         intervention_layout.addWidget(self.quarantine_checkbox)
 
+        self.marketplace_checkbox = QCheckBox("  ENABLE MARKETPLACE GATHERINGS")
+        self.marketplace_checkbox.setChecked(params.marketplace_enabled)
+        self.marketplace_checkbox.stateChanged.connect(self.toggle_marketplace)
+        intervention_layout.addWidget(self.marketplace_checkbox)
+
+        # Marketplace parameters (collapsible)
+        marketplace_params_layout = QHBoxLayout()
+
+        interval_label = QLabel("Interval (days):")
+        interval_label.setStyleSheet("font-size: 10px; padding: 2px;")
+        self.marketplace_interval_spin = QSpinBox()
+        self.marketplace_interval_spin.setRange(1, 30)
+        self.marketplace_interval_spin.setValue(params.marketplace_interval)
+        self.marketplace_interval_spin.valueChanged.connect(lambda v: setattr(params, 'marketplace_interval', v))
+        self.marketplace_interval_spin.setMaximumWidth(60)
+        marketplace_params_layout.addWidget(interval_label)
+        marketplace_params_layout.addWidget(self.marketplace_interval_spin)
+
+        attendance_label = QLabel("  Attendance:")
+        attendance_label.setStyleSheet("font-size: 10px; padding: 2px;")
+        self.marketplace_attendance_spin = QDoubleSpinBox()
+        self.marketplace_attendance_spin.setRange(0.1, 1.0)
+        self.marketplace_attendance_spin.setSingleStep(0.1)
+        self.marketplace_attendance_spin.setValue(params.marketplace_attendance)
+        self.marketplace_attendance_spin.valueChanged.connect(lambda v: setattr(params, 'marketplace_attendance', v))
+        self.marketplace_attendance_spin.setMaximumWidth(60)
+        marketplace_params_layout.addWidget(attendance_label)
+        marketplace_params_layout.addWidget(self.marketplace_attendance_spin)
+
+        intervention_layout.addLayout(marketplace_params_layout)
+
         intervention_group.setLayout(intervention_layout)
         right_layout.addWidget(intervention_group)
 
@@ -886,6 +986,7 @@ class EpidemicApp(QMainWindow):
             "SPACE: Pause/Resume\n"
             "R: Reset Simulation\n"
             "Q: Toggle Quarantine\n"
+            "M: Toggle Marketplace\n"
             "1-9: Load Preset (1-9)"
         )
         shortcuts_text.setStyleSheet(f"font-size: 11px; padding: 5px; font-family: 'Courier New'; color: {NEON_GREEN};")
@@ -1003,6 +1104,34 @@ class EpidemicApp(QMainWindow):
             QCheckBox::indicator:hover {{
                 border: 2px solid {NEON_GREEN};
             }}
+            QSpinBox, QDoubleSpinBox {{
+                background-color: {BG_BLACK};
+                color: {NEON_GREEN};
+                border: 2px solid {BORDER_GREEN};
+                padding: 3px;
+                font-family: 'Courier New', monospace;
+                font-size: 11px;
+            }}
+            QSpinBox::up-button, QDoubleSpinBox::up-button {{
+                background-color: {PANEL_BLACK};
+                border-left: 1px solid {BORDER_GREEN};
+            }}
+            QSpinBox::down-button, QDoubleSpinBox::down-button {{
+                background-color: {PANEL_BLACK};
+                border-left: 1px solid {BORDER_GREEN};
+            }}
+            QSpinBox::up-arrow, QDoubleSpinBox::up-arrow {{
+                image: none;
+                border-left: 4px solid transparent;
+                border-right: 4px solid transparent;
+                border-bottom: 4px solid {NEON_GREEN};
+            }}
+            QSpinBox::down-arrow, QDoubleSpinBox::down-arrow {{
+                image: none;
+                border-left: 4px solid transparent;
+                border-right: 4px solid transparent;
+                border-top: 4px solid {NEON_GREEN};
+            }}
         """)
 
     def load_preset(self, preset_name):
@@ -1040,6 +1169,12 @@ class EpidemicApp(QMainWindow):
         params.quarantine_enabled = bool(state)
         status = "ENABLED" if state else "DISABLED"
         self.status_label.setText(f"Quarantine {status}")
+
+    def toggle_marketplace(self, state):
+        """Toggle marketplace gatherings on/off"""
+        params.marketplace_enabled = bool(state)
+        status = "ENABLED" if state else "DISABLED"
+        self.status_label.setText(f"Marketplace gatherings {status}")
 
     def toggle_pause(self):
         self.paused = not self.paused
@@ -1090,6 +1225,12 @@ class EpidemicApp(QMainWindow):
         if key == Qt.Key_Q:
             new_state = not params.quarantine_enabled
             self.quarantine_checkbox.setChecked(new_state)
+            return
+
+        # M: Toggle marketplace
+        if key == Qt.Key_M:
+            new_state = not params.marketplace_enabled
+            self.marketplace_checkbox.setChecked(new_state)
             return
 
         # Pass other events to parent
