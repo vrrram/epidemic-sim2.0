@@ -18,16 +18,16 @@ BORDER_GREEN = "#00aa00"
 # =================== SIMULATION PARAMETERS ===================
 class SimParams:
     def __init__(self):
-        # Infection parameters
-        self.infection_radius = 0.1
-        self.prob_infection = 0.06
+        # Infection parameters (BETTER DEFAULTS)
+        self.infection_radius = 0.15
+        self.prob_infection = 0.02
         self.fraction_infected_init = 0.01
         self.infection_duration = 25
 
         # Social distancing
         self.social_distance_factor = 0.0
         self.social_distance_obedient = 1.0
-        self.boxes_to_consider = 2  # For social distancing computation radius
+        self.boxes_to_consider = 2
 
         # Particle physics
         self.num_particles = 200
@@ -36,10 +36,10 @@ class SimParams:
         self.boundary_force = 0.2
         self.time_steps_per_day = 24
 
-        # Quarantine parameters
-        self.quarantine_after = 10  # Days after infection to quarantine
-        self.start_quarantine = 2   # Day to start quarantine zone
-        self.prob_no_symptoms = 0.02  # Probability of asymptomatic infection
+        # Quarantine parameters (LESS AGGRESSIVE)
+        self.quarantine_after = 5  # Quarantine earlier (5 days)
+        self.start_quarantine = 10   # But start later (day 10)
+        self.prob_no_symptoms = 0.20  # 20% asymptomatic (more realistic)
 
         # Communities
         self.travel_probability = 0.02
@@ -48,7 +48,69 @@ class SimParams:
 
 params = SimParams()
 
-# =================== SPATIAL HASH GRID (OPTIMIZATION) ===================
+# =================== PRESETS ===================
+PRESETS = {
+    # Educational Presets
+    "Baseline Epidemic": {
+        'infection_radius': 0.15, 'prob_infection': 0.02, 'fraction_infected_init': 0.01,
+        'infection_duration': 25, 'social_distance_factor': 0.0, 'social_distance_obedient': 1.0,
+        'boxes_to_consider': 2, 'quarantine_after': 5, 'start_quarantine': 10, 'prob_no_symptoms': 0.20
+    },
+    "Slow Burn": {
+        'infection_radius': 0.10, 'prob_infection': 0.01, 'fraction_infected_init': 0.005,
+        'infection_duration': 30, 'social_distance_factor': 0.0, 'social_distance_obedient': 1.0,
+        'boxes_to_consider': 2, 'quarantine_after': 8, 'start_quarantine': 15, 'prob_no_symptoms': 0.15
+    },
+    "Fast Outbreak": {
+        'infection_radius': 0.30, 'prob_infection': 0.05, 'fraction_infected_init': 0.02,
+        'infection_duration': 20, 'social_distance_factor': 0.0, 'social_distance_obedient': 1.0,
+        'boxes_to_consider': 2, 'quarantine_after': 3, 'start_quarantine': 5, 'prob_no_symptoms': 0.25
+    },
+    "Highly Contagious": {
+        'infection_radius': 0.25, 'prob_infection': 0.08, 'fraction_infected_init': 0.01,
+        'infection_duration': 15, 'social_distance_factor': 0.0, 'social_distance_obedient': 1.0,
+        'boxes_to_consider': 2, 'quarantine_after': 3, 'start_quarantine': 7, 'prob_no_symptoms': 0.30
+    },
+    "Social Distancing (Weak)": {
+        'infection_radius': 0.15, 'prob_infection': 0.02, 'fraction_infected_init': 0.01,
+        'infection_duration': 25, 'social_distance_factor': 0.5, 'social_distance_obedient': 0.7,
+        'boxes_to_consider': 3, 'quarantine_after': 5, 'start_quarantine': 10, 'prob_no_symptoms': 0.20
+    },
+    "Social Distancing (Strong)": {
+        'infection_radius': 0.15, 'prob_infection': 0.02, 'fraction_infected_init': 0.01,
+        'infection_duration': 25, 'social_distance_factor': 1.5, 'social_distance_obedient': 0.9,
+        'boxes_to_consider': 4, 'quarantine_after': 5, 'start_quarantine': 10, 'prob_no_symptoms': 0.20
+    },
+
+    # Historical Disease Presets
+    "COVID-19 (Original)": {
+        'infection_radius': 0.15, 'prob_infection': 0.025, 'fraction_infected_init': 0.005,
+        'infection_duration': 14, 'social_distance_factor': 0.0, 'social_distance_obedient': 1.0,
+        'boxes_to_consider': 2, 'quarantine_after': 5, 'start_quarantine': 10, 'prob_no_symptoms': 0.30
+    },
+    "COVID-19 (Delta)": {
+        'infection_radius': 0.20, 'prob_infection': 0.05, 'fraction_infected_init': 0.005,
+        'infection_duration': 10, 'social_distance_factor': 0.0, 'social_distance_obedient': 1.0,
+        'boxes_to_consider': 2, 'quarantine_after': 4, 'start_quarantine': 8, 'prob_no_symptoms': 0.40
+    },
+    "Spanish Flu (1918)": {
+        'infection_radius': 0.18, 'prob_infection': 0.03, 'fraction_infected_init': 0.01,
+        'infection_duration': 7, 'social_distance_factor': 0.0, 'social_distance_obedient': 1.0,
+        'boxes_to_consider': 2, 'quarantine_after': 3, 'start_quarantine': 5, 'prob_no_symptoms': 0.15
+    },
+    "Measles": {
+        'infection_radius': 0.30, 'prob_infection': 0.10, 'fraction_infected_init': 0.005,
+        'infection_duration': 10, 'social_distance_factor': 0.0, 'social_distance_obedient': 1.0,
+        'boxes_to_consider': 2, 'quarantine_after': 3, 'start_quarantine': 5, 'prob_no_symptoms': 0.05
+    },
+    "Ebola (2014)": {
+        'infection_radius': 0.10, 'prob_infection': 0.08, 'fraction_infected_init': 0.005,
+        'infection_duration': 14, 'social_distance_factor': 0.0, 'social_distance_obedient': 1.0,
+        'boxes_to_consider': 2, 'quarantine_after': 5, 'start_quarantine': 3, 'prob_no_symptoms': 0.10
+    },
+}
+
+# =================== SPATIAL HASH GRID ===================
 class SpatialGrid:
     def __init__(self, cell_size=0.2):
         self.cell_size = cell_size
@@ -65,7 +127,6 @@ class SpatialGrid:
         self.grid[cell].append(particle)
 
     def get_nearby(self, x, y, radius=1):
-        """Get particles in nearby cells (radius in cells)"""
         cell_x, cell_y = self._hash(x, y)
         nearby = []
         for dx in range(-radius, radius + 1):
@@ -87,9 +148,8 @@ class Particle:
         self.quarantined = False
         self.shows_symptoms = True
         self.obeys_social_distance = random.random() < params.social_distance_obedient
-        self.infection_count = 0  # Track how many others this particle infected
+        self.infection_count = 0
 
-        # Asymptomatic carriers
         if state == 'infected' and random.random() < params.prob_no_symptoms:
             self.shows_symptoms = False
 
@@ -127,7 +187,6 @@ class EpidemicSimulation(QObject):
         self.log_message.emit(f"[DAY {self.day_count:03d}] {message}")
 
     def initialize(self):
-        """Initialize simulation - ensures patient zero exists"""
         self.particles = []
         self.quarantine_particles = []
         self.communities = {}
@@ -150,7 +209,6 @@ class EpidemicSimulation(QObject):
         self._update_stats()
 
     def _init_simple(self):
-        """Initialize simple/quarantine mode with guaranteed patient zero"""
         num_infected = max(1, int(params.num_particles * params.fraction_infected_init))
         self.log(f"SPAWNING {params.num_particles} PARTICLES ({num_infected} INFECTED)")
 
@@ -160,13 +218,10 @@ class EpidemicSimulation(QObject):
             state = 'infected' if i < num_infected else 'susceptible'
             self.particles.append(Particle(x, y, state))
 
-        # Log patient zero
         if num_infected > 0:
             self.log(f">> PATIENT ZERO INITIALIZED: {num_infected} INITIAL INFECTION(S)")
 
     def _init_communities(self):
-        """Initialize communities mode with guaranteed patient zero in selected communities"""
-        # Ensure at least one community is infected
         num_to_infect = max(1, min(params.communities_to_infect, 9))
         infected_communities = random.sample(range(9), num_to_infect)
         self.log(f"CREATING 9 COMMUNITIES (INFECTING: {infected_communities})")
@@ -181,7 +236,6 @@ class EpidemicSimulation(QObject):
                     'particles': []
                 }
 
-                # Guarantee at least 1 infected in selected communities
                 if comm_id in infected_communities:
                     num_infected = max(1, int(params.num_per_community * params.fraction_infected_init))
                 else:
@@ -199,7 +253,6 @@ class EpidemicSimulation(QObject):
         self.log(f">> PATIENT ZERO INITIALIZED IN {num_to_infect} COMMUNIT{'Y' if num_to_infect == 1 else 'IES'}")
 
     def get_all_particles(self):
-        """Get all particles across all zones"""
         if self.mode == 'communities':
             all_p = []
             for comm in self.communities.values():
@@ -208,7 +261,6 @@ class EpidemicSimulation(QObject):
         return self.particles + self.quarantine_particles
 
     def _clamp_to_bounds(self, particle, bounds):
-        """Force particles to stay within bounds with bounce"""
         margin = 0.05
 
         if particle.x < bounds[0] + margin:
@@ -226,11 +278,9 @@ class EpidemicSimulation(QObject):
             particle.vy = -abs(particle.vy) * 0.5
 
     def _update_particle_physics(self, particle, bounds, nearby_particles):
-        """Update particle physics with boundary forces and social distancing"""
         fx, fy = 0, 0
         min_dist = 0.15
 
-        # Boundary repulsive forces
         dist_left = particle.x - bounds[0]
         dist_right = bounds[1] - particle.x
         dist_bottom = particle.y - bounds[2]
@@ -245,7 +295,6 @@ class EpidemicSimulation(QObject):
         if dist_top < min_dist:
             fy -= params.boundary_force * (1 - dist_top/min_dist)
 
-        # Social distancing repulsive force (based on boxes_to_consider)
         if params.social_distance_factor > 0 and particle.obeys_social_distance:
             sd_radius = params.infection_radius * params.boxes_to_consider
             for other in nearby_particles:
@@ -253,45 +302,36 @@ class EpidemicSimulation(QObject):
                     continue
                 dist = particle.distance_to(other)
                 if 0.001 < dist < sd_radius:
-                    # Inverse square law for repulsion
                     force = params.social_distance_factor / (dist ** 2 + 0.01)
                     dx = particle.x - other.x
                     dy = particle.y - other.y
                     fx += force * dx / (dist + 0.001) / 50
                     fy += force * dy / (dist + 0.001) / 50
 
-        # Random Brownian motion
         particle.ax = random.uniform(-0.002, 0.002)
         particle.ay = random.uniform(-0.002, 0.002)
 
-        # Update velocity with forces
         particle.vx += (particle.ax + fx) * self.time_step
         particle.vy += (particle.ay + fy) * self.time_step
 
-        # Speed limit (adjusted for social distancing)
         speed = math.sqrt(particle.vx**2 + particle.vy**2)
         max_speed = 0.05 if params.social_distance_factor > 0.3 else params.speed_limit
         if speed > max_speed:
             particle.vx *= max_speed / speed
             particle.vy *= max_speed / speed
 
-        # Update position
         particle.x += particle.vx * self.time_step
         particle.y += particle.vy * self.time_step
 
-        # Enforce hard boundary
         self._clamp_to_bounds(particle, bounds)
 
     def _check_infections(self, particle_list):
-        """Check for new infections using spatial grid optimization"""
         self.spatial_grid.clear()
 
-        # Insert susceptible particles into grid
         susceptible = [p for p in particle_list if p.state == 'susceptible']
         for p in susceptible:
             self.spatial_grid.insert(p)
 
-        # Check infections for infected particles
         new_infections = 0
         infected_particles = [p for p in particle_list if p.state == 'infected']
 
@@ -300,15 +340,11 @@ class EpidemicSimulation(QObject):
             for sus_p in nearby:
                 dist = inf_p.distance_to(sus_p)
                 if dist < params.infection_radius:
-                    # Probability per time step (daily probability divided by steps per day)
                     if random.random() < params.prob_infection / params.time_steps_per_day:
                         sus_p.state = 'infected'
                         sus_p.days_infected = 0
-
-                        # Track infection count
                         inf_p.infection_count += 1
 
-                        # Asymptomatic chance
                         if random.random() < params.prob_no_symptoms:
                             sus_p.shows_symptoms = False
 
@@ -320,7 +356,6 @@ class EpidemicSimulation(QObject):
         return new_infections
 
     def _update_infections(self, particle_list):
-        """Update infection progression and determine quarantine candidates"""
         to_quarantine = []
         recovered = 0
 
@@ -328,12 +363,10 @@ class EpidemicSimulation(QObject):
             if p.state == 'infected':
                 p.days_infected += 1
 
-                # Recovery after infection duration
                 if p.days_infected >= params.infection_duration:
                     p.state = 'removed'
                     recovered += 1
 
-                # Quarantine logic (matches HTML implementation)
                 elif (self.mode in ['quarantine', 'communities'] and
                       p.days_infected >= params.quarantine_after and
                       self.day_count >= params.start_quarantine and
@@ -347,13 +380,12 @@ class EpidemicSimulation(QObject):
         return to_quarantine
 
     def _move_to_quarantine(self, particle, from_list):
-        """Move a particle to quarantine zone"""
         particle.quarantined = True
-        particle.obeys_social_distance = False  # No social distancing in quarantine
+        particle.obeys_social_distance = False
 
-        # Quarantine zone bounds (left side of screen)
-        particle.x = random.uniform(-1.7, -1.2)
-        particle.y = random.uniform(-1, -0.5)
+        # Smaller quarantine zone (top-left corner)
+        particle.x = random.uniform(-1.5, -1.15)
+        particle.y = random.uniform(0.7, 0.95)
         particle.vx = random.uniform(-0.05, 0.05)
         particle.vy = random.uniform(-0.05, 0.05)
 
@@ -361,11 +393,8 @@ class EpidemicSimulation(QObject):
         self.quarantine_particles.append(particle)
 
     def step(self):
-        """Main simulation step"""
-        # Update particle physics
         if self.mode == 'communities':
             for comm in self.communities.values():
-                # Build spatial grid for this community
                 self.spatial_grid.clear()
                 for p in comm['particles']:
                     self.spatial_grid.insert(p)
@@ -382,9 +411,9 @@ class EpidemicSimulation(QObject):
                 nearby = self.spatial_grid.get_nearby(p.x, p.y, radius=params.boxes_to_consider)
                 self._update_particle_physics(p, self.bounds, nearby)
 
-        # Quarantine zone physics
         if self.quarantine_particles:
-            q_bounds = (-1.7, -1.2, -1, -0.5)
+            # Smaller quarantine zone
+            q_bounds = (-1.5, -1.15, 0.7, 0.95)
             self.spatial_grid.clear()
             for p in self.quarantine_particles:
                 self.spatial_grid.insert(p)
@@ -392,7 +421,6 @@ class EpidemicSimulation(QObject):
                 nearby = self.spatial_grid.get_nearby(p.x, p.y, radius=params.boxes_to_consider)
                 self._update_particle_physics(p, q_bounds, nearby)
 
-        # Daily updates (infections, recoveries, quarantine)
         if self.time_count % params.time_steps_per_day == 0:
             self.log(f"==================== DAY {self.day_count + 1} ====================")
 
@@ -407,7 +435,6 @@ class EpidemicSimulation(QObject):
                     for p in to_q:
                         self._move_to_quarantine(p, comm['particles'])
 
-                # Infections/recoveries in quarantine zone
                 if self.quarantine_particles:
                     self._check_infections(self.quarantine_particles)
                     self._update_infections(self.quarantine_particles)
@@ -415,14 +442,12 @@ class EpidemicSimulation(QObject):
                 if total_quarantined > 0:
                     self.log(f">> {total_quarantined} MOVED TO QUARANTINE")
 
-                # Community travel
                 if random.random() < 0.3:
                     travelers = self._handle_community_travel()
                     if travelers > 0:
                         self.log(f">> {travelers} TRAVELED BETWEEN COMMUNITIES")
 
             else:
-                # Simple/Quarantine mode
                 self._check_infections(self.particles)
                 to_q = self._update_infections(self.particles)
 
@@ -431,7 +456,6 @@ class EpidemicSimulation(QObject):
                     for p in to_q:
                         self._move_to_quarantine(p, self.particles)
 
-                # Infections/recoveries in quarantine zone
                 if self.quarantine_particles:
                     self._check_infections(self.quarantine_particles)
                     self._update_infections(self.quarantine_particles)
@@ -442,7 +466,6 @@ class EpidemicSimulation(QObject):
         self.time_count += 1
 
     def _handle_community_travel(self):
-        """Handle travel between communities"""
         travelers = 0
         for comm_id, comm in self.communities.items():
             to_travel = []
@@ -464,7 +487,6 @@ class EpidemicSimulation(QObject):
         return travelers
 
     def _update_stats(self):
-        """Update statistics for graphing"""
         all_p = self.get_all_particles()
         total = len(all_p)
         if total == 0:
@@ -481,7 +503,7 @@ class EpidemicSimulation(QObject):
         self.stats['day'].append(self.day_count)
         self.stats_updated.emit(counts)
 
-# =================== VISUALIZATION WIDGET ===================
+# =================== VISUALIZATION ===================
 class SimulationCanvas(QWidget):
     def __init__(self, sim):
         super().__init__()
@@ -492,24 +514,20 @@ class SimulationCanvas(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
 
-        # Background
         painter.fillRect(self.rect(), QColor(BG_BLACK))
 
-        # Calculate scale based on widget size
         w = self.width()
         h = self.height()
         self.scale = min(w, h) / 2.2
         self.offset_x = w / 2
         self.offset_y = h / 2
 
-        # Draw simulation
         if self.sim.mode == 'communities':
             self._draw_communities(painter)
         else:
             self._draw_simple(painter)
 
     def _to_screen(self, x, y):
-        """Convert simulation coordinates to screen coordinates"""
         if self.sim.mode == 'communities':
             scale = self.scale / 3.5
             sx = int(self.offset_x + x * scale)
@@ -520,22 +538,19 @@ class SimulationCanvas(QWidget):
         return sx, sy
 
     def _draw_simple(self, painter):
-        """Draw simple/quarantine mode"""
-        # Main boundary
         tl = self._to_screen(-1, 1)
         br = self._to_screen(1, -1)
         painter.setPen(QPen(QColor(NEON_GREEN), 3))
         painter.setBrush(Qt.NoBrush)
         painter.drawRect(tl[0], tl[1], br[0] - tl[0], br[1] - tl[1])
 
-        # Main zone particles
         for p in self.sim.particles:
             self._draw_particle(painter, p)
 
-        # Quarantine zone
         if self.sim.mode == 'quarantine' and self.sim.quarantine_particles:
-            tl = self._to_screen(-1.7, -0.5)
-            br = self._to_screen(-1.2, -1)
+            # Smaller quarantine box (top-left)
+            tl = self._to_screen(-1.5, 0.95)
+            br = self._to_screen(-1.15, 0.7)
             painter.setPen(QPen(QColor("#ff0000"), 3))
             painter.drawRect(tl[0], tl[1], br[0] - tl[0], br[1] - tl[1])
 
@@ -543,7 +558,6 @@ class SimulationCanvas(QWidget):
                 self._draw_particle(painter, p)
 
     def _draw_communities(self, painter):
-        """Draw communities mode"""
         for comm in self.sim.communities.values():
             bounds = comm['bounds']
             tl = self._to_screen(bounds[0], bounds[3])
@@ -555,10 +569,9 @@ class SimulationCanvas(QWidget):
             for p in comm['particles']:
                 self._draw_particle(painter, p)
 
-        # Quarantine zone
         if self.sim.quarantine_particles:
-            tl = self._to_screen(-1.7, -0.5)
-            br = self._to_screen(-1.2, -1)
+            tl = self._to_screen(-1.5, 0.95)
+            br = self._to_screen(-1.15, 0.7)
             painter.setPen(QPen(QColor("#ff0000"), 3))
             painter.drawRect(tl[0], tl[1], br[0] - tl[0], br[1] - tl[1])
 
@@ -566,19 +579,17 @@ class SimulationCanvas(QWidget):
                 self._draw_particle(painter, p)
 
     def _draw_particle(self, painter, p):
-        """Draw a single particle with state-based color"""
         pos = self._to_screen(p.x, p.y)
 
-        # Color based on state (matches HTML logic)
         if p.state == 'susceptible':
-            color = QColor(0, 191, 255)  # Cyan/Blue
+            color = QColor(0, 191, 255)
         elif p.state == 'infected':
             if not p.shows_symptoms:
-                color = QColor(255, 165, 0)  # Orange for asymptomatic
+                color = QColor(255, 165, 0)
             else:
-                color = QColor(255, 69, 69)  # Red for symptomatic
-        else:  # removed
-            color = QColor(100, 100, 100)  # Gray
+                color = QColor(255, 69, 69)
+        else:
+            color = QColor(100, 100, 100)
 
         painter.setBrush(color)
         painter.setPen(Qt.NoPen)
@@ -602,10 +613,9 @@ class EpidemicApp(QMainWindow):
         self.setup_ui()
         self.sim.initialize()
 
-        # Timer for simulation
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_simulation)
-        self.timer.start(16)  # ~60 FPS
+        self.timer.start(16)
 
     def setup_ui(self):
         central = QWidget()
@@ -614,15 +624,27 @@ class EpidemicApp(QMainWindow):
         layout.setSpacing(0)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        # Left: Simulation canvas
         self.canvas = SimulationCanvas(self.sim)
         layout.addWidget(self.canvas, 2)
 
-        # Right: Controls
         right_panel = QWidget()
         right_panel.setMaximumWidth(500)
         right_layout = QVBoxLayout(right_panel)
         layout.addWidget(right_panel, 1)
+
+        # PRESETS DROPDOWN
+        preset_group = QGroupBox("[ PRESETS ]")
+        preset_layout = QVBoxLayout()
+
+        self.preset_combo = QComboBox()
+        self.preset_combo.addItem("-- Select Preset --")
+        for preset_name in PRESETS.keys():
+            self.preset_combo.addItem(preset_name)
+        self.preset_combo.currentTextChanged.connect(self.load_preset)
+        preset_layout.addWidget(self.preset_combo)
+
+        preset_group.setLayout(preset_layout)
+        right_layout.addWidget(preset_group)
 
         # Mode buttons
         mode_group = QGroupBox("[ SIMULATION MODE ]")
@@ -668,7 +690,7 @@ class EpidemicApp(QMainWindow):
         self.stats_label.setStyleSheet(f"font-size: 18px; padding: 15px; font-family: 'Courier New'; color: {NEON_GREEN};")
         right_layout.addWidget(self.stats_label)
 
-        # Graph with FILLED areas
+        # Graph (FIXED FILLING)
         self.graph_widget = pg.PlotWidget()
         self.graph_widget.setBackground(BG_BLACK)
         self.graph_widget.setLabel('left', '% POPULATION', color=NEON_GREEN)
@@ -676,7 +698,6 @@ class EpidemicApp(QMainWindow):
         self.graph_widget.showGrid(x=True, y=True, alpha=0.2)
         self.graph_widget.setYRange(0, 100)
 
-        # Style the graph axes
         axis_pen = pg.mkPen(color=NEON_GREEN, width=2)
         self.graph_widget.getAxis('left').setPen(axis_pen)
         self.graph_widget.getAxis('bottom').setPen(axis_pen)
@@ -685,36 +706,26 @@ class EpidemicApp(QMainWindow):
 
         right_layout.addWidget(self.graph_widget)
 
-        # Parameter sliders (EXPANDED with more parameters)
+        # Parameter sliders
         sliders_scroll = QScrollArea()
         sliders_scroll.setWidgetResizable(True)
-        sliders_scroll.setMaximumHeight(400)
+        sliders_scroll.setMaximumHeight(350)
 
         sliders_widget = QWidget()
         sliders_layout = QVBoxLayout(sliders_widget)
 
         self.sliders = {}
         slider_params = [
-            # Infection parameters
-            ('infection_radius', 'INFECTION_RADIUS', 0.01, 0.4, 0.1),
-            ('prob_infection', 'INFECTION_PROB', 0, 1, 0.06),
-            ('fraction_infected_init', 'INITIAL_INFECTED_%', 0, 0.1, 0.01),
+            ('infection_radius', 'INFECTION_RADIUS', 0.01, 0.4, 0.15),
+            ('prob_infection', 'INFECTION_PROB', 0, 0.1, 0.02),
+            ('fraction_infected_init', 'INITIAL_INFECTED_%', 0, 0.05, 0.01),
             ('infection_duration', 'DURATION_DAYS', 1, 100, 25),
-
-            # Social distancing
             ('social_distance_factor', 'SOCIAL_DISTANCE', 0, 2, 0),
             ('social_distance_obedient', 'SD_OBEDIENT_%', 0, 1, 1.0),
             ('boxes_to_consider', 'SD_RADIUS_MULT', 1, 10, 2),
-
-            # Quarantine parameters
-            ('quarantine_after', 'QUARANTINE_AFTER', 1, 50, 10),
-            ('start_quarantine', 'START_Q_DAY', 0, 30, 2),
-            ('prob_no_symptoms', 'ASYMPTOMATIC_%', 0, 0.5, 0.02),
-
-            # Community parameters
-            ('travel_probability', 'TRAVEL_PROB', 0, 0.1, 0.02),
-            ('num_per_community', 'POP/COMMUNITY', 10, 200, 60),
-            ('communities_to_infect', 'INIT_COMMUNITIES', 1, 9, 2),
+            ('quarantine_after', 'QUARANTINE_AFTER', 1, 20, 5),
+            ('start_quarantine', 'START_Q_DAY', 0, 30, 10),
+            ('prob_no_symptoms', 'ASYMPTOMATIC_%', 0, 0.5, 0.20),
         ]
 
         for param, label, min_val, max_val, default in slider_params:
@@ -742,16 +753,14 @@ class EpidemicApp(QMainWindow):
         log_layout = QVBoxLayout()
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
-        self.log_text.setMaximumHeight(200)
+        self.log_text.setMaximumHeight(150)
         log_layout.addWidget(self.log_text)
         log_group.setLayout(log_layout)
         right_layout.addWidget(log_group)
 
-        # Apply theme
         self.apply_theme()
 
     def apply_theme(self):
-        """Apply neon green hacker theme"""
         self.setStyleSheet(f"""
             QMainWindow {{
                 background-color: {BG_BLACK};
@@ -762,6 +771,28 @@ class EpidemicApp(QMainWindow):
                 font-family: 'Courier New', monospace;
             }}
             QScrollArea {{
+                border: 2px solid {BORDER_GREEN};
+            }}
+            QComboBox {{
+                background-color: {BG_BLACK};
+                color: {NEON_GREEN};
+                border: 2px solid {BORDER_GREEN};
+                padding: 5px;
+                font-size: 12px;
+            }}
+            QComboBox::drop-down {{
+                border: 0px;
+            }}
+            QComboBox::down-arrow {{
+                image: none;
+                border-left: 5px solid transparent;
+                border-right: 5px solid transparent;
+                border-top: 5px solid {NEON_GREEN};
+            }}
+            QComboBox QAbstractItemView {{
+                background-color: {BG_BLACK};
+                color: {NEON_GREEN};
+                selection-background-color: {BORDER_GREEN};
                 border: 2px solid {BORDER_GREEN};
             }}
             QGroupBox {{
@@ -819,23 +850,41 @@ class EpidemicApp(QMainWindow):
             }}
         """)
 
+    def load_preset(self, preset_name):
+        """Load a preset configuration"""
+        if preset_name == "-- Select Preset --":
+            return
+
+        if preset_name not in PRESETS:
+            return
+
+        preset = PRESETS[preset_name]
+
+        # Update all parameters
+        for param_name, value in preset.items():
+            if param_name in self.sliders:
+                slider, label, label_text = self.sliders[param_name]
+                slider.setValue(int(value * 100))
+                label.setText(f"{label_text}: {value:.2f}")
+                setattr(params, param_name, value)
+
+        # Reset simulation with new parameters
+        self.reset_sim()
+        self.sim.log(f"LOADED PRESET: {preset_name}")
+
     def update_param(self, param, value, label, label_text):
-        """Update simulation parameter"""
         setattr(params, param, value)
         label.setText(f"{label_text}: {value:.2f}")
 
     def change_mode(self, mode):
-        """Change simulation mode"""
         self.sim.mode = mode
         self.reset_sim()
 
     def toggle_pause(self):
-        """Toggle pause state"""
         self.paused = not self.paused
         self.pause_btn.setText("[RESUME]" if self.paused else "[PAUSE]")
 
     def reset_sim(self):
-        """Reset simulation"""
         self.sim.initialize()
         self.graph_widget.clear()
         self.log_text.clear()
@@ -843,19 +892,16 @@ class EpidemicApp(QMainWindow):
         self.pause_btn.setText("[PAUSE]")
 
     def set_speed(self, speed):
-        """Set simulation speed"""
         self.speed = speed
         self.sim.log(f"SPEED SET TO {speed}x")
 
     def add_log(self, message):
-        """Add message to log"""
         self.log_text.append(message)
         self.log_text.verticalScrollBar().setValue(
             self.log_text.verticalScrollBar().maximum()
         )
 
     def update_simulation(self):
-        """Update simulation step"""
         if not self.paused:
             steps = int(self.speed)
             for _ in range(steps):
@@ -864,7 +910,7 @@ class EpidemicApp(QMainWindow):
         self.canvas.update()
 
     def update_stats_display(self, counts):
-        """Update stats and graph with FILLED AREAS"""
+        """FIXED: Proper stacked area graph"""
         total = sum(counts.values())
         if total == 0:
             return
@@ -879,7 +925,6 @@ class EpidemicApp(QMainWindow):
         text += f"> REMOVED:     {r_pct:5.1f}%"
         self.stats_label.setText(text)
 
-        # Update graph with FILLED AREAS (stacked)
         if len(self.sim.stats['day']) > 1:
             self.graph_widget.clear()
 
@@ -888,40 +933,36 @@ class EpidemicApp(QMainWindow):
             i_data = self.sim.stats['infected']
             r_data = self.sim.stats['removed']
 
-            # Layer 1: Removed (bottom - gray)
-            self.graph_widget.plot(
-                days, r_data,
-                pen=pg.mkPen(color=(100, 100, 100), width=2),
-                fillLevel=0,
-                brush=(100, 100, 100, 180),
-                name='REMOVED'
-            )
+            # Create polygon points for filled areas (key fix!)
+            # Removed area (bottom)
+            r_x = days + days[::-1]
+            r_y = r_data + [0] * len(days)
+            r_item = pg.PlotCurveItem(r_x, r_y, fillLevel=0,
+                                      brush=(100, 100, 100, 180),
+                                      pen=pg.mkPen(color=(100, 100, 100), width=2))
+            self.graph_widget.addItem(r_item)
 
-            # Layer 2: Infected (middle - red)
-            # Stack on top of removed
-            infected_layer = [r_data[i] + i_data[i] for i in range(len(days))]
-            self.graph_widget.plot(
-                days, infected_layer,
-                pen=pg.mkPen(color=(255, 69, 69), width=2),
-                fillLevel=0,
-                brush=(255, 69, 69, 180),
-                name='INFECTED'
-            )
+            # Infected area (middle) - stack on removed
+            i_y_top = [r_data[i] + i_data[i] for i in range(len(days))]
+            i_x = days + days[::-1]
+            i_y = i_y_top + r_data[::-1]
+            i_item = pg.PlotCurveItem(i_x, i_y, fillLevel=0,
+                                      brush=(255, 69, 69, 180),
+                                      pen=pg.mkPen(color=(255, 69, 69), width=2))
+            self.graph_widget.addItem(i_item)
 
-            # Layer 3: Susceptible (top - cyan)
-            # Fill to 100% to show susceptible area
-            self.graph_widget.plot(
-                days, [100]*len(days),
-                pen=pg.mkPen(color=(0, 191, 255), width=2),
-                fillLevel=0,
-                brush=(0, 191, 255, 180),
-                name='SUSCEPTIBLE'
-            )
+            # Susceptible area (top) - stack on infected+removed
+            s_y_bottom = [r_data[i] + i_data[i] for i in range(len(days))]
+            s_x = days + days[::-1]
+            s_y = [100] * len(days) + s_y_bottom[::-1]
+            s_item = pg.PlotCurveItem(s_x, s_y, fillLevel=0,
+                                      brush=(0, 191, 255, 180),
+                                      pen=pg.mkPen(color=(0, 191, 255), width=2))
+            self.graph_widget.addItem(s_item)
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
 
-    # Set monospace font globally
     font = QFont("Courier New", 10)
     app.setFont(font)
 
