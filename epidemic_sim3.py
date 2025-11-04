@@ -37,6 +37,7 @@ class SimParams:
         self.time_steps_per_day = 24
 
         # Quarantine parameters (LESS AGGRESSIVE)
+        self.quarantine_enabled = False  # Toggle quarantine on/off
         self.quarantine_after = 5  # Quarantine earlier (5 days)
         self.start_quarantine = 10   # But start later (day 10)
         self.prob_no_symptoms = 0.20  # 20% asymptomatic (more realistic)
@@ -367,7 +368,7 @@ class EpidemicSimulation(QObject):
                     p.state = 'removed'
                     recovered += 1
 
-                elif (self.mode in ['quarantine', 'communities'] and
+                elif (params.quarantine_enabled and
                       p.days_infected >= params.quarantine_after and
                       self.day_count >= params.start_quarantine and
                       p.shows_symptoms and
@@ -451,7 +452,7 @@ class EpidemicSimulation(QObject):
                 self._check_infections(self.particles)
                 to_q = self._update_infections(self.particles)
 
-                if self.mode == 'quarantine' and to_q:
+                if to_q:
                     self.log(f">> {len(to_q)} MOVED TO QUARANTINE")
                     for p in to_q:
                         self._move_to_quarantine(p, self.particles)
@@ -547,7 +548,7 @@ class SimulationCanvas(QWidget):
         for p in self.sim.particles:
             self._draw_particle(painter, p)
 
-        if self.sim.mode == 'quarantine' and self.sim.quarantine_particles:
+        if params.quarantine_enabled and self.sim.quarantine_particles:
             # Smaller quarantine box (top-left)
             tl = self._to_screen(-1.5, 0.95)
             br = self._to_screen(-1.15, 0.7)
@@ -569,7 +570,7 @@ class SimulationCanvas(QWidget):
             for p in comm['particles']:
                 self._draw_particle(painter, p)
 
-        if self.sim.quarantine_particles:
+        if params.quarantine_enabled and self.sim.quarantine_particles:
             tl = self._to_screen(-1.5, 0.95)
             br = self._to_screen(-1.15, 0.7)
             painter.setPen(QPen(QColor("#ff0000"), 3))
@@ -662,6 +663,18 @@ class EpidemicApp(QMainWindow):
         mode_group.setLayout(mode_layout)
         right_layout.addWidget(mode_group)
 
+        # Intervention controls
+        intervention_group = QGroupBox("[ INTERVENTIONS ]")
+        intervention_layout = QVBoxLayout()
+
+        self.quarantine_checkbox = QCheckBox("  ENABLE QUARANTINE")
+        self.quarantine_checkbox.setChecked(params.quarantine_enabled)
+        self.quarantine_checkbox.stateChanged.connect(self.toggle_quarantine)
+        intervention_layout.addWidget(self.quarantine_checkbox)
+
+        intervention_group.setLayout(intervention_layout)
+        right_layout.addWidget(intervention_group)
+
         # Control buttons
         controls = QHBoxLayout()
         self.pause_btn = QPushButton("[PAUSE]")
@@ -748,15 +761,29 @@ class EpidemicApp(QMainWindow):
         sliders_scroll.setWidget(sliders_widget)
         right_layout.addWidget(sliders_scroll)
 
-        # Log window
-        log_group = QGroupBox("[ SYSTEM LOG ]")
-        log_layout = QVBoxLayout()
-        self.log_text = QTextEdit()
-        self.log_text.setReadOnly(True)
-        self.log_text.setMaximumHeight(150)
-        log_layout.addWidget(self.log_text)
-        log_group.setLayout(log_layout)
-        right_layout.addWidget(log_group)
+        # Status bar for important events
+        status_group = QGroupBox("[ STATUS ]")
+        status_layout = QVBoxLayout()
+        self.status_label = QLabel("Ready to start simulation")
+        self.status_label.setStyleSheet(f"font-size: 12px; padding: 10px; font-family: 'Courier New'; color: {NEON_GREEN};")
+        self.status_label.setWordWrap(True)
+        status_layout.addWidget(self.status_label)
+        status_group.setLayout(status_layout)
+        right_layout.addWidget(status_group)
+
+        # Keyboard shortcuts reference
+        shortcuts_group = QGroupBox("[ KEYBOARD SHORTCUTS ]")
+        shortcuts_layout = QVBoxLayout()
+        shortcuts_text = QLabel(
+            "SPACE: Pause/Resume\n"
+            "R: Reset Simulation\n"
+            "Q: Toggle Quarantine\n"
+            "1-9: Load Preset (1-9)"
+        )
+        shortcuts_text.setStyleSheet(f"font-size: 11px; padding: 5px; font-family: 'Courier New'; color: {NEON_GREEN};")
+        shortcuts_layout.addWidget(shortcuts_text)
+        shortcuts_group.setLayout(shortcuts_layout)
+        right_layout.addWidget(shortcuts_group)
 
         self.apply_theme()
 
@@ -848,6 +875,26 @@ class EpidemicApp(QMainWindow):
                 width: 14px;
                 margin: -5px 0;
             }}
+            QCheckBox {{
+                color: {NEON_GREEN};
+                font-family: 'Courier New', monospace;
+                font-size: 13px;
+                font-weight: bold;
+                spacing: 8px;
+            }}
+            QCheckBox::indicator {{
+                width: 18px;
+                height: 18px;
+                border: 2px solid {BORDER_GREEN};
+                background-color: {BG_BLACK};
+            }}
+            QCheckBox::indicator:checked {{
+                background-color: {NEON_GREEN};
+                border: 2px solid {NEON_GREEN};
+            }}
+            QCheckBox::indicator:hover {{
+                border: 2px solid {NEON_GREEN};
+            }}
         """)
 
     def load_preset(self, preset_name):
@@ -880,6 +927,12 @@ class EpidemicApp(QMainWindow):
         self.sim.mode = mode
         self.reset_sim()
 
+    def toggle_quarantine(self, state):
+        """Toggle quarantine on/off"""
+        params.quarantine_enabled = bool(state)
+        status = "ENABLED" if state else "DISABLED"
+        self.status_label.setText(f"Quarantine {status}")
+
     def toggle_pause(self):
         self.paused = not self.paused
         self.pause_btn.setText("[RESUME]" if self.paused else "[PAUSE]")
@@ -887,7 +940,7 @@ class EpidemicApp(QMainWindow):
     def reset_sim(self):
         self.sim.initialize()
         self.graph_widget.clear()
-        self.log_text.clear()
+        self.status_label.setText("Simulation reset")
         self.paused = False
         self.pause_btn.setText("[PAUSE]")
 
@@ -896,10 +949,43 @@ class EpidemicApp(QMainWindow):
         self.sim.log(f"SPEED SET TO {speed}x")
 
     def add_log(self, message):
-        self.log_text.append(message)
-        self.log_text.verticalScrollBar().setValue(
-            self.log_text.verticalScrollBar().maximum()
-        )
+        """Update status bar with important events only"""
+        # Filter to show only important events
+        important_keywords = ['INITIALIZING', 'PATIENT ZERO', 'PRESET', 'QUARANTINE', 'SPEED']
+        if any(keyword in message for keyword in important_keywords):
+            self.status_label.setText(message)
+
+    def keyPressEvent(self, event):
+        """Handle keyboard shortcuts"""
+        key = event.key()
+
+        # Space: Pause/Resume
+        if key == Qt.Key_Space:
+            self.toggle_pause()
+            return
+
+        # R: Reset
+        if key == Qt.Key_R:
+            self.reset_sim()
+            return
+
+        # 1-9: Quick preset selection
+        if Qt.Key_1 <= key <= Qt.Key_9:
+            preset_index = key - Qt.Key_1  # 0-8
+            preset_names = list(PRESETS.keys())
+            if preset_index < len(preset_names):
+                preset_name = preset_names[preset_index]
+                self.preset_combo.setCurrentText(preset_name)
+            return
+
+        # Q: Toggle quarantine
+        if key == Qt.Key_Q:
+            new_state = not params.quarantine_enabled
+            self.quarantine_checkbox.setChecked(new_state)
+            return
+
+        # Pass other events to parent
+        super().keyPressEvent(event)
 
     def update_simulation(self):
         if not self.paused:
