@@ -176,6 +176,9 @@ class SimParams:
         self.marketplace_y = 0.0
         self.marketplace_community_id = 4  # Center tile in 3x3 grid (communities mode)
 
+        # Visualization options
+        self.show_infection_radius = False  # Toggle infection radius visualization
+
 params = SimParams()
 
 # =================== PRESETS ===================
@@ -971,6 +974,16 @@ class SimulationCanvas(QWidget):
     def _draw_particle(self, painter, p):
         pos = self._to_screen(p.x, p.y)
 
+        # Draw infection radius circle if enabled and particle is infected
+        if params.show_infection_radius and p.state == 'infected':
+            radius_world = params.infection_radius
+            radius_screen = int(radius_world * self.scale)
+            # Semi-transparent red circle
+            painter.setPen(QPen(QColor(255, 0, 0, 100), 1))
+            painter.setBrush(QBrush(QColor(255, 0, 0, 30)))
+            painter.drawEllipse(pos[0] - radius_screen, pos[1] - radius_screen,
+                              radius_screen * 2, radius_screen * 2)
+
         # Use theme-aware colors for particles
         if p.state == 'susceptible':
             rgb = get_color('PARTICLE_SUSCEPTIBLE')
@@ -1181,12 +1194,16 @@ class EpidemicApp(QMainWindow):
         # Track collapsible boxes for theme updates
         self.collapsible_boxes = []
 
+        # Performance optimization: frame skipping
+        self.frame_count = 0
+        self.skip_frames = 1  # Render every Nth frame (adjusted dynamically)
+
         self.setup_ui()
         self.sim.initialize()
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_simulation)
-        self.timer.start(16)
+        self.timer.start(16)  # 60 FPS target
 
     def setup_ui(self):
         """Setup UI: Left params (collapsible) + Center canvas + Right controls"""
@@ -1239,7 +1256,7 @@ class EpidemicApp(QMainWindow):
         self.collapsible_boxes.append(disease_box)
         disease_params = [
             ('infection_radius', 'Infection Radius', 0.01, 0.4, 0.15),
-            ('prob_infection', 'Infection Probability', 0, 0.5, 0.15),  # Extended range to 50% for experimentation
+            ('prob_infection', 'Infection Probability', 0, 1.0, 0.15),  # Extended range to 100% for maximum spread!
             ('infection_duration', 'Infection Duration (days)', 1, 100, 25),
             ('mortality_rate', 'Mortality Rate', 0, 1.0, 0.0),
             ('fraction_infected_init', 'Initial Infected %', 0, 0.05, 0.01),
@@ -1557,6 +1574,13 @@ class EpidemicApp(QMainWindow):
         self.collapsible_boxes.append(vis_box)
         # Start expanded (not collapsed) - graphs should be visible!
 
+        # Infection radius visibility toggle
+        self.show_radius_checkbox = QCheckBox("Show Infection Radius")
+        self.show_radius_checkbox.setChecked(params.show_infection_radius)
+        self.show_radius_checkbox.stateChanged.connect(self.toggle_infection_radius)
+        self.show_radius_checkbox.setToolTip("Display red circles around infected particles showing infection range")
+        vis_box.addWidget(self.show_radius_checkbox)
+
         vis_tabs = QTabWidget()
         vis_tabs.setMinimumHeight(400)  # Much taller now!
         vis_tabs.setStyleSheet(f"""
@@ -1649,6 +1673,18 @@ class EpidemicApp(QMainWindow):
         self.status_label.setText(f"Population changed to {new_pop}")
 
     def apply_theme(self):
+        # Dynamic hover colors based on theme
+        if current_theme == LIGHT_THEME:
+            hover_bg = "#e8f5e9"  # Light green tint
+            hover_border = "#2e7d32"  # Darker green
+            hover_text = "#1b5e20"  # Dark green text
+            checked_hover_bg = "#4caf50"  # Brighter green
+        else:  # Dark theme
+            hover_bg = "#1a1a1a"  # Dark gray
+            hover_border = "#ffffff"  # White
+            hover_text = "#ffffff"  # White
+            checked_hover_bg = "#00dd00"  # Bright green
+
         self.setStyleSheet(f"""
             QMainWindow {{
                 background-color: {BG_BLACK};
@@ -1708,10 +1744,10 @@ class EpidemicApp(QMainWindow):
                 min-height: 20px;
             }}
             QPushButton:hover {{
-                background-color: #1a1a1a;
-                border-color: #ffffff;
+                background-color: {hover_bg};
+                border-color: {hover_border};
                 border-width: 2px;
-                color: #ffffff;
+                color: {hover_text};
             }}
             QPushButton:checked {{
                 background-color: {NEON_GREEN};
@@ -1725,8 +1761,8 @@ class EpidemicApp(QMainWindow):
                 padding: 10px;
             }}
             QPushButton:checked:hover {{
-                background-color: #00dd00;
-                border: 2px solid #ffffff;
+                background-color: {checked_hover_bg};
+                border: 2px solid {hover_border};
                 color: {BG_BLACK};
             }}
             QLabel {{
@@ -1844,6 +1880,12 @@ class EpidemicApp(QMainWindow):
         params.marketplace_enabled = bool(state)
         self.status_label.setText(f"Marketplace {'enabled' if state else 'disabled'}")
 
+    def toggle_infection_radius(self, state):
+        """Toggle infection radius visualization"""
+        params.show_infection_radius = bool(state)
+        self.canvas.update()  # Force redraw
+        self.status_label.setText(f"Infection radius {'visible' if state else 'hidden'}")
+
     def load_theme(self, theme_name):
         """Load and apply a theme (dark or light)"""
         global current_theme
@@ -1924,7 +1966,18 @@ class EpidemicApp(QMainWindow):
     def reset_sim(self):
         self.sim.initialize()
         self.graph_widget.clear()
-        self.status_label.setText("Simulation reset")
+
+        # Adaptive performance optimization based on population size
+        # More particles = skip more rendering frames
+        if params.num_particles <= 200:
+            self.skip_frames = 1  # Render every frame (60 FPS)
+        elif params.num_particles <= 500:
+            self.skip_frames = 2  # Render every 2nd frame (30 FPS)
+        else:  # > 500 particles
+            self.skip_frames = 3  # Render every 3rd frame (20 FPS)
+
+        self.frame_count = 0
+        self.status_label.setText(f"Simulation reset ({params.num_particles} particles, {60//self.skip_frames} FPS)")
         self.paused = False
         self.pause_btn.setText("PAUSE")
 
@@ -2004,7 +2057,11 @@ class EpidemicApp(QMainWindow):
             # Keep the fractional part for next frame
             self.speed_accumulator -= steps_to_run
 
-        self.canvas.update()
+        # Adaptive frame skipping for performance with many particles
+        self.frame_count += 1
+        if self.frame_count >= self.skip_frames:
+            self.frame_count = 0
+            self.canvas.update()  # Only update canvas every Nth frame
 
     def update_stats_display(self, counts):
         """Update stats display, graph, and pie chart"""
