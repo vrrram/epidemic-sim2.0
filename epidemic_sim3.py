@@ -137,7 +137,7 @@ class SimParams:
     def __init__(self):
         # Infection parameters (BETTER DEFAULTS)
         self.infection_radius = 0.15
-        self.prob_infection = 0.02
+        self.prob_infection = 0.05  # Increased from 0.02 for more satisfying spread
         self.fraction_infected_init = 0.01
         self.infection_duration = 25
 
@@ -182,7 +182,7 @@ params = SimParams()
 PRESETS = {
     # Educational Presets
     "Baseline Epidemic": {
-        'infection_radius': 0.15, 'prob_infection': 0.02, 'fraction_infected_init': 0.01,
+        'infection_radius': 0.15, 'prob_infection': 0.05, 'fraction_infected_init': 0.01,
         'infection_duration': 25, 'social_distance_factor': 0.0, 'social_distance_obedient': 1.0,
         'boxes_to_consider': 2, 'quarantine_after': 5, 'start_quarantine': 10, 'prob_no_symptoms': 0.20
     },
@@ -1046,6 +1046,25 @@ class CollapsibleBox(QWidget):
         if self.parent():
             self.parent().updateGeometry()
 
+    def update_theme(self):
+        """Update collapsible box theme colors"""
+        self.toggle_button.setStyleSheet(f"""
+            QPushButton {{
+                text-align: left;
+                padding: 8px;
+                font-weight: bold;
+                border: 2px solid {BORDER_GREEN};
+                background-color: {PANEL_BLACK};
+                color: {NEON_GREEN};
+                font-family: 'Courier New', monospace;
+                font-size: 12px;
+            }}
+            QPushButton:hover {{
+                background-color: {DARK_GREEN};
+                border-color: {NEON_GREEN};
+            }}
+        """)
+
     def addWidget(self, widget):
         self.content_layout.addWidget(widget)
 
@@ -1159,6 +1178,9 @@ class EpidemicApp(QMainWindow):
         self.paused = False
         self.speed_accumulator = 0.0  # For smooth fractional speed
 
+        # Track collapsible boxes for theme updates
+        self.collapsible_boxes = []
+
         self.setup_ui()
         self.sim.initialize()
 
@@ -1214,6 +1236,7 @@ class EpidemicApp(QMainWindow):
 
         # DISEASE PARAMETERS
         disease_box = CollapsibleBox("DISEASE PARAMETERS")
+        self.collapsible_boxes.append(disease_box)
         disease_params = [
             ('infection_radius', 'Infection Radius', 0.01, 0.4, 0.15),
             ('prob_infection', 'Infection Probability', 0, 0.1, 0.02),
@@ -1239,6 +1262,7 @@ class EpidemicApp(QMainWindow):
 
         # POPULATION PARAMETERS
         pop_box = CollapsibleBox("POPULATION PARAMETERS")
+        self.collapsible_boxes.append(pop_box)
         pop_params = [
             ('social_distance_factor', 'Social Distancing Strength', 0, 2, 0),
             ('social_distance_obedient', 'Social Distance Compliance', 0, 1, 1.0),
@@ -1261,6 +1285,7 @@ class EpidemicApp(QMainWindow):
 
         # INTERVENTION PARAMETERS
         interv_box = CollapsibleBox("INTERVENTION PARAMETERS")
+        self.collapsible_boxes.append(interv_box)
         interv_params = [
             ('boxes_to_consider', 'Social Distance Range', 1, 10, 2),
             ('quarantine_after', 'Quarantine After (days)', 1, 20, 5),
@@ -1285,6 +1310,7 @@ class EpidemicApp(QMainWindow):
 
         # PRESETS
         presets_box = CollapsibleBox("PRESETS")
+        self.collapsible_boxes.append(presets_box)
         self.preset_combo = QComboBox()
         self.preset_combo.addItem("-- Select Preset --")
         for preset_name in PRESETS.keys():
@@ -1463,6 +1489,7 @@ class EpidemicApp(QMainWindow):
 
         # === MODE ===
         mode_box = CollapsibleBox("SIMULATION MODE")
+        self.collapsible_boxes.append(mode_box)
         self.mode_btns = QButtonGroup()
         for i, mode in enumerate(['simple', 'quarantine', 'communities']):
             btn = QPushButton(mode.upper())
@@ -1476,6 +1503,7 @@ class EpidemicApp(QMainWindow):
 
         # === INTERVENTIONS ===
         interv_box = CollapsibleBox("INTERVENTIONS")
+        self.collapsible_boxes.append(interv_box)
 
         self.quarantine_checkbox = QCheckBox("Quarantine Zone")
         self.quarantine_checkbox.setChecked(params.quarantine_enabled)
@@ -1509,6 +1537,7 @@ class EpidemicApp(QMainWindow):
 
         # === VISUALIZATIONS ===
         vis_box = CollapsibleBox("VISUALIZATIONS")
+        self.collapsible_boxes.append(vis_box)
         # Start expanded (not collapsed) - graphs should be visible!
 
         vis_tabs = QTabWidget()
@@ -1826,6 +1855,14 @@ class EpidemicApp(QMainWindow):
         # Apply theme to all UI elements
         self.apply_theme()
 
+        # Update panels with direct stylesheets
+        self.left_panel.setStyleSheet(f"background-color: {BG_BLACK};")
+        self.right_panel.setStyleSheet(f"background-color: {BG_BLACK};")
+
+        # Update all collapsible boxes
+        for box in self.collapsible_boxes:
+            box.update_theme()
+
         # Update canvas background
         self.canvas.update()
 
@@ -1834,9 +1871,18 @@ class EpidemicApp(QMainWindow):
         graph_grid_color = get_color('GRAPH_GRID')
         self.graph_widget.showGrid(x=True, y=True, alpha=graph_grid_color[3]/255.0)
 
+        # Update all axes colors
+        for side in ['left', 'bottom', 'right', 'top']:
+            axis = self.graph_widget.getAxis(side)
+            axis.setPen(pg.mkPen(color=get_color('BORDER_GRAY') if current_theme == LIGHT_THEME else BORDER_GREEN, width=2))
+            axis.setTextPen(get_color('TEXT'))
+
         # Update pie chart
         self.pie_chart.fig.patch.set_facecolor(get_color('GRAPH_BG'))
         self.pie_chart.setStyleSheet(f"background-color: {get_color('GRAPH_BG')};")
+        # Update pie chart axes
+        if hasattr(self.pie_chart, 'axes'):
+            self.pie_chart.axes.set_facecolor(get_color('GRAPH_BG'))
         self.pie_chart.draw()
 
         # Force full UI refresh
