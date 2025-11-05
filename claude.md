@@ -12,17 +12,19 @@ pip install -r requirements.txt
 python epidemic_sim3.py
 ```
 
-## Current State (Last Updated: 2025-11-04)
+## Current State (Last Updated: 2025-11-05)
 
 ### Active Branch
-- **Branch**: `claude/update-epidemic-sim3-011CUnSd6Douv1cnUvoKPu8J`
-- **Status**: All changes committed and pushed
-- **Latest Commit**: `1ee011f` - Add requirements.txt for project dependencies
+- **Branch**: `claude/implement-claude-md-tasks-011CUni2yWfK1jg17LEpZqhC`
+- **Status**: Documentation complete, ready for implementation tickets
+- **Latest Commit**: `b447f9a` - Add detailed ticket breakdown for German vocational project
 
 ### Recent Commits
-1. `1ee011f` - Add requirements.txt for project dependencies
-2. `4f35c3c` - Fix quarantine zone, graph colors, and add 11 presets
-3. `90d33ad` - Update epidemic_sim3.py: Add quarantine, patient zero, filled graphs, and parameters
+1. `b447f9a` - Add detailed ticket breakdown for German vocational project
+2. `68fa0e7` - Add comprehensive project plan for German vocational school requirements
+3. `346b1a6` - Major UI redesign: Left collapsible parameters panel
+4. `c0a302a` - Fix all reported issues: performance, community travel, UI layout
+5. `2ab4749` - Fix performance: efficient particle removal
 
 ## Key Features Implemented
 
@@ -486,7 +488,130 @@ M      - Toggle marketplace gatherings on/off
 
 ---
 
-**Last Updated**: 2025-11-04
+## German Vocational School Project (IHK Standard)
+
+### Project Context
+This simulation is being developed as a 3rd-year apprenticeship project (Fachinformatiker Anwendungsentwicklung) following IHK standards. The project must meet specific German vocational education requirements.
+
+### Documentation Files
+- **PROJECT_PLAN.md**: Comprehensive 880-line project plan with timeline, requirements analysis, risk assessment
+- **TICKETS.md**: 18 numbered tickets organized by priority and dependencies
+
+### Ticket Organization (REVISED - App Quality First!)
+
+**🚀 PRIORITY 1: APPLICATION QUALITY (Weeks 1-3)**
+- TICKET-001: Implement 3 Distribution Functions ⚠️ HIGHEST PRIORITY
+- TICKET-007: Light Mode Theme 🎨 HIGH - Look & Feel
+- TICKET-008: ISO 9241-110 Compliance 💎 HIGH - UI/UX Polish
+- TICKET-011: Performance Optimization ⚡ HIGH - Performance
+- TICKET-006: Code Modularization 🏗️ HIGH - Code Quality
+- TICKET-009: Comprehensive Error Handling 🛡️ HIGH - Behavior
+
+**🎁 PRIORITY 2: ENHANCED FEATURES (Week 4)**
+- TICKET-012: Save/Load Simulation States
+- TICKET-013: Export Functionality
+- TICKET-014: Tutorial Mode
+- TICKET-010: Unit Testing Suite
+
+**📚 PRIORITY 3: DOCUMENTATION (Weeks 5-6 - After App Polished)**
+- TICKET-003: German Project Documentation (IHK Standard)
+- TICKET-004: Test Protocols (Excel/PDF)
+- TICKET-005: User Manual (German)
+
+**📊 PRIORITY 4: PRESENTATION (Weeks 7-8)**
+- TICKET-016: Presentation Slides (German)
+- TICKET-017: Defense Q&A Preparation
+- TICKET-018: Final Documentation Review
+
+**⏸️ DEPRIORITIZED**
+- TICKET-002: Windows Executable (.exe) - User will handle
+- TICKET-015: Custom Preset Saving - Nice to have
+
+---
+
+## Current Implementation Status
+
+### ✅ Completed Tickets
+*None yet - documentation phase complete*
+
+### 🚧 Current Ticket
+**TICKET-000: Ready for Assignment**
+- Awaiting user to assign first ticket
+- Recommended start: TICKET-001 (Distribution Functions)
+
+### 📋 Ticket Workflow
+
+**For Each Ticket:**
+1. Create feature branch: `claude/ticket-XXX-short-description-{sessionId}`
+2. Implement the ticket completely
+3. Test all acceptance criteria
+4. Commit with descriptive message
+5. Push to branch
+6. Create clean PR with:
+   - Title: `TICKET-XXX: [Ticket Name]`
+   - Description: Summary of changes, acceptance criteria met
+   - Link to TICKETS.md section
+7. Update this claude.md with ticket status
+8. Move to next ticket
+
+**Branch Naming Convention:**
+```
+claude/ticket-001-distribution-functions-011CUni2yWfK1jg17LEpZqhC
+claude/ticket-002-windows-executable-011CUni2yWfK1jg17LEpZqhC
+```
+
+**Commit Message Format:**
+```
+TICKET-XXX: Brief description
+
+- Change 1
+- Change 2
+- Change 3
+
+Acceptance Criteria Met:
+- [x] Criterion 1
+- [x] Criterion 2
+```
+
+**PR Description Template:**
+```markdown
+## TICKET-XXX: [Ticket Name]
+
+### Changes Made
+- Bullet point summary of changes
+- Technical decisions explained
+- Files modified
+
+### Acceptance Criteria
+- [x] Criterion 1
+- [x] Criterion 2
+- [x] All tests pass
+
+### Testing
+- How this was tested
+- Test results
+- Performance impact (if applicable)
+
+### Related Documentation
+- Link to TICKETS.md section
+- Link to PROJECT_PLAN.md section (if applicable)
+```
+
+### Implementation Notes
+
+**Current Focus:** Awaiting ticket assignment
+
+**Next Steps:**
+1. User assigns ticket number to implement
+2. Create feature branch for that ticket
+3. Implement all acceptance criteria
+4. Test thoroughly
+5. Create clean PR
+6. Update status tracking
+
+---
+
+**Last Updated**: 2025-11-05
 **Session ID**: 011CUni2yWfK1jg17LEpZqhC
-**Status**: All planned features implemented and working ✅
-**Commits**: 3 atomic commits (Phase 1, 2, and 3)
+**Current Ticket**: TICKET-000 (Awaiting Assignment)
+**Status**: Documentation complete, ready for implementation ✅
