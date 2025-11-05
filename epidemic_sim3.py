@@ -137,7 +137,7 @@ class SimParams:
     def __init__(self):
         # Infection parameters (BETTER DEFAULTS)
         self.infection_radius = 0.15
-        self.prob_infection = 0.05  # Increased from 0.02 for more satisfying spread
+        self.prob_infection = 0.15  # Increased significantly for visible spread (15% per contact)
         self.fraction_infected_init = 0.01
         self.infection_duration = 25
 
@@ -182,7 +182,7 @@ params = SimParams()
 PRESETS = {
     # Educational Presets
     "Baseline Epidemic": {
-        'infection_radius': 0.15, 'prob_infection': 0.05, 'fraction_infected_init': 0.01,
+        'infection_radius': 0.15, 'prob_infection': 0.15, 'fraction_infected_init': 0.01,
         'infection_duration': 25, 'social_distance_factor': 0.0, 'social_distance_obedient': 1.0,
         'boxes_to_consider': 2, 'quarantine_after': 5, 'start_quarantine': 10, 'prob_no_symptoms': 0.20
     },
@@ -1239,7 +1239,7 @@ class EpidemicApp(QMainWindow):
         self.collapsible_boxes.append(disease_box)
         disease_params = [
             ('infection_radius', 'Infection Radius', 0.01, 0.4, 0.15),
-            ('prob_infection', 'Infection Probability', 0, 0.1, 0.02),
+            ('prob_infection', 'Infection Probability', 0, 0.5, 0.15),  # Extended range to 50% for experimentation
             ('infection_duration', 'Infection Duration (days)', 1, 100, 25),
             ('mortality_rate', 'Mortality Rate', 0, 1.0, 0.0),
             ('fraction_infected_init', 'Initial Infected %', 0, 0.05, 0.01),
@@ -1263,6 +1263,23 @@ class EpidemicApp(QMainWindow):
         # POPULATION PARAMETERS
         pop_box = CollapsibleBox("POPULATION PARAMETERS")
         self.collapsible_boxes.append(pop_box)
+
+        # Population size slider (integer, requires reset)
+        pop_lbl = QLabel(f"Population Size: {params.num_particles} (reset to apply)")
+        pop_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+        pop_box.addWidget(pop_lbl)
+        pop_slider = QSlider(Qt.Horizontal)
+        pop_slider.setMinimum(50)
+        pop_slider.setMaximum(1000)
+        pop_slider.setValue(params.num_particles)
+        pop_slider.setMinimumHeight(22)
+        pop_slider.valueChanged.connect(
+            lambda val: self.update_param('num_particles', val, pop_lbl, 'Population Size', is_int=True)
+        )
+        pop_box.addWidget(pop_slider)
+        self.sliders['num_particles'] = (pop_slider, pop_lbl, 'Population Size')
+
+        # Other population parameters (floats)
         pop_params = [
             ('social_distance_factor', 'Social Distancing Strength', 0, 2, 0),
             ('social_distance_obedient', 'Social Distance Compliance', 0, 1, 1.0),
@@ -1806,9 +1823,12 @@ class EpidemicApp(QMainWindow):
         self.reset_sim()
         self.sim.log(f"LOADED PRESET: {preset_name}")
 
-    def update_param(self, param, value, label, label_text):
+    def update_param(self, param, value, label, label_text, is_int=False):
         setattr(params, param, value)
-        label.setText(f"{label_text}: {value:.2f}")
+        if is_int:
+            label.setText(f"{label_text}: {int(value)} (reset to apply)")
+        else:
+            label.setText(f"{label_text}: {value:.2f}")
 
     def change_mode(self, mode):
         self.sim.mode = mode
