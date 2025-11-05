@@ -12,6 +12,48 @@ matplotlib.use('Qt5Agg')
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 
+# =================== DISTRIBUTION FUNCTIONS DOCUMENTATION ===================
+"""
+This simulation uses THREE different statistical distribution functions as required
+for the IHK vocational project (German: "Berufsschule Abschlussprojekt").
+
+1. UNIFORM DISTRIBUTION (Gleichverteilung)
+   - Usage: Particle initial positions (x, y) and velocities (vx, vy)
+   - Function: random.uniform(a, b)
+   - Mathematical basis: f(x) = 1/(b-a) for a ≤ x ≤ b
+   - Justification: All positions and movement directions should be equally likely.
+                    No inherent bias in spatial distribution or movement patterns.
+   - Examples in code:
+     * Line ~253: x = random.uniform(self.bounds[0], self.bounds[1])
+     * Line ~159: self.vx = random.uniform(-0.2, 0.2)
+
+2. NORMAL DISTRIBUTION / GAUSSIAN (Normalverteilung)
+   - Usage: Individual infection susceptibility (biological variation in immune response)
+   - Function: np.random.normal(mean=1.0, std=0.2)
+   - Mathematical basis: f(x) = (1/σ√(2π)) * e^(-(x-μ)²/(2σ²))
+   - Justification: Biological traits follow bell curve - most people have average
+                    immune response, few are very susceptible or very resistant.
+                    The Central Limit Theorem applies to biological systems.
+   - Effect: Multiplies base infection probability (mean=1.0, so average is unchanged)
+   - Example: If base prob=2%, person with susceptibility=1.2 has effective prob=2.4%
+
+3. EXPONENTIAL DISTRIBUTION (Exponentialverteilung)
+   - Usage: Recovery time variation (modeling disease progression time)
+   - Function: np.random.exponential(scale=1.0)
+   - Mathematical basis: f(x) = λ * e^(-λx) where λ = 1/scale
+   - Justification: Exponential distribution has "memoryless property" - ideal for
+                    modeling time until an event occurs (recovery). Used extensively
+                    in epidemiology for event timing (infection, recovery, death).
+                    Note: Overall epidemic growth IS exponential (SIR model), but this
+                    distribution models individual recovery time variation.
+   - Effect: Multiplies base infection duration (mean=1.0, so average is unchanged)
+   - Example: If base duration=25 days, person with modifier=1.3 recovers in 32.5 days
+
+IMPLEMENTATION NOTE:
+All three distributions are used to create natural variation in the simulation while
+maintaining the expected average behavior set by the user's parameters.
+"""
+
 # =================== NEON GREEN THEME ===================
 NEON_GREEN = "#00ff00"
 DARK_GREEN = "#003300"
@@ -154,10 +196,15 @@ class SpatialGrid:
 # =================== PARTICLE CLASS ===================
 class Particle:
     def __init__(self, x, y, state='susceptible'):
+        # POSITION (initialized with parameters, will use UNIFORM distribution in simulation)
         self.x = x
         self.y = y
+
+        # VELOCITY - UNIFORM DISTRIBUTION (Gleichverteilung)
+        # All directions and speeds equally likely - no inherent movement bias
         self.vx = random.uniform(-0.2, 0.2)
         self.vy = random.uniform(-0.2, 0.2)
+
         self.ax = 0
         self.ay = 0
         self.state = state
@@ -166,6 +213,22 @@ class Particle:
         self.shows_symptoms = True
         self.obeys_social_distance = random.random() < params.social_distance_obedient
         self.infection_count = 0
+
+        # DISTRIBUTION 2: NORMAL DISTRIBUTION (Normalverteilung) - Infection Susceptibility
+        # Models biological variation in immune response
+        # Mean = 1.0 (average person), Std Dev = 0.2 (variation)
+        # Result: Most people near average, few very susceptible/resistant
+        # Ensures ~68% of population between 0.8-1.2 susceptibility
+        # Value is clamped to positive range to avoid negative susceptibility
+        self.infection_susceptibility = max(0.1, np.random.normal(1.0, 0.2))
+
+        # DISTRIBUTION 3: EXPONENTIAL DISTRIBUTION (Exponentialverteilung) - Recovery Time
+        # Models time until recovery event occurs
+        # Scale = 1.0, so mean = 1.0 (average recovery time unchanged)
+        # Exponential has "memoryless property" - ideal for event timing
+        # Some recover quickly (<1.0x), others take longer (>1.0x)
+        # Value is clamped to reasonable range (0.5x to 3.0x base duration)
+        self.recovery_time_modifier = np.clip(np.random.exponential(1.0), 0.5, 3.0)
 
         # Marketplace tracking
         self.at_marketplace = False
@@ -250,6 +313,8 @@ class EpidemicSimulation(QObject):
         self.log(f"SPAWNING {params.num_particles} PARTICLES ({num_infected} INFECTED)")
 
         for i in range(params.num_particles):
+            # UNIFORM DISTRIBUTION: Particle positions randomly distributed
+            # All positions within bounds equally likely - no clustering or bias
             x = random.uniform(self.bounds[0] + 0.15, self.bounds[1] - 0.15)
             y = random.uniform(self.bounds[2] + 0.15, self.bounds[3] - 0.15)
             state = 'infected' if i < num_infected else 'susceptible'
@@ -283,6 +348,8 @@ class EpidemicSimulation(QObject):
                 total_infected += num_infected
 
                 for k in range(params.num_per_community):
+                    # UNIFORM DISTRIBUTION: Particle positions within each community
+                    # Ensures equal spatial distribution within community bounds
                     x = random.uniform(bounds[0] + 0.1, bounds[1] - 0.1)
                     y = random.uniform(bounds[2] + 0.1, bounds[3] - 0.1)
                     state = 'infected' if k < num_infected else 'susceptible'
@@ -399,7 +466,13 @@ class EpidemicSimulation(QObject):
             for sus_p in nearby:
                 dist = inf_p.distance_to(sus_p)
                 if dist < params.infection_radius:
-                    if random.random() < params.prob_infection / params.time_steps_per_day:
+                    # APPLY NORMAL DISTRIBUTION: Infection probability modified by susceptibility
+                    # Base probability adjusted by individual's immune response (susceptibility)
+                    # Susceptibility from Normal distribution (mean=1.0, std=0.2)
+                    # Example: susceptibility=1.2 means 20% more likely to get infected
+                    effective_prob = (params.prob_infection / params.time_steps_per_day) * sus_p.infection_susceptibility
+
+                    if random.random() < effective_prob:
                         sus_p.state = 'infected'
                         sus_p.days_infected = 0
                         inf_p.infection_count += 1
@@ -424,7 +497,14 @@ class EpidemicSimulation(QObject):
             if p.state == 'infected':
                 p.days_infected += 1
 
-                if p.days_infected >= params.infection_duration:
+                # APPLY EXPONENTIAL DISTRIBUTION: Recovery time modified by individual variation
+                # Base infection duration adjusted by recovery time modifier
+                # Modifier from Exponential distribution (scale=1.0, so mean=1.0)
+                # Example: modifier=1.3 means recovery takes 30% longer than average
+                # Exponential models "time until event" - appropriate for disease progression
+                effective_duration = params.infection_duration * p.recovery_time_modifier
+
+                if p.days_infected >= effective_duration:
                     # Infection ends - roll for mortality
                     if random.random() < params.mortality_rate:
                         # Particle dies
