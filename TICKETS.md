@@ -1,18 +1,35 @@
-# PROJECT TICKETS - EPIDEMIC SIMULATOR
+# PROJECT TICKETS - EPIDEMIC SIMULATOR (REVISED)
 ## German Vocational School Requirements (3rd Year)
 
 **Project:** Epidemic Simulation with Distribution Functions
 **Target Grade:** 1 (Excellent - "Above and Beyond")
 **Deadline:** 06.02.2025
 
+**REVISED STRATEGY:** Focus on Application Quality First, Documentation Second
+**RATIONALE:** Polish the application first, then document the polished result
+
 ---
 
-## 🔴 CRITICAL PATH - MUST HAVE FOR GRADE 2
+## 🚀 PRIORITY 1: APPLICATION QUALITY (WEEKS 1-3)
 
-### TICKET-001: Implement 3 Distribution Functions ⚠️ HIGH PRIORITY
-**Estimated Time:** 3 days
+**NEW IMPLEMENTATION ORDER:**
+1. TICKET-001: Distribution Functions (CRITICAL REQUIREMENT)
+2. TICKET-007: Light Mode Theme (LOOK & FEEL)
+3. TICKET-008: ISO 9241-110 Compliance (UI/UX POLISH)
+4. TICKET-011: Performance Optimization (PERFORMANCE)
+5. TICKET-006: Code Modularization (CODE QUALITY)
+6. TICKET-009: Comprehensive Error Handling (BEHAVIOR)
+
+**Note:** TICKET-002 (.exe creation) deprioritized - user will handle
+**Note:** TICKET-003, 004, 005 (documentation) moved to Priority 3 - do AFTER app is polished
+
+---
+
+### TICKET-001: Implement 3 Distribution Functions ⚠️ HIGHEST PRIORITY
+**Estimated Time:** 2 days (reduced - simplified scope)
 **Dependencies:** None
 **Status:** TODO
+**Priority:** 🔴 CRITICAL - Start here!
 
 **Description:**
 Add three different statistical distributions to the simulation as required:

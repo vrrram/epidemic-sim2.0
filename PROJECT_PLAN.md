@@ -1,5 +1,5 @@
-# EPIDEMIC SIMULATOR - PROJECT PLAN
-## Modularization, Requirements Fulfillment & Improvements
+# EPIDEMIC SIMULATOR - PROJECT PLAN (REVISED)
+## Focus: Application Quality First, Documentation Second
 
 ---
 
@@ -15,260 +15,269 @@
 - ✓ Particle animation reflecting simulation
 - ✓ GUI with PyQt5
 - ✓ Cross-platform (Windows compatible)
+- ✓ Three-panel collapsible layout
+- ✓ Quarantine mechanics
+- ✓ Marketplace gathering mechanics
+- ✓ Community-based simulation
+- ✓ Keyboard shortcuts
+- ✓ Real-time statistics
 
 **Non-functional:**
 - ✓ Smooth animations for UX
 - ✓ Collapsible panels for flexibility
 - ✓ Real-time visual feedback
+- ✓ Neon green consistent theme
 
 ---
 
-## ❌ MISSING REQUIREMENTS
+## ❌ PRIORITY REQUIREMENTS
 
-### Critical (Must-Have for Grade 2):
+###  Priority 1: APPLICATION QUALITY (FOCUS AREA) 🚀
 
-1. **Different Distribution Functions (Requirement #2)**
-   - Currently: Only uniform distribution
-   - Needed: 3 different distributions (Normal, Uniform, Exponential)
-   - Impact: CRITICAL - explicit requirement
+**1. Distribution Functions** ⚠️ CRITICAL REQUIREMENT
+- Status: Only uniform distribution implemented
+- Need: Normal (Gaussian) and Exponential distributions
+- Impact: CRITICAL - explicit IHK requirement
+- **HIGHEST PRIORITY**
 
-2. **Executable File (.exe)**
-   - Currently: Python script only
-   - Needed: Standalone .exe for Windows school computers
-   - Impact: CRITICAL - explicit requirement
+**2. Light Mode Theme** 🎨 HIGH - LOOK & FEEL
+- Status: Dark mode only
+- Need: Light/Dark theme toggle with theme persistence
+- Impact: Better visual experience, accessibility, professional appearance
 
-3. **Documentation (German)**
-   - Currently: Technical docs in English
-   - Needed: 6+ page IHK-standard documentation in German
-   - Impact: CRITICAL - 40% of grade
+**3. UI/UX Polish (ISO 9241-110)** 💎 HIGH - FEEL & BEHAVIOR
+- Status: Basic UI implemented
+- Need: Tooltips, help system, better feedback, polish
+- Impact: Professional user experience
 
-4. **Test Protocols**
-   - Currently: No formal testing documentation
-   - Needed: 2+ pages of test protocols in appendix
-   - Impact: CRITICAL - explicit requirement
+**4. Performance Optimization** ⚡ HIGH - PERFORMANCE
+- Status: Good for small populations
+- Need: Profile and optimize for 2000+ particles
+- Impact: Smooth experience at all population levels
 
-5. **User Manual (German)**
-   - Currently: No user manual
-   - Needed: Digital user manual for end users
-   - Impact: CRITICAL - explicit requirement
+**5. Error Handling & Validation** 🛡️ HIGH - BEHAVIOR
+- Status: Minimal error handling
+- Need: Input validation, graceful degradation, user-friendly errors
+- Impact: Professional behavior, stability
 
-### Important (For Grade 1 - "Above and Beyond"):
+**6. Code Modularization** 🏗️ HIGH - MAINTAINABILITY
+- Status: Monolithic 1856-line file
+- Need: Modular architecture, separation of concerns
+- Impact: Clean Code requirement, maintainability
 
-6. **Code Modularization**
-   - Currently: Monolithic 1856-line file
-   - Needed: Modular architecture with separation of concerns
-   - Impact: HIGH - Clean Code requirement
+### Priority 2: ENHANCED FEATURES 🎁
 
-7. **ISO 9241-110 Compliance**
-   - Currently: Partial compliance
-   - Needed: Full verification and documentation
-   - Impact: HIGH - UI evaluation criterion
+**7. Save/Load Functionality**
+- Add ability to save and restore simulation states
+- JSON format with full state preservation
 
-8. **Light Mode**
-   - Currently: Dark mode only
-   - Needed: Light/Dark theme toggle
-   - Impact: MEDIUM - user request, improved accessibility
+**8. Export Features**
+- Export graphs as PNG images
+- Export data as CSV
+- Export simulation parameters
+
+**9. Tutorial Mode**
+- Interactive first-run tutorial
+- Contextual help system
+
+**10. Unit Testing Suite**
+- Comprehensive test coverage (>80%)
+- pytest-based test suite
+
+### Priority 3: DOCUMENTATION 📚
+*(After app is polished)*
+
+**11. German Project Documentation** (IHK Standard)
+- 6+ page documentation
+- **AFTER** app features are finalized
+
+**12. Test Protocols**
+- 2+ pages in Excel/PDF
+- **AFTER** all testing complete
+
+**13. User Manual** (German)
+- Comprehensive end-user documentation
+- **AFTER** app features are complete
+
+### Deprioritized ⏸️
+
+**14. Windows Executable (.exe)**
+- User will handle with PyInstaller
+- Not part of implementation
 
 ---
 
-## 📋 IMPLEMENTATION PLAN
+## 📋 REVISED IMPLEMENTATION PLAN
 
-### Phase 1: Critical Requirements (Week 1-2)
-**Goal:** Fulfill all mandatory requirements for Grade 2
+### Week 1-2: Core Quality Improvements
 
-#### 1.1 Add Distribution Functions (3 days)
-**Files to modify:** `epidemic_sim3.py`
-
-```python
-# Add to Particle class initialization:
-import numpy as np
-
-# 1. UNIFORM DISTRIBUTION (already used)
-#    - For initial positions, velocities
-#    - Use: random.uniform(a, b)
-
-# 2. NORMAL DISTRIBUTION (Gaussian)
-#    - For infection probability variations
-#    - Use: np.random.normal(mean, std_dev)
-#    - Application: Individual infection susceptibility
-
-# 3. EXPONENTIAL DISTRIBUTION
-#    - For infection duration variations
-#    - Use: np.random.exponential(scale)
-#    - Application: Recovery time modeling
-```
+#### TICKET-001: Distribution Functions (2 days) ⚠️
+**Files:** `epidemic_sim3.py`
 
 **Implementation:**
-- Add `infection_susceptibility` attribute (Normal distribution)
-- Add `recovery_time_modifier` attribute (Exponential distribution)
-- Update infection logic to use susceptibility
-- Update recovery logic to use time modifier
-- Document in code which random values use which distribution
+```python
+# Particle class additions
+class Particle:
+    def __init__(self, ...):
+        # Normal distribution for infection susceptibility
+        self.infection_susceptibility = np.random.normal(1.0, 0.2)
+        self.infection_susceptibility = max(0.1, min(2.0, self.infection_susceptibility))
 
-**Justification for Documentation:**
-- Uniform: Position/velocity - all values equally likely
-- Normal: Biological traits - most people average, few extremes
-- Exponential: Time between events - memoryless property
-
-#### 1.2 Create Executable (.exe) (2 days)
-**Tool:** PyInstaller
-
-```bash
-# Install PyInstaller
-pip install pyinstaller
-
-# Create .exe with all dependencies
-pyinstaller --onefile --windowed \
-  --add-data "requirements.txt:." \
-  --icon=icon.ico \
-  --name "EpidemicSimulator" \
-  epidemic_sim3.py
-
-# Test on Windows school computer environment
-# Ensure all PyQt5 and matplotlib dependencies included
+        # Exponential distribution for recovery time variation
+        self.recovery_time_modifier = np.random.exponential(1.0)
+        self.recovery_time_modifier = max(0.5, min(2.0, self.recovery_time_modifier))
 ```
+
+**Changes:**
+- Add numpy import
+- Modify infection probability calculation to use susceptibility
+- Modify recovery time to use time modifier
+- Add comprehensive code comments documenting each distribution usage
+- Test distributions statistically
 
 **Deliverables:**
-- `EpidemicSimulator.exe` (standalone)
-- Installation instructions for school computers
-- Verification checklist
-
-#### 1.3 Documentation - German (5 days)
-**File:** `Projektdokumentation.docx`
-
-**Structure (following IHK standard):**
-
-```markdown
-1. PROJEKTZIELE UND KUNDENWÜNSCHE (1 page)
-   - Bildungsziele: Epidemiologie verstehen
-   - Funktionale Ziele: Parameter-Experimente
-   - Zielgruppe: Schüler, Studenten, Interessierte
-
-2. VORGEHENSMODELL (1 page)
-   - Gewählt: Agiles Vorgehen (Scrum-inspiriert)
-   - Begründung: Iterative Entwicklung, schnelles Feedback
-   - Phasen: Planning → Implementation → Testing → Review
-
-3. RESSOURCEN- UND ABLAUFPLANUNG (1 page)
-   - Zeitplan: 9 Wochen
-   - Kosten: 0€ (Open Source Tools)
-   - Risiken: Technische Komplexität, Zeitdruck
-   - Mitigation: Modular development, frequent testing
-
-4. AUSWAHL VERTEILUNGSFUNKTIONEN (1 page)
-   - Gleichverteilung: Positionen, Geschwindigkeiten
-   - Normalverteilung: Biologische Eigenschaften
-   - Exponentialverteilung: Zeitliche Ereignisse
-   - Mathematische Begründung für jede
-
-5. TECHNOLOGIEAUSWAHL (0.5 pages)
-   - Python: Einfach, mächtige Bibliotheken
-   - PyQt5: Professionelle GUI
-   - NumPy: Mathematische Funktionen
-   - Matplotlib/PyQtGraph: Visualisierungen
-
-6. BENUTZERSCHNITTSTELLE (0.5 pages)
-   - Layout-Konzept (3-Panel-Design)
-   - Bedienlogik (Links Parameter, Mitte Simulation, Rechts Steuerung)
-   - Accessibility Considerations
-
-7. TESTPLANUNG (0.5 pages)
-   - Unit Tests: Einzelne Funktionen
-   - Integration Tests: Zusammenspiel
-   - UI Tests: Benutzerinteraktion
-   - Performance Tests: Große Populationen
-
-8. UMSETZUNG (1 page)
-   - Entwicklungsverlauf
-   - Herausforderungen und Lösungen
-   - Code-Struktur (Module)
-```
-
-**Anhang:**
-- Testprotokolle (2+ pages)
-- Screenshots der Anwendung
-- UML-Diagramme
-- Code-Auszüge
-
-#### 1.4 Test Protocols (2 days)
-**File:** `Testprotokolle.xlsx`
-
-**Test Categories:**
-1. **Functional Tests**
-   - All 11 parameters work correctly
-   - Speed controls function
-   - Mode switching works
-   - Quarantine behavior correct
-   - Marketplace behavior correct
-   - Mortality rate applies correctly
-
-2. **Distribution Tests**
-   - Verify uniform distribution usage
-   - Verify normal distribution usage
-   - Verify exponential distribution usage
-   - Statistical validation
-
-3. **UI/UX Tests**
-   - Panel collapse/expand
-   - Graph visibility
-   - Button responsiveness
-   - Keyboard shortcuts
-
-4. **Performance Tests**
-   - 50 particles: smooth
-   - 500 particles: acceptable
-   - 2000 particles: usable
-   - Memory usage stable
-
-**Format:**
-```
-Test-ID | Beschreibung | Erwartetes Ergebnis | Tatsächliches Ergebnis | Status | Datum
-T001    | Parameter ändern | Wert ändert sich | Wert ändert sich | ✓ | 05.12.2024
-...
-```
-
-#### 1.5 User Manual (3 days)
-**File:** `Benutzerhandbuch.pdf`
-
-**Structure:**
-```markdown
-1. Einführung
-   - Was ist eine Epidemie-Simulation?
-   - Zweck der Anwendung
-
-2. Installation
-   - Systemanforderungen
-   - Starten der Anwendung
-
-3. Benutzeroberfläche
-   - Übersicht der drei Panels
-   - Erklärung aller Bedienelemente
-
-4. Bedienung
-   - Simulation starten/pausieren
-   - Parameter anpassen
-   - Modi wechseln
-   - Ergebnisse interpretieren
-
-5. Beispiel-Szenarien
-   - Baseline-Epidemie
-   - Mit Quarantäne
-   - Mit Social Distancing
-
-6. Tastenkombinationen
-   - Übersicht aller Shortcuts
-
-7. Häufige Fragen (FAQ)
-
-8. Fehlerbehebung
-```
+- 3 distributions implemented and documented
+- Statistical tests showing correct distribution
+- Code comments explaining mathematical justification
 
 ---
 
-### Phase 2: Code Modularization (Week 3)
-**Goal:** Clean Code, maintainability, Grade 1 potential
+#### TICKET-007: Light Mode Theme (2 days) 🎨
+**Files:** `ui/themes.py` (new), `epidemic_sim3.py`
 
-#### 2.1 Architecture Redesign
+**Implementation:**
+```python
+# themes.py
+DARK_THEME = {
+    'NEON_GREEN': "#00ff00",
+    'DARK_GREEN': "#003300",
+    'BG_BLACK': "#000000",
+    'PANEL_BLACK': "#0a0a0a",
+    'BORDER_GREEN': "#00aa00",
+    'TEXT': "#00ff00",
+    'CANVAS_BG': "#000000"
+}
+
+LIGHT_THEME = {
+    'PRIMARY': "#2e7d32",      # Professional green
+    'SECONDARY': "#66bb6a",    # Light green
+    'BG_WHITE': "#ffffff",
+    'PANEL_GRAY': "#f5f5f5",
+    'BORDER_GRAY': "#bdbdbd",
+    'TEXT': "#212121",
+    'CANVAS_BG': "#fafafa"
+}
+```
+
+**Changes:**
+- Create theme system with easy switching
+- Add theme toggle button (top-right corner)
+- Update all stylesheets dynamically
+- Persist theme preference with QSettings
+- Ensure graphs readable in both themes
+- Update particle colors for light mode
+
+**Deliverables:**
+- Light and Dark themes fully working
+- Theme toggle button
+- Theme persistence between sessions
+- Professional appearance in both modes
+
+---
+
+#### TICKET-008: UI/UX Polish - ISO 9241-110 (3 days) 💎
+**Files:** `epidemic_sim3.py`
+
+**Implementation:**
+
+**1. Tooltips Everywhere:**
+```python
+slider.setToolTip("""Infection Radius: How far infection can spread
+Recommended: 0.10-0.20
+Smaller = localized outbreaks
+Larger = rapid spread""")
+```
+
+**2. Help System:**
+- Add "?" button next to each parameter
+- Click shows detailed explanation dialog
+- Include recommendations and examples
+
+**3. Status Feedback:**
+- Loading indicators for heavy operations
+- Success messages (non-intrusive)
+- Clear error messages with solutions
+
+**4. Input Validation:**
+- Real-time validation with visual feedback
+- Prevent invalid values
+- Helpful error messages
+
+**5. Keyboard Navigation:**
+- Optimized tab order
+- All functions keyboard accessible
+- Keyboard shortcuts hint panel always visible
+
+**6. Accessibility:**
+- High contrast mode option
+- Font size adjustment (+/- buttons)
+- Screen reader friendly labels
+
+**Deliverables:**
+- Tooltips on ALL UI elements
+- Help system implemented
+- Validation with feedback
+- ISO 9241-110 compliance checklist document
+
+---
+
+#### TICKET-011: Performance Optimization (2 days) ⚡
+**Files:** `epidemic_sim3.py`
+
+**Profiling:**
+```python
+import cProfile
+import pstats
+
+profiler = cProfile.Profile()
+profiler.enable()
+
+# Run simulation for 100 days
+for _ in range(100 * 24):
+    sim.step()
+
+profiler.disable()
+stats = pstats.Stats(profiler)
+stats.sort_stats('cumulative')
+stats.print_stats(20)
+```
+
+**Optimization Targets:**
+1. Graph update frequency (throttle based on FPS)
+2. Particle list operations (use numpy where possible)
+3. Memory allocation patterns
+4. Spatial grid cell size optimization
+5. Drawing optimization (batch rendering)
+
+**Performance Goals:**
+| Population | Target FPS | Target Memory |
+|-----------|-----------|---------------|
+| 50 | 60 | <100MB |
+| 500 | 50 | <300MB |
+| 2000 | 35 | <1GB |
+
+**Deliverables:**
+- Performance profiling report
+- Optimizations implemented
+- Performance goals met
+- No functionality broken
+
+---
+
+### Week 3: Code Quality & Error Handling
+
+#### TICKET-006: Code Modularization (3 days) 🏗️
+**Goal:** Break 1856-line file into clean modular architecture
 
 **New Structure:**
 ```
@@ -291,590 +300,531 @@ epidemic-sim2.0/
 │   ├── parameters_panel.py      # Left panel
 │   ├── charts.py                # PieChartWidget
 │   ├── collapsible_box.py       # CollapsibleBox widget
-│   └── themes.py                # Color themes (dark/light)
+│   └── themes.py                # Color themes (from TICKET-007)
 ├── utils/
 │   ├── __init__.py
 │   ├── distributions.py         # Random distribution helpers
 │   └── constants.py             # Global constants
-├── tests/
-│   ├── __init__.py
-│   ├── test_particle.py
-│   ├── test_simulation.py
-│   └── test_distributions.py
-├── docs/
-│   ├── Projektdokumentation.pdf
-│   ├── Benutzerhandbuch.pdf
-│   └── Testprotokolle.xlsx
-├── resources/
-│   └── icon.ico
-├── requirements.txt
-└── README.md
+└── tests/
+    ├── __init__.py
+    ├── test_particle.py
+    ├── test_simulation.py
+    └── test_distributions.py
 ```
 
-#### 2.2 Refactoring Tasks
-
-**Priority 1 - Core Models (2 days):**
-1. Extract `Particle` class → `models/particle.py`
-2. Extract `SpatialGrid` → `models/spatial_grid.py`
-3. Extract `EpidemicSimulation` → `models/simulation.py`
-4. Extract `SimParams` → `config/parameters.py`
-
-**Priority 2 - UI Components (2 days):**
-5. Extract `EpidemicApp` → `ui/main_window.py`
-6. Extract `SimulationCanvas` → `ui/canvas.py`
-7. Extract `PieChartWidget` → `ui/charts.py`
-8. Extract `CollapsibleBox` → `ui/collapsible_box.py`
-9. Create `ui/parameters_panel.py` for left panel
-10. Create `ui/controls.py` for control widgets
-
-**Priority 3 - Utilities (1 day):**
-11. Create `utils/distributions.py` for random distributions
-12. Create `utils/constants.py` for theme colors
-13. Extract PRESETS → `config/presets.py`
-
-**Benefits:**
+**Deliverables:**
 - Each file < 300 lines
 - Clear separation of concerns
-- Easier testing
-- Better maintainability
-- Fulfills Clean Code requirement
+- All imports working
+- All functionality preserved
+- Clean Code principles followed
 
 ---
 
-### Phase 3: UI/UX Improvements (Week 4)
-**Goal:** ISO 9241-110 compliance, accessibility, Grade 1 potential
+#### TICKET-009: Comprehensive Error Handling (2 days) 🛡️
+**Files:** All Python files
 
-#### 3.1 Light Mode Implementation (2 days)
+**Areas to Cover:**
 
-**File:** `ui/themes.py`
-
+**1. Parameter Validation:**
 ```python
-DARK_THEME = {
-    'NEON_GREEN': "#00ff00",
-    'DARK_GREEN': "#003300",
-    'BG_BLACK': "#000000",
-    'PANEL_BLACK': "#0a0a0a",
-    'BORDER_GREEN': "#00aa00",
-}
-
-LIGHT_THEME = {
-    'PRIMARY': "#2e7d32",      # Green
-    'SECONDARY': "#66bb6a",    # Light green
-    'BG_WHITE': "#ffffff",
-    'PANEL_GRAY': "#f5f5f5",
-    'BORDER_GRAY': "#bdbdbd",
-}
-
-def apply_theme(app, theme_name):
-    """Apply dark or light theme to application"""
-    theme = DARK_THEME if theme_name == 'dark' else LIGHT_THEME
-    # Update all stylesheets...
-```
-
-**UI Addition:**
-- Theme toggle button in top-right
-- Persists preference (QSettings)
-- Smooth transition
-
-#### 3.2 ISO 9241-110 Verification (2 days)
-
-**Seven Dialogue Principles:**
-
-1. **Suitability for the task**
-   - ✓ Users can run simulations without unnecessary steps
-   - ✓ All needed controls accessible
-   - Add: Quick presets for common scenarios
-
-2. **Self-descriptiveness**
-   - ✓ Labels are clear
-   - Add: Tooltips for all parameters
-   - Add: Help button with explanations
-
-3. **Conformity with user expectations**
-   - ✓ Standard controls (buttons, sliders)
-   - ✓ Familiar layout patterns
-   - Add: Undo/Redo for parameter changes
-
-4. **Suitability for learning**
-   - Add: Tutorial mode on first launch
-   - Add: Contextual help system
-   - Add: Example scenarios with explanations
-
-5. **Controllability**
-   - ✓ Users can pause, reset, adjust speed
-   - ✓ Collapsible panels for customization
-   - Add: Save/Load simulation states
-
-6. **Error tolerance**
-   - Add: Input validation with helpful messages
-   - Add: Confirmation for destructive actions
-   - Add: Auto-save feature
-
-7. **Suitability for individualization**
-   - ✓ 11 adjustable parameters
-   - ✓ Multiple modes
-   - Add: Custom presets saving
-   - Add: Layout customization
-
-**Deliverable:** ISO compliance checklist document
-
-#### 3.3 Additional UX Improvements (2 days)
-
-1. **Tooltips everywhere**
-   ```python
-   slider.setToolTip("Controls how far infection can spread\nRecommended: 0.10-0.20")
-   ```
-
-2. **Status feedback**
-   - Loading indicator when computing
-   - Success messages
-   - Error messages (non-intrusive)
-
-3. **Keyboard navigation**
-   - Tab order optimized
-   - All functions accessible via keyboard
-   - Keyboard shortcuts hint system
-
-4. **Accessibility**
-   - High contrast mode option
-   - Font size adjustment
-   - Screen reader friendly labels
-
-5. **Performance indicators**
-   - FPS counter (toggle-able)
-   - Particle count display
-   - Memory usage display
-
----
-
-### Phase 4: Robustness & Quality (Week 5)
-**Goal:** Production-ready, stable, comprehensive testing
-
-#### 4.1 Error Handling (2 days)
-
-**Current Issues:**
-- No try-catch blocks
-- No input validation
-- No graceful degradation
-
-**Improvements:**
-```python
-# 1. Parameter validation
 def validate_params(self):
     if not 50 <= self.num_particles <= 2000:
-        raise ValueError("Population must be 50-2000")
+        raise ValueError("Population must be between 50 and 2000")
     if not 0.0 <= self.mortality_rate <= 1.0:
         raise ValueError("Mortality rate must be 0-100%")
     # ... etc
+```
 
-# 2. Simulation safety
+**2. Simulation Safety:**
+```python
 try:
     self.sim.step()
 except Exception as e:
-    self.show_error(f"Simulation error: {e}")
+    self.show_error_dialog(f"Simulation error: {e}")
     self.pause()
-
-# 3. File operations
-try:
-    self.save_state(filename)
-except IOError as e:
-    self.show_error(f"Could not save: {e}")
+    logging.error(f"Simulation error: {e}", exc_info=True)
 ```
 
-#### 4.2 Unit Testing (2 days)
+**3. Graceful Degradation:**
+- If graph update fails → continue simulation
+- If distribution generation fails → use fallback
+- Never crash, always recover
 
-**File:** `tests/test_simulation.py`
+**4. User-Friendly Messages:**
+- Clear explanation
+- Suggest fix if possible
+- Log technical details for debugging
 
-```python
-import pytest
-from models.particle import Particle
-from models.simulation import EpidemicSimulation
-
-class TestParticle:
-    def test_creation(self):
-        p = Particle(0, 0, 'susceptible')
-        assert p.state == 'susceptible'
-
-    def test_infection(self):
-        p = Particle(0, 0, 'susceptible')
-        p.state = 'infected'
-        assert p.days_infected == 0
-
-    def test_distance(self):
-        p1 = Particle(0, 0)
-        p2 = Particle(3, 4)
-        assert p1.distance_to(p2) == 5.0
-
-class TestDistributions:
-    def test_uniform_range(self):
-        values = [random.uniform(0, 1) for _ in range(1000)]
-        assert all(0 <= v <= 1 for v in values)
-
-    def test_normal_mean(self):
-        values = [np.random.normal(50, 10) for _ in range(1000)]
-        assert 45 < np.mean(values) < 55
-
-    def test_exponential_positive(self):
-        values = [np.random.exponential(5) for _ in range(1000)]
-        assert all(v >= 0 for v in values)
-
-# Run with: pytest tests/
-```
-
-#### 4.3 Integration Testing (1 day)
-
-**Test scenarios:**
-1. Full simulation run (simple mode)
-2. Full simulation run (communities mode)
-3. Parameter changes mid-simulation
-4. Mode switches
-5. Panel collapse/expand
-6. Theme switching
-7. Save/load state
-
-#### 4.4 Performance Optimization (2 days)
-
-**Profiling:**
-```python
-import cProfile
-import pstats
-
-profiler = cProfile.Profile()
-profiler.enable()
-
-# Run simulation for 100 days
-for _ in range(100 * 24):
-    self.sim.step()
-
-profiler.disable()
-stats = pstats.Stats(profiler)
-stats.sort_stats('cumulative')
-stats.print_stats(20)  # Top 20 time consumers
-```
-
-**Optimization targets:**
-- Spatial grid efficiency
-- Graph update frequency
-- Memory allocation patterns
+**Deliverables:**
+- Try-catch blocks around all risky operations
+- Input validation on all parameters
+- User-friendly error dialogs
+- Logging system implemented
+- No unhandled exceptions
 
 ---
 
-### Phase 5: Documentation Finalization (Week 6)
-**Goal:** Complete German documentation package
+### Week 4: Enhanced Features
 
-#### 5.1 Technical Documentation
-- Code comments in English (international standard)
-- Docstrings for all classes/methods
-- Architecture diagrams (UML)
-- API documentation (if exposing interfaces)
+#### TICKET-012: Save/Load Functionality (2 days)
+**Files:** `epidemic_sim3.py`, `utils/file_io.py`
 
-#### 5.2 User Documentation (German)
-- Complete user manual
-- Quick start guide
-- FAQ based on testing feedback
-- Troubleshooting section
+**Implementation:**
+```python
+# Save format (JSON)
+{
+  "version": "3.0",
+  "timestamp": "2024-12-06T10:30:00",
+  "parameters": { ... },
+  "day_count": 42,
+  "particles": [ ... ],
+  "stats": { ... }
+}
+```
 
-#### 5.3 Project Documentation (German)
-- Finalize all sections
-- Add test results
-- Add screenshots
-- Add code excerpts
+**Features:**
+- Save current state to .epidemic file
+- Load previously saved state
+- File dialog for save/load
+- Recent files menu
+
+**Deliverables:**
+- Save button in UI
+- Load button in UI
+- Full state restoration
+- Error handling for corrupted files
+
+---
+
+#### TICKET-013: Export Functionality (1 day)
+**Files:** `epidemic_sim3.py`
+
+**Features:**
+- Export time series graph as PNG (high-res)
+- Export pie chart as PNG (high-res)
+- Export statistics as CSV
+- Export all data button
+- Configurable image resolution
+
+**Deliverables:**
+- Export buttons in UI
+- High-resolution images (300 DPI)
+- CSV format correct
+- Sensible file naming
+
+---
+
+#### TICKET-014: Tutorial Mode (2 days)
+**Files:** `ui/tutorial.py`, `epidemic_sim3.py`
+
+**Tutorial Steps:**
+1. Welcome screen
+2. Explain simulation canvas
+3. Explain parameters (with examples)
+4. Show how to run simulation
+5. Show how to interpret results
+6. "Try it yourself" challenge
+
+**Features:**
+- Launches on first run
+- Can be skipped
+- Can be re-launched from menu
+- German language
+- Interactive (not just text)
+- Highlights UI elements
+
+**Deliverables:**
+- Tutorial system implemented
+- German translation
+- Can be toggled from menu
+- User-friendly and helpful
+
+---
+
+#### TICKET-010: Unit Testing Suite (2 days)
+**Files:** `tests/*.py`
+
+**Test Coverage Goals:** >80%
+
+**Test Files:**
+
+**1. `tests/test_particle.py`**
+```python
+def test_particle_creation():
+    p = Particle(0, 0, 'susceptible')
+    assert p.state == 'susceptible'
+
+def test_infection_susceptibility_distribution():
+    particles = [Particle(0, 0) for _ in range(1000)]
+    susceptibilities = [p.infection_susceptibility for p in particles]
+    mean = np.mean(susceptibilities)
+    std = np.std(susceptibilities)
+    assert 0.95 < mean < 1.05  # Mean around 1.0
+    assert 0.15 < std < 0.25   # Std dev around 0.2
+```
+
+**2. `tests/test_distributions.py`**
+```python
+def test_normal_distribution():
+    values = [np.random.normal(50, 10) for _ in range(1000)]
+    assert 48 < np.mean(values) < 52
+    assert 9 < np.std(values) < 11
+```
+
+**3. `tests/test_simulation.py`**
+```python
+def test_infection_spread():
+    sim = EpidemicSimulation('simple')
+    sim.initialize()
+    initial_infected = sum(1 for p in sim.particles if p.state == 'infected')
+    for _ in range(100):
+        sim.step()
+    final_infected = sum(1 for p in sim.particles if p.state == 'infected')
+    assert final_infected > initial_infected
+```
+
+**Deliverables:**
+- >80% code coverage
+- All tests pass
+- Tests for all critical functions
+- Tests for all three distributions
+- CI/CD ready
+
+---
+
+### Week 5-6: Documentation (After App is Polished)
+
+#### TICKET-003: German Project Documentation (5 days)
+**File:** `docs/Projektdokumentation.pdf`
+
+**Structure (IHK Standard, 6+ pages):**
+
+1. **PROJEKTZIELE UND KUNDENWÜNSCHE** (1 page)
+   - Educational goals
+   - Target audience
+   - Success criteria
+
+2. **VORGEHENSMODELL** (1 page)
+   - Agile approach chosen
+   - Justification
+   - Phases executed
+
+3. **RESSOURCEN- UND ABLAUFPLANUNG** (1 page)
+   - 6-week timeline breakdown
+   - Resources (all open source)
+   - Risk analysis and mitigation
+
+4. **AUSWAHL VERTEILUNGSFUNKTIONEN** (1 page)
+   - Uniform: Mathematical definition, usage, justification
+   - Normal: Mathematical definition, usage, justification
+   - Exponential: Mathematical definition, usage, justification
+   - Why these three complement each other
+
+5. **TECHNOLOGIEAUSWAHL** (0.5 pages)
+   - Python, PyQt5, NumPy, Matplotlib
+   - Alternatives considered and rejected
+   - Justifications
+
+6. **BENUTZERSCHNITTSTELLE** (0.5 pages)
+   - Three-panel layout concept
+   - ISO 9241-110 compliance
+   - Accessibility features
+
+7. **TESTPLANUNG** (0.5 pages)
+   - Unit, integration, UI, performance tests
+   - Test tools used
+
+8. **UMSETZUNG DES PROJEKTS** (1 page)
+   - Development phases
+   - Key challenges and solutions
+   - Modular architecture
+
+**Deliverables:**
+- Minimum 6 pages (excluding appendix)
+- Professional formatting
+- Correct German grammar
+- Includes diagrams/screenshots
+- IHK standard followed
+
+---
+
+#### TICKET-004: Test Protocols (2 days)
+**File:** `docs/Testprotokolle.xlsx`
+
+**Test Categories:**
+
+1. **Functional Tests** (30+ test cases)
+2. **Distribution Tests** (statistical validation)
+3. **UI/UX Tests** (all interactions)
+4. **Performance Tests** (50, 500, 2000 particles)
+
+**Format:**
+| Test-ID | Beschreibung | Erwartetes Ergebnis | Tatsächliches Ergebnis | Status | Datum |
+|---------|--------------|---------------------|------------------------|--------|-------|
+| F001 | ... | ... | ... | Pass | ... |
+
+**Deliverables:**
+- Minimum 2 pages in appendix
+- All test categories covered
+- Pass/fail status for each
+- Statistical validation for distributions
+- Dates recorded
 - Professional formatting
 
 ---
 
-### Phase 6: Presentation Preparation (Week 7-8)
-**Goal:** Excellent presentation and defense
+#### TICKET-005: User Manual (3 days)
+**File:** `docs/Benutzerhandbuch.pdf`
 
-#### 6.1 Presentation Content
-**Structure (15-20 minutes):**
+**Structure (8+ pages):**
 
-1. **Einleitung** (2 min)
-   - Projektthema und Motivation
-   - Zielsetzung
+1. **EINFÜHRUNG**
+   - What is epidemic simulation?
+   - Purpose and learning goals
 
-2. **Anforderungsanalyse** (2 min)
-   - Funktionale Anforderungen
-   - Nichtfunktionale Anforderungen
-   - Besondere Herausforderungen
+2. **INSTALLATION**
+   - System requirements
+   - Step-by-step installation
+   - First launch
 
-3. **Konzept und Planung** (3 min)
-   - Vorgehensmodell
-   - Architektur-Entscheidungen
-   - Technologie-Stack
-   - Verteilungsfunktionen
+3. **BENUTZEROBERFLÄCHE**
+   - Three-panel overview
+   - All UI elements explained
 
-4. **Live-Demonstration** (5 min)
-   - Basis-Simulation
-   - Parameter-Anpassung
-   - Modi-Wechsel
-   - Visualisierungen
-   - Light/Dark Mode
-   - Besondere Features
+4. **BEDIENUNG**
+   - How to start/pause simulation
+   - Parameter explanations (all 11)
+   - Mode switching
+   - Result interpretation
 
-5. **Technische Umsetzung** (3 min)
-   - Code-Struktur (modular)
-   - Clean Code Prinzipien
-   - Verteilungsfunktionen im Code
-   - Testing-Strategie
+5. **BEISPIEL-SZENARIEN**
+   - 4 example scenarios with explanations
 
-6. **Herausforderungen und Lösungen** (2 min)
-   - Performance-Optimierung
-   - UI/UX-Design
-   - Verteilungsfunktionen-Integration
+6. **TASTENKOMBINATIONEN**
+   - All keyboard shortcuts
 
-7. **Fazit und Ausblick** (2 min)
-   - Erreichte Ziele
-   - Lessons Learned
-   - Mögliche Erweiterungen
+7. **FAQ**
+   - Common questions answered
 
-8. **Fragen** (5+ min)
+8. **FEHLERBEHEBUNG**
+   - Troubleshooting guide
 
-#### 6.2 Defense Preparation
-**Expected Questions:**
-
-**Funktionalität:**
-- Warum wurden diese Verteilungsfunktionen gewählt?
-- Wie funktioniert die räumliche Optimierung?
-- Erkläre die Sterblichkeitsrate-Implementierung
-
-**User Interface:**
-- Warum drei Panels?
-- Wie wurde ISO 9241-110 umgesetzt?
-- Warum kollabierbare Panels?
-
-**Testing:**
-- Wie wurden die Verteilungen getestet?
-- Welche Performance-Tests durchgeführt?
-- Wie wurde die UI getestet?
-
-**Clean Code:**
-- Warum modular strukturiert?
-- Wie wurde Code-Wiederverwendung erreicht?
-- Welche Design Patterns verwendet?
+**Deliverables:**
+- 8+ pages with screenshots
+- German language (correct grammar)
+- Non-technical language
+- PDF format
+- Professional layout
 
 ---
 
-## 📊 TIMELINE OVERVIEW
+### Week 7-8: Presentation Preparation
+
+#### TICKET-016: Presentation Slides (3 days)
+**File:** `docs/Praesentation.pptx`
+
+**Structure (15-20 slides for 15-20 minute talk):**
+
+1. Titel (1 slide)
+2. Agenda (1 slide)
+3. Einleitung (2 slides)
+4. Anforderungsanalyse (2 slides)
+5. Konzept (3 slides)
+6. Verteilungsfunktionen (3 slides - one per distribution)
+7. Live-Demonstration (5-7 minutes)
+8. Technische Umsetzung (2 slides)
+9. Herausforderungen (2 slides)
+10. Testergebnisse (1 slide)
+11. Fazit (1 slide)
+12. Ausblick (1 slide)
+13. Danke & Fragen (1 slide)
+
+**Deliverables:**
+- Professional design
+- German language
+- Screenshots and code examples
+- Rehearsed timing (< 20 minutes)
+
+---
+
+#### TICKET-017: Defense Q&A Preparation (2 days)
+**File:** `docs/Defense_QA.md`
+
+**Expected Questions by Category:**
+
+**Funktionalität:**
+- Why these three distributions?
+- How does spatial optimization work?
+- Explain mortality implementation
+- Time complexity of infection checking
+
+**User Interface:**
+- Why three-panel layout?
+- How was ISO 9241-110 implemented?
+- Why collapsible panels?
+- Accessibility considerations
+
+**Testing:**
+- How were distributions tested?
+- What performance tests were run?
+- Test coverage percentage
+- How was UI tested?
+
+**Clean Code:**
+- Why modularize code?
+- Design patterns used?
+- How avoid code duplication?
+- Separation of concerns
+
+**Deliverables:**
+- Written answers to 30+ expected questions
+- Code examples ready
+- Architecture diagrams
+- Performance data ready
+
+---
+
+#### TICKET-018: Final Documentation Review (2 days)
+**Files:** All documentation
+
+**Review Checklist:**
+- Grammar and spelling (German)
+- Consistent formatting
+- All figures/tables numbered
+- All references correct
+- Table of contents generated
+- Page numbers correct
+- Appendix organized
+- Professional appearance
+- PDF export quality
+
+**Deliverables:**
+- All documentation polished and final
+- No errors or inconsistencies
+- Professional quality throughout
+
+---
+
+## 📅 REVISED TIMELINE
 
 ```
-Week 1-2: Critical Requirements
-├── Distribution Functions (3d)
-├── .exe Creation (2d)
-├── German Documentation (5d)
-├── Test Protocols (2d)
-└── User Manual (3d)
+Week 1: Core Quality
+├── TICKET-001: Distribution Functions (2d) ⚠️
+├── TICKET-007: Light Mode Theme (2d) 🎨
+├── TICKET-008: UI/UX Polish (3d) 💎
 
-Week 3: Code Modularization
-├── Core Models Extraction (2d)
-├── UI Components Extraction (2d)
-├── Utilities Extraction (1d)
-└── Testing & Verification (2d)
+Week 2: Performance & Quality
+├── TICKET-011: Performance Optimization (2d) ⚡
+├── TICKET-006: Code Modularization (3d) 🏗️
+├── TICKET-009: Error Handling (2d) 🛡️
 
-Week 4: UI/UX Improvements
-├── Light Mode (2d)
-├── ISO 9241-110 Compliance (2d)
-└── UX Enhancements (2d)
+Week 3-4: Enhanced Features
+├── TICKET-012: Save/Load (2d)
+├── TICKET-013: Export (1d)
+├── TICKET-014: Tutorial Mode (2d)
+├── TICKET-010: Unit Tests (2d)
 
-Week 5: Robustness & Quality
-├── Error Handling (2d)
-├── Unit Testing (2d)
-├── Integration Testing (1d)
-└── Performance Optimization (2d)
+Week 5-6: Documentation
+├── TICKET-003: German Documentation (5d)
+├── TICKET-004: Test Protocols (2d)
+├── TICKET-005: User Manual (3d)
+├── TICKET-018: Doc Review (2d)
 
-Week 6: Documentation Finalization
-├── Technical Docs (2d)
-├── User Docs (2d)
-└── Project Docs (3d)
-
-Week 7-8: Presentation Prep
-├── Slides Creation (3d)
-├── Demo Practice (2d)
-├── Defense Q&A Prep (3d)
-└── Final Rehearsals (2d)
-
-Week 9: Submission & Delivery
-Week 10-11: Presentation & Defense
+Week 7-8: Presentation
+├── TICKET-016: Slides (3d)
+├── TICKET-017: Defense Prep (2d)
+└── Final Rehearsals (3d)
 ```
 
 ---
 
 ## 🎯 SUCCESS CRITERIA
 
-### Grade 2 Requirements (Must-Have):
-- ✅ All 11 functional requirements fulfilled
-- ✅ All non-functional requirements fulfilled
+### For Grade 2 (Minimum):
+- ✅ All functional requirements (7+ parameters, 3+ speeds, visualizations)
+- ✅ 3 different distribution functions with justification
 - ✅ Complete German documentation (6+ pages)
 - ✅ Test protocols (2+ pages)
 - ✅ User manual (German)
-- ✅ Working .exe file
-- ✅ 3 different distribution functions with justification
+- ✅ Working application (.exe created by user)
 
-### Grade 1 Requirements (Above and Beyond):
+### For Grade 1 (Excellence):
+- ✅ All Grade 2 requirements
 - ✅ Fully modular code architecture
 - ✅ Comprehensive test coverage (>80%)
 - ✅ Light/Dark mode themes
-- ✅ ISO 9241-110 fully documented
-- ✅ Performance optimizations
-- ✅ Advanced features (save/load, custom presets)
+- ✅ ISO 9241-110 compliance documented
+- ✅ Performance optimized
+- ✅ Advanced features (save/load, export)
+- ✅ Professional look and feel
 - ✅ Exceptional presentation quality
-- ✅ Professional documentation
 
 ---
 
 ## 🚀 NEXT STEPS
 
-### Immediate (Start Week 1):
-1. **TODAY**: Add 3 distribution functions to code
-2. **Day 2-3**: Create .exe and test on Windows
-3. **Day 4-8**: Write German documentation
-4. **Day 9-10**: Create test protocols
-5. **Day 11-13**: Write user manual
+### Immediate Start (Week 1):
+1. **TICKET-001**: Distribution Functions (HIGHEST PRIORITY)
+2. **TICKET-007**: Light Mode Theme
+3. **TICKET-008**: UI/UX Polish
 
-### Short-term (Week 2-3):
-6. Begin code modularization
-7. Extract core components
-8. Set up testing framework
+### Short-term (Week 2):
+4. **TICKET-011**: Performance Optimization
+5. **TICKET-006**: Code Modularization
+6. **TICKET-009**: Error Handling
 
-### Medium-term (Week 4-5):
-9. Implement light mode
-10. Add robustness features
-11. Complete testing
+### Medium-term (Week 3-4):
+7. Enhanced features (Save/Load, Export, Tutorial)
+8. Unit testing suite
 
-### Long-term (Week 6-8):
-12. Finalize documentation
-13. Prepare presentation
-14. Practice defense
+### Long-term (Week 5-8):
+9. Documentation (after app is polished)
+10. Presentation preparation
 
 ---
 
-## 📝 DELIVERABLES CHECKLIST
+## 💰 COST ANALYSIS
 
-### Code:
-- [ ] Modular architecture (separate files)
-- [ ] 3 distribution functions implemented
-- [ ] Light/Dark mode toggle
-- [ ] Error handling throughout
-- [ ] Unit tests (>80% coverage)
-- [ ] Performance optimized
-- [ ] Clean Code principles
+**Development Costs: 0€**
+- Python, PyQt5, NumPy, Matplotlib: All open source
+- VS Code IDE: Free
+- Git version control: Free
 
-### Executable:
-- [ ] EpidemicSimulator.exe created
-- [ ] Tested on Windows
-- [ ] All dependencies included
-- [ ] Installation instructions
+**Operating Costs: 0€**
+- No servers, licenses, or cloud services
 
-### Documentation (German):
-- [ ] Projektdokumentation.pdf (6+ pages)
-  - [ ] Projektziele
-  - [ ] Vorgehensmodell
-  - [ ] Ressourcenplanung
-  - [ ] Verteilungsfunktionen
-  - [ ] Technologieauswahl
-  - [ ] UI-Planung
-  - [ ] Testplanung
-  - [ ] Umsetzungsbeschreibung
-- [ ] Testprotokolle.xlsx (2+ pages in appendix)
-- [ ] Benutzerhandbuch.pdf (digital)
-- [ ] Code comments (English)
-
-### Presentation:
-- [ ] PowerPoint slides (German)
-- [ ] Live demo prepared
-- [ ] Defense Q&A prep
-- [ ] Backup demo video
+**Total: 0€** - Ideal for educational project
 
 ---
 
-## 💰 COST ANALYSIS (for documentation)
-
-**Entwicklungskosten: 0€**
-- Python: Open Source
-- PyQt5: Open Source (GPL)
-- NumPy/Matplotlib: Open Source
-- PyInstaller: Open Source
-- IDE: VS Code (Free)
-
-**Laufende Kosten: 0€**
-- Keine Server-Kosten
-- Keine Lizenzgebühren
-- Keine Cloud-Dienste
-
-**Gesamtkosten: 0€**
-(Idealer Fall für Bildungsprojekt)
-
----
-
-## ⚠️ RISK ANALYSIS (for documentation)
+## ⚠️ RISK ANALYSIS
 
 | Risk | Probability | Impact | Mitigation |
 |------|------------|--------|------------|
-| Zeitdruck | Hoch | Hoch | Frühzeitig beginnen, Prioritäten setzen |
-| Performance-Probleme | Mittel | Mittel | Profiling, Optimierung, Tests |
-| .exe Creation Issues | Mittel | Hoch | Frühzeitig testen, Alternative Tools |
-| Documentation Delay | Mittel | Hoch | Parallel zur Entwicklung schreiben |
-| Testing Gaps | Niedrig | Mittel | Test-Driven Development |
-| UI/UX Issues | Niedrig | Mittel | User Testing, Feedback einholen |
+| Time pressure | High | High | Prioritize app quality first |
+| Performance issues | Medium | Medium | Profile early, optimize continuously |
+| Testing gaps | Low | Medium | Test-driven development |
+| UI/UX issues | Low | High | ISO 9241-110 compliance, user feedback |
+| Documentation delay | Medium | High | Write after app is complete |
 
 ---
 
-## 🎓 LEARNING OBJECTIVES MAPPING
+**REVISED PLAN SUMMARY:**
 
-This project demonstrates competency in:
+**OLD APPROACH:** Documentation first, then polish
+**NEW APPROACH:** Polish application first, document the polished result
 
-**LF 10 (User Interface):**
-- GUI-Entwicklung mit PyQt5
-- Benutzerfreundliche Gestaltung
-- ISO 9241-110 Compliance
-- Accessibility
+**RATIONALE:**
+- Better to document a polished, complete application
+- User can create .exe themselves
+- App quality directly impacts grade presentation
+- Documentation describes final state, so should come last
 
-**LF 11 (Testing & Clean Code):**
-- Modular Architektur
-- Unit/Integration Testing
-- Clean Code Prinzipien
-- Code-Qualität
-
-**LF 12 (Implementation):**
-- Zeitabhängige Simulation
-- Verteilungsfunktionen
-- Datenvisualisierung
-- Performance-Optimierung
-
-**Deutsch:**
-- Technische Dokumentation
-- Präsentation
-- Fachsprache
-
-**English:**
-- Code comments
-- Technical terms
-- International standards
+**TARGET:** Grade 1 (Excellence) through superior application quality
 
 ---
 
-## 📚 REFERENCES
-
-**Standards:**
-- ISO 9241-110: Ergonomie der Mensch-System-Interaktion
-- Clean Code (Robert C. Martin)
-- Python PEP 8 Style Guide
-
-**Technologies:**
-- Python 3.11+
-- PyQt5 Documentation
-- NumPy Documentation
-- PyInstaller Documentation
-
-**Project Management:**
-- Agile Principles
-- Scrum Framework
-- Risk Management Best Practices
-
----
-
-**END OF PROJECT PLAN**
-
-Status: READY FOR IMPLEMENTATION
-Next Action: Begin Phase 1, Task 1.1 (Distribution Functions)
-Target Grade: 1 (Excellent - "Above and Beyond")
+**Last Updated:** 2025-11-05
+**Next Action:** Begin TICKET-001 (Distribution Functions)
+**Target Grade:** 1 (Excellent)

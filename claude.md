@@ -497,33 +497,35 @@ This simulation is being developed as a 3rd-year apprenticeship project (Fachinf
 - **PROJECT_PLAN.md**: Comprehensive 880-line project plan with timeline, requirements analysis, risk assessment
 - **TICKETS.md**: 18 numbered tickets organized by priority and dependencies
 
-### Ticket Organization
+### Ticket Organization (REVISED - App Quality First!)
 
-**🔴 CRITICAL PATH (Grade 2 - Minimum Requirements)**
+**🚀 PRIORITY 1: APPLICATION QUALITY (Weeks 1-3)**
 - TICKET-001: Implement 3 Distribution Functions ⚠️ HIGHEST PRIORITY
-- TICKET-002: Create Windows Executable (.exe)
+- TICKET-007: Light Mode Theme 🎨 HIGH - Look & Feel
+- TICKET-008: ISO 9241-110 Compliance 💎 HIGH - UI/UX Polish
+- TICKET-011: Performance Optimization ⚡ HIGH - Performance
+- TICKET-006: Code Modularization 🏗️ HIGH - Code Quality
+- TICKET-009: Comprehensive Error Handling 🛡️ HIGH - Behavior
+
+**🎁 PRIORITY 2: ENHANCED FEATURES (Week 4)**
+- TICKET-012: Save/Load Simulation States
+- TICKET-013: Export Functionality
+- TICKET-014: Tutorial Mode
+- TICKET-010: Unit Testing Suite
+
+**📚 PRIORITY 3: DOCUMENTATION (Weeks 5-6 - After App Polished)**
 - TICKET-003: German Project Documentation (IHK Standard)
 - TICKET-004: Test Protocols (Excel/PDF)
 - TICKET-005: User Manual (German)
 
-**🟡 GRADE 1 PATH (Above and Beyond)**
-- TICKET-006: Code Modularization
-- TICKET-007: Light Mode Theme
-- TICKET-008: ISO 9241-110 Compliance
-- TICKET-009: Comprehensive Error Handling
-- TICKET-010: Unit Testing Suite
-- TICKET-011: Performance Optimization
-
-**🟢 NICE TO HAVE (Polish)**
-- TICKET-012: Save/Load Simulation States
-- TICKET-013: Export Functionality
-- TICKET-014: Tutorial Mode
-- TICKET-015: Custom Preset Saving
-
-**📊 PRESENTATION**
+**📊 PRIORITY 4: PRESENTATION (Weeks 7-8)**
 - TICKET-016: Presentation Slides (German)
 - TICKET-017: Defense Q&A Preparation
 - TICKET-018: Final Documentation Review
+
+**⏸️ DEPRIORITIZED**
+- TICKET-002: Windows Executable (.exe) - User will handle
+- TICKET-015: Custom Preset Saving - Nice to have
 
 ---
 
