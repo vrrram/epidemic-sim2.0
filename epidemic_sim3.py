@@ -54,7 +54,78 @@ All three distributions are used to create natural variation in the simulation w
 maintaining the expected average behavior set by the user's parameters.
 """
 
-# =================== NEON GREEN THEME ===================
+# =================== THEME SYSTEM ===================
+# Support for Dark and Light themes with easy switching
+
+DARK_THEME = {
+    'name': 'Dark',
+    'NEON_GREEN': "#00ff00",
+    'DARK_GREEN': "#003300",
+    'BG_BLACK': "#000000",
+    'PANEL_BLACK': "#0a0a0a",
+    'BORDER_GREEN': "#00aa00",
+    'TEXT': "#00ff00",
+    'CANVAS_BG': "#000000",
+    'GRAPH_BG': "#000000",
+    'GRAPH_GRID': (0, 255, 0, 30),  # RGBA for pyqtgraph
+    # Particle colors (Dark Mode)
+    'PARTICLE_SUSCEPTIBLE': (0, 191, 255),  # Cyan
+    'PARTICLE_INFECTED_SYMP': (255, 69, 69),  # Red
+    'PARTICLE_INFECTED_ASYMP': (255, 165, 0),  # Orange
+    'PARTICLE_REMOVED': (100, 100, 100),  # Gray
+}
+
+LIGHT_THEME = {
+    'name': 'Light',
+    'PRIMARY': "#2e7d32",  # Professional green
+    'SECONDARY': "#66bb6a",  # Light green accent
+    'BG_WHITE': "#ffffff",
+    'PANEL_GRAY': "#f5f5f5",
+    'BORDER_GRAY': "#bdbdbd",
+    'TEXT': "#212121",  # Almost black for text
+    'CANVAS_BG': "#fafafa",  # Very light gray
+    'GRAPH_BG': "#ffffff",
+    'GRAPH_GRID': (33, 125, 50, 50),  # RGBA for pyqtgraph (green-ish)
+    # Particle colors (Light Mode) - adjusted for visibility on light background
+    'PARTICLE_SUSCEPTIBLE': (25, 118, 210),  # Blue (darker for visibility)
+    'PARTICLE_INFECTED_SYMP': (211, 47, 47),  # Dark red
+    'PARTICLE_INFECTED_ASYMP': (245, 124, 0),  # Orange
+    'PARTICLE_REMOVED': (97, 97, 97),  # Dark gray
+}
+
+# Current theme - can be 'dark' or 'light'
+current_theme = DARK_THEME  # Default to dark
+
+# Helper functions for theme access
+def get_color(key):
+    """Get color from current theme, with fallback"""
+    # Try current theme first
+    if key in current_theme:
+        return current_theme[key]
+    # Fallback to dark theme if key doesn't exist
+    if key in DARK_THEME:
+        return DARK_THEME[key]
+    # Last resort fallback
+    return "#00ff00"
+
+# Backwards compatibility - keep old names pointing to theme system
+def _update_legacy_colors():
+    """Update legacy color constants to match current theme"""
+    global NEON_GREEN, DARK_GREEN, BG_BLACK, PANEL_BLACK, BORDER_GREEN
+    if current_theme == DARK_THEME:
+        NEON_GREEN = "#00ff00"
+        DARK_GREEN = "#003300"
+        BG_BLACK = "#000000"
+        PANEL_BLACK = "#0a0a0a"
+        BORDER_GREEN = "#00aa00"
+    else:  # Light theme
+        NEON_GREEN = current_theme['PRIMARY']
+        DARK_GREEN = current_theme['SECONDARY']
+        BG_BLACK = current_theme['BG_WHITE']
+        PANEL_BLACK = current_theme['PANEL_GRAY']
+        BORDER_GREEN = current_theme['BORDER_GRAY']
+
+# Initialize legacy colors
 NEON_GREEN = "#00ff00"
 DARK_GREEN = "#003300"
 BG_BLACK = "#000000"
@@ -816,7 +887,9 @@ class SimulationCanvas(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
 
-        painter.fillRect(self.rect(), QColor(BG_BLACK))
+        # Use theme-aware background color
+        canvas_bg = get_color('CANVAS_BG')
+        painter.fillRect(self.rect(), QColor(canvas_bg))
 
         w = self.width()
         h = self.height()
@@ -898,15 +971,20 @@ class SimulationCanvas(QWidget):
     def _draw_particle(self, painter, p):
         pos = self._to_screen(p.x, p.y)
 
+        # Use theme-aware colors for particles
         if p.state == 'susceptible':
-            color = QColor(0, 191, 255)
+            rgb = get_color('PARTICLE_SUSCEPTIBLE')
+            color = QColor(rgb[0], rgb[1], rgb[2])
         elif p.state == 'infected':
             if not p.shows_symptoms:
-                color = QColor(255, 165, 0)
+                rgb = get_color('PARTICLE_INFECTED_ASYMP')
+                color = QColor(rgb[0], rgb[1], rgb[2])
             else:
-                color = QColor(255, 69, 69)
+                rgb = get_color('PARTICLE_INFECTED_SYMP')
+                color = QColor(rgb[0], rgb[1], rgb[2])
         else:
-            color = QColor(100, 100, 100)
+            rgb = get_color('PARTICLE_REMOVED')
+            color = QColor(rgb[0], rgb[1], rgb[2])
 
         painter.setBrush(color)
         painter.setPen(Qt.NoPen)
@@ -1067,6 +1145,11 @@ class EpidemicApp(QMainWindow):
         super().__init__()
         self.setWindowTitle("EPIDEMIC SIMULATION v3.0 - Enhanced Edition")
         self.setGeometry(50, 50, 1800, 1000)
+
+        # Load saved theme preference
+        self.settings = QSettings("EpidemicSimulator", "Theme")
+        saved_theme = self.settings.value("theme", "dark")  # Default to dark
+        self.load_theme(saved_theme)
 
         self.sim = EpidemicSimulation('simple')
         self.sim.stats_updated.connect(self.update_stats_display)
@@ -1247,15 +1330,49 @@ class EpidemicApp(QMainWindow):
         right_layout.setContentsMargins(10, 10, 10, 10)
         main_layout.addWidget(right_scroll, 2)
 
-        # === TITLE ===
+        # === TITLE & THEME TOGGLE ===
+        title_container = QWidget()
+        title_container.setStyleSheet(f"background-color: {PANEL_BLACK}; border: 2px solid {BORDER_GREEN};")
+        title_layout = QHBoxLayout(title_container)
+        title_layout.setContentsMargins(8, 8, 8, 8)
+        title_layout.setSpacing(10)
+
         title = QLabel("EPIDEMIC SIMULATOR v3.0")
         title.setStyleSheet(f"""
             font-size: 16px; font-weight: bold; color: {NEON_GREEN};
-            font-family: 'Courier New', monospace; padding: 8px;
-            background-color: {PANEL_BLACK}; border: 2px solid {BORDER_GREEN};
+            font-family: 'Courier New', monospace;
+            background-color: transparent; border: none;
         """)
         title.setAlignment(Qt.AlignCenter)
-        right_layout.addWidget(title)
+        title_layout.addWidget(title, 1)
+
+        # Theme toggle button
+        # Set correct initial text based on current theme
+        initial_text = "☀ LIGHT" if current_theme == DARK_THEME else "🌙 DARK"
+        self.theme_btn = QPushButton(initial_text)
+        self.theme_btn.setToolTip("Toggle Light/Dark Theme (T)")
+        self.theme_btn.clicked.connect(self.toggle_theme)
+        self.theme_btn.setMinimumHeight(32)
+        self.theme_btn.setMaximumWidth(90)
+        self.theme_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {BG_BLACK};
+                color: {NEON_GREEN};
+                border: 2px solid {BORDER_GREEN};
+                padding: 5px;
+                font-weight: bold;
+                font-family: 'Courier New', monospace;
+                font-size: 11px;
+            }}
+            QPushButton:hover {{
+                background-color: #1a1a1a;
+                border-color: #ffffff;
+                color: #ffffff;
+            }}
+        """)
+        title_layout.addWidget(self.theme_btn)
+
+        right_layout.addWidget(title_container)
 
         # === CONTROLS ===
         ctrl_group = QWidget()
@@ -1450,7 +1567,7 @@ class EpidemicApp(QMainWindow):
 
         # === SHORTCUTS ===
         shortcuts = QLabel(
-            "SHORTCUTS: SPACE=Pause | R=Reset | F=Fullscreen\n"
+            "SHORTCUTS: SPACE=Pause | R=Reset | T=Theme | F=Fullscreen\n"
             "Q=Quarantine | M=Marketplace | 1-9=Presets"
         )
         shortcuts.setStyleSheet(f"""
@@ -1678,6 +1795,53 @@ class EpidemicApp(QMainWindow):
         params.marketplace_enabled = bool(state)
         self.status_label.setText(f"Marketplace {'enabled' if state else 'disabled'}")
 
+    def load_theme(self, theme_name):
+        """Load and apply a theme (dark or light)"""
+        global current_theme
+        if theme_name == "light":
+            current_theme = LIGHT_THEME
+        else:
+            current_theme = DARK_THEME
+        _update_legacy_colors()
+
+    def toggle_theme(self):
+        """Toggle between light and dark themes"""
+        global current_theme
+        # Switch theme
+        if current_theme == DARK_THEME:
+            current_theme = LIGHT_THEME
+            theme_name = "light"
+            self.theme_btn.setText("🌙 DARK")
+        else:
+            current_theme = DARK_THEME
+            theme_name = "dark"
+            self.theme_btn.setText("☀ LIGHT")
+
+        # Update legacy colors
+        _update_legacy_colors()
+
+        # Save preference
+        self.settings.setValue("theme", theme_name)
+
+        # Apply theme to all UI elements
+        self.apply_theme()
+
+        # Update canvas background
+        self.canvas.update()
+
+        # Update graph colors
+        self.graph_widget.setBackground(get_color('GRAPH_BG'))
+        graph_grid_color = get_color('GRAPH_GRID')
+        self.graph_widget.showGrid(x=True, y=True, alpha=graph_grid_color[3]/255.0)
+
+        # Update pie chart
+        self.pie_chart.fig.patch.set_facecolor(get_color('GRAPH_BG'))
+        self.pie_chart.setStyleSheet(f"background-color: {get_color('GRAPH_BG')};")
+        self.pie_chart.draw()
+
+        # Force full UI refresh
+        self.status_label.setText(f"Theme switched to {theme_name.title()} mode")
+
     def toggle_fullscreen(self):
         """Toggle fullscreen mode by hiding/showing right panel"""
         self.right_panel.setVisible(not self.right_panel.isVisible())
@@ -1747,6 +1911,11 @@ class EpidemicApp(QMainWindow):
         if key == Qt.Key_M:
             new_state = not params.marketplace_enabled
             self.marketplace_checkbox.setChecked(new_state)
+            return
+
+        # T: Toggle theme (Light/Dark)
+        if key == Qt.Key_T:
+            self.toggle_theme()
             return
 
         # F: Toggle fullscreen
