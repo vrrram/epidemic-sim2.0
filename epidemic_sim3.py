@@ -1183,6 +1183,9 @@ class EpidemicApp(QMainWindow):
         saved_theme = self.settings.value("theme", "dark")  # Default to dark
         self.load_theme(saved_theme)
 
+        # Load saved font size preference
+        self.base_font_size = int(self.settings.value("font_size", 10))
+
         self.sim = EpidemicSimulation('simple')
         self.sim.stats_updated.connect(self.update_stats_display)
         self.sim.log_message.connect(self.add_log)
@@ -1254,9 +1257,59 @@ class EpidemicApp(QMainWindow):
         # DISEASE PARAMETERS
         disease_box = CollapsibleBox("DISEASE PARAMETERS")
         self.collapsible_boxes.append(disease_box)
+
+        # Define tooltips for disease parameters
+        disease_tooltips = {
+            'infection_radius': """Infection Radius: How far the disease can spread between particles
+
+Recommended: 0.10-0.20
+• Smaller (0.05-0.10): Localized outbreaks, slow spread
+• Medium (0.10-0.20): Realistic epidemic behavior
+• Larger (0.20-0.40): Rapid, aggressive spread
+
+Tip: Combine with infection probability for fine control""",
+
+            'prob_infection': """Infection Probability: Chance of transmission when particles are within infection radius
+
+Recommended: 0.10-0.30
+• Low (0.05-0.15): Slow spread, allows time for interventions
+• Medium (0.15-0.50): Realistic epidemic dynamics
+• High (0.50-1.00): Extremely contagious disease
+
+Tip: Modified by individual susceptibility (Normal distribution)""",
+
+            'infection_duration': """Infection Duration: How many days a particle remains infected
+
+Recommended: 14-28 days
+• Short (1-7 days): Quick recovery, rapid turnover
+• Medium (7-21 days): Typical viral infection
+• Long (21-100 days): Chronic infection
+
+Tip: Modified by recovery time variation (Exponential distribution)""",
+
+            'mortality_rate': """Mortality Rate: Probability that an infected particle dies instead of recovering
+
+Recommended: 0.00-0.05
+• 0%: No deaths, pure SIR model
+• 1-5%: Realistic mortality for serious diseases
+• 5-20%: High-mortality outbreak
+• >20%: Extreme scenario
+
+Tip: Deaths remove particles permanently from simulation""",
+
+            'fraction_infected_init': """Initial Infected %: Percentage of population starting as infected (Patient Zero)
+
+Recommended: 0.005-0.02 (0.5%-2%)
+• Very Low (0.001-0.005): Single patient zero scenario
+• Low (0.005-0.02): Few initial cases
+• Medium (0.02-0.05): Multiple outbreak sources
+
+Tip: Lower values show clearer epidemic curve development"""
+        }
+
         disease_params = [
             ('infection_radius', 'Infection Radius', 0.01, 0.4, 0.15),
-            ('prob_infection', 'Infection Probability', 0, 1.0, 0.15),  # Extended range to 100% for maximum spread!
+            ('prob_infection', 'Infection Probability', 0, 1.0, 0.15),
             ('infection_duration', 'Infection Duration (days)', 1, 100, 25),
             ('mortality_rate', 'Mortality Rate', 0, 1.0, 0.0),
             ('fraction_infected_init', 'Initial Infected %', 0, 0.05, 0.01),
@@ -1264,12 +1317,14 @@ class EpidemicApp(QMainWindow):
         for param, label, min_val, max_val, default in disease_params:
             lbl = QLabel(f"{label}: {default:.3g}")
             lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+            lbl.setToolTip(disease_tooltips.get(param, label))
             disease_box.addWidget(lbl)
             slider = QSlider(Qt.Horizontal)
             slider.setMinimum(int(min_val * 100))
             slider.setMaximum(int(max_val * 100))
             slider.setValue(int(default * 100))
             slider.setMinimumHeight(22)
+            slider.setToolTip(disease_tooltips.get(param, label))
             slider.valueChanged.connect(
                 lambda val, p=param, l=lbl, label=label: self.update_param(p, val/100, l, label)
             )
@@ -1281,15 +1336,47 @@ class EpidemicApp(QMainWindow):
         pop_box = CollapsibleBox("POPULATION PARAMETERS")
         self.collapsible_boxes.append(pop_box)
 
+        # Define tooltips for population parameters
+        pop_tooltips = {
+            'num_particles': """Population Size: Number of particles (people) in the simulation
+
+Recommended: 200-500 for balance of detail and performance
+• Small (50-200): Fast, good for testing, less realistic statistics
+• Medium (200-500): Balanced performance and statistical validity
+• Large (500-1000): More realistic, slower performance
+
+Tip: Requires RESET to apply. Larger populations need more time to show trends""",
+
+            'social_distance_factor': """Social Distancing Strength: Repulsive force between nearby particles
+
+Recommended: 0.5-1.5
+• 0: No social distancing, normal behavior
+• 0.5-1.0: Moderate distancing, maintaining personal space
+• 1.0-2.0: Strong distancing, active avoidance
+
+Tip: Simulates behavior changes during epidemic awareness""",
+
+            'social_distance_obedient': """Social Distance Compliance: Percentage of population following distancing rules
+
+Recommended: 0.5-0.9
+• Low (0-0.5): Poor compliance, many ignore rules
+• Medium (0.5-0.8): Realistic mixed compliance
+• High (0.8-1.0): Excellent public cooperation
+
+Tip: Combine with distance strength to model intervention effectiveness"""
+        }
+
         # Population size slider (integer, requires reset)
         pop_lbl = QLabel(f"Population Size: {params.num_particles} (reset to apply)")
         pop_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+        pop_lbl.setToolTip(pop_tooltips['num_particles'])
         pop_box.addWidget(pop_lbl)
         pop_slider = QSlider(Qt.Horizontal)
         pop_slider.setMinimum(50)
         pop_slider.setMaximum(1000)
         pop_slider.setValue(params.num_particles)
         pop_slider.setMinimumHeight(22)
+        pop_slider.setToolTip(pop_tooltips['num_particles'])
         pop_slider.valueChanged.connect(
             lambda val: self.update_param('num_particles', val, pop_lbl, 'Population Size', is_int=True)
         )
@@ -1304,12 +1391,14 @@ class EpidemicApp(QMainWindow):
         for param, label, min_val, max_val, default in pop_params:
             lbl = QLabel(f"{label}: {default:.3g}")
             lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+            lbl.setToolTip(pop_tooltips.get(param, label))
             pop_box.addWidget(lbl)
             slider = QSlider(Qt.Horizontal)
             slider.setMinimum(int(min_val * 100))
             slider.setMaximum(int(max_val * 100))
             slider.setValue(int(default * 100))
             slider.setMinimumHeight(22)
+            slider.setToolTip(pop_tooltips.get(param, label))
             slider.valueChanged.connect(
                 lambda val, p=param, l=lbl, label=label: self.update_param(p, val/100, l, label)
             )
@@ -1320,6 +1409,46 @@ class EpidemicApp(QMainWindow):
         # INTERVENTION PARAMETERS
         interv_box = CollapsibleBox("INTERVENTION PARAMETERS")
         self.collapsible_boxes.append(interv_box)
+
+        # Define tooltips for intervention parameters
+        interv_tooltips = {
+            'boxes_to_consider': """Social Distance Range: How many grid cells away particles check for crowding
+
+Recommended: 1-3
+• 1: Only immediate neighbors affect distancing
+• 2-3: Moderate awareness of surrounding density
+• 4-10: Wide-area crowd avoidance
+
+Tip: Higher values increase computation but more realistic behavior""",
+
+            'quarantine_after': """Quarantine After (days): Days infected before symptomatic particles quarantine
+
+Recommended: 3-7 days
+• Short (1-3): Quick isolation, unrealistic early detection
+• Medium (3-7): Realistic symptom onset timing
+• Long (7-20): Delayed response, more spread before isolation
+
+Tip: Only applies to symptomatic cases (see Asymptomatic Rate)""",
+
+            'start_quarantine': """Quarantine Start Day: Simulation day when quarantine policy begins
+
+Recommended: 10-20 days
+• Early (0-10): Proactive intervention before major spread
+• Medium (10-20): Reactive after outbreak detected
+• Late (20-30): Delayed response, epidemic already advanced
+
+Tip: Set to 0 for immediate quarantine from start""",
+
+            'prob_no_symptoms': """Asymptomatic Rate: Proportion of infected who never show symptoms
+
+Recommended: 0.15-0.30 (15-30%)
+• Low (0-0.15): Most infections detectable
+• Medium (0.15-0.30): Realistic for many diseases (e.g., COVID-19)
+• High (0.30-0.50): Many hidden spreaders
+
+Tip: Asymptomatic particles never quarantine, continuing to spread disease"""
+        }
+
         interv_params = [
             ('boxes_to_consider', 'Social Distance Range', 1, 10, 2),
             ('quarantine_after', 'Quarantine After (days)', 1, 20, 5),
@@ -1329,12 +1458,14 @@ class EpidemicApp(QMainWindow):
         for param, label, min_val, max_val, default in interv_params:
             lbl = QLabel(f"{label}: {default:.3g}")
             lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+            lbl.setToolTip(interv_tooltips.get(param, label))
             interv_box.addWidget(lbl)
             slider = QSlider(Qt.Horizontal)
             slider.setMinimum(int(min_val * 100))
             slider.setMaximum(int(max_val * 100))
             slider.setValue(int(default * 100))
             slider.setMinimumHeight(22)
+            slider.setToolTip(interv_tooltips.get(param, label))
             slider.valueChanged.connect(
                 lambda val, p=param, l=lbl, label=label: self.update_param(p, val/100, l, label)
             )
@@ -1350,6 +1481,17 @@ class EpidemicApp(QMainWindow):
         for preset_name in PRESETS.keys():
             self.preset_combo.addItem(preset_name)
         self.preset_combo.currentTextChanged.connect(self.load_preset)
+        self.preset_combo.setToolTip("""Preset Scenarios: Pre-configured parameter sets for common epidemic scenarios
+
+Available presets:
+• Baseline: No interventions, natural spread
+• Lockdown: Strict quarantine measures
+• Social Distance: Population-wide distancing
+• High Mortality: Severe disease scenario
+• Fast Spread: Highly contagious disease
+• Communities: Isolated population groups
+
+Tip: Use keyboard shortcuts 1-9 to quickly load presets""")
         presets_box.addWidget(self.preset_combo)
         left_layout.addWidget(presets_box)
 
@@ -1410,7 +1552,7 @@ class EpidemicApp(QMainWindow):
         # Set correct initial text based on current theme
         initial_text = "☀ LIGHT" if current_theme == DARK_THEME else "🌙 DARK"
         self.theme_btn = QPushButton(initial_text)
-        self.theme_btn.setToolTip("Toggle Light/Dark Theme (T)")
+        self.theme_btn.setToolTip("Toggle Light/Dark Theme (Keyboard: T)\n\nSwitch between light and dark color schemes.\nPreference is saved between sessions.")
         self.theme_btn.clicked.connect(self.toggle_theme)
         self.theme_btn.setMinimumHeight(32)
         self.theme_btn.setMaximumWidth(90)
@@ -1432,6 +1574,56 @@ class EpidemicApp(QMainWindow):
         """)
         title_layout.addWidget(self.theme_btn)
 
+        # Font size controls
+        font_size_label = QLabel("UI:")
+        font_size_label.setStyleSheet(f"color: {NEON_GREEN}; font-size: 10px; margin: 0px;")
+        font_size_label.setToolTip("Adjust UI font size for better readability")
+        title_layout.addWidget(font_size_label)
+
+        self.font_smaller_btn = QPushButton("A-")
+        self.font_smaller_btn.setToolTip("Decrease font size\n\nMake UI text smaller for more content.")
+        self.font_smaller_btn.clicked.connect(lambda: self.adjust_font_size(-1))
+        self.font_smaller_btn.setMinimumHeight(32)
+        self.font_smaller_btn.setMaximumWidth(35)
+        self.font_smaller_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {BG_BLACK};
+                color: {NEON_GREEN};
+                border: 2px solid {BORDER_GREEN};
+                padding: 2px;
+                font-weight: bold;
+                font-size: 10px;
+            }}
+            QPushButton:hover {{
+                background-color: #1a1a1a;
+                border-color: #ffffff;
+                color: #ffffff;
+            }}
+        """)
+        title_layout.addWidget(self.font_smaller_btn)
+
+        self.font_larger_btn = QPushButton("A+")
+        self.font_larger_btn.setToolTip("Increase font size\n\nMake UI text larger for better readability.")
+        self.font_larger_btn.clicked.connect(lambda: self.adjust_font_size(1))
+        self.font_larger_btn.setMinimumHeight(32)
+        self.font_larger_btn.setMaximumWidth(35)
+        self.font_larger_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {BG_BLACK};
+                color: {NEON_GREEN};
+                border: 2px solid {BORDER_GREEN};
+                padding: 2px;
+                font-weight: bold;
+                font-size: 10px;
+            }}
+            QPushButton:hover {{
+                background-color: #1a1a1a;
+                border-color: #ffffff;
+                color: #ffffff;
+            }}
+        """)
+        title_layout.addWidget(self.font_larger_btn)
+
         right_layout.addWidget(title_container)
 
         # === CONTROLS ===
@@ -1447,15 +1639,17 @@ class EpidemicApp(QMainWindow):
         self.pause_btn = QPushButton("PAUSE")
         self.pause_btn.clicked.connect(self.toggle_pause)
         self.pause_btn.setMinimumHeight(32)
+        self.pause_btn.setToolTip("Pause/Resume simulation (Keyboard: SPACE)\n\nPauses the simulation while keeping all state intact.\nUse to examine current situation or adjust parameters.")
         btn_row.addWidget(self.pause_btn)
 
         reset_btn = QPushButton("RESET")
         reset_btn.clicked.connect(self.reset_sim)
         reset_btn.setMinimumHeight(32)
+        reset_btn.setToolTip("Reset simulation (Keyboard: R)\n\nResets simulation to day 0 with current parameters.\nCreates new particle population with random positions.")
         btn_row.addWidget(reset_btn)
 
         self.fullscreen_btn = QPushButton("FULL")
-        self.fullscreen_btn.setToolTip("Fullscreen (F)")
+        self.fullscreen_btn.setToolTip("Fullscreen mode (Keyboard: F)\n\nToggle fullscreen display.\nPress F or ESC to exit fullscreen.")
         self.fullscreen_btn.clicked.connect(self.toggle_fullscreen)
         self.fullscreen_btn.setMinimumHeight(32)
         self.fullscreen_btn.setMaximumWidth(50)
@@ -1466,17 +1660,25 @@ class EpidemicApp(QMainWindow):
         # Speed buttons
         speed_label = QLabel("Speed:")
         speed_label.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 5px;")
+        speed_label.setToolTip("Simulation speed multiplier\n\nControls how fast time progresses.\nDoes not affect physics or disease mechanics.")
         ctrl_layout.addWidget(speed_label)
 
         speed_row = QHBoxLayout()
         speed_row.setSpacing(4)
         self.speed_btns = QButtonGroup()
         self.speed_btns.setExclusive(True)
+        speed_tooltips = {
+            0.5: "Half speed (0.5x)\n\nSlow motion for detailed observation.\nIdeal for studying individual interactions.",
+            1.0: "Normal speed (1.0x)\n\nDefault simulation speed.\nBalanced between detail and progress.",
+            2.0: "Double speed (2.0x)\n\nFaster progression through epidemic stages.\nGood for long-term trend observation.",
+            5.0: "5x speed (5.0x)\n\nRapid progression to see full epidemic curve.\nSkips early stages quickly."
+        }
         for i, speed in enumerate([0.5, 1.0, 2.0, 5.0]):
             btn = QPushButton(f"{speed}x")
             btn.setCheckable(True)
             btn.clicked.connect(lambda checked, s=speed: self.set_speed(s))
             btn.setMinimumHeight(28)
+            btn.setToolTip(speed_tooltips[speed])
             self.speed_btns.addButton(btn, i)
             speed_row.addWidget(btn)
             if speed == 1.0:
@@ -1495,12 +1697,21 @@ class EpidemicApp(QMainWindow):
         self.population_spin.setSingleStep(50)
         self.population_spin.setMinimumHeight(28)
         self.population_spin.valueChanged.connect(self.on_population_changed)
-        self.population_spin.setToolTip("Change population size (requires reset)")
+        self.population_spin.setToolTip("""Population Size: Number of particles in simulation
+
+Range: 50-2000 particles
+• 50-200: Fast, good for testing
+• 200-500: Balanced performance
+• 500-1000: More realistic statistics
+• 1000-2000: Highest detail (slower)
+
+Requires clicking 'Apply' to take effect.""")
         pop_row.addWidget(self.population_spin)
 
         apply_pop_btn = QPushButton("Apply")
         apply_pop_btn.clicked.connect(self.apply_population)
         apply_pop_btn.setMinimumHeight(28)
+        apply_pop_btn.setToolTip("Apply new population size\n\nResets the simulation with the new population.\nAll progress will be lost.")
         pop_row.addWidget(apply_pop_btn)
         ctrl_layout.addLayout(pop_row)
 
@@ -1518,6 +1729,14 @@ class EpidemicApp(QMainWindow):
             font-family: 'Courier New', monospace; background-color: transparent; border: none;
         """)
         self.stats_label.setAlignment(Qt.AlignCenter)
+        self.stats_label.setToolTip("""Real-time epidemic statistics
+
+DAY: Current simulation day
+S (Susceptible): Healthy, can be infected
+I (Infected): Currently infectious
+R (Removed): Recovered or deceased
+
+These percentages sum to 100% at all times (classic SIR model)""")
         stats_layout.addWidget(self.stats_label)
         right_layout.addWidget(stats_container)
 
@@ -1525,11 +1744,39 @@ class EpidemicApp(QMainWindow):
         mode_box = CollapsibleBox("SIMULATION MODE")
         self.collapsible_boxes.append(mode_box)
         self.mode_btns = QButtonGroup()
+
+        mode_tooltips = {
+            'simple': """Simple Mode: Single well-mixed population
+
+All particles move freely in one shared space.
+No barriers or separation between groups.
+Fastest spread dynamics.
+
+Use for: Baseline epidemic behavior, teaching basic SIR model""",
+
+            'quarantine': """Quarantine Mode: Infected particles can be isolated
+
+Symptomatic infected particles move to quarantine zone.
+Quarantine zone is on the right side of canvas.
+Asymptomatic cases continue spreading.
+
+Use for: Studying intervention effectiveness, isolation strategies""",
+
+            'communities': """Communities Mode: Multiple isolated population groups
+
+Population divided into separate communities.
+Occasional travel between communities spreads disease.
+Slower inter-community transmission.
+
+Use for: Geographic spread modeling, travel restrictions"""
+        }
+
         for i, mode in enumerate(['simple', 'quarantine', 'communities']):
             btn = QPushButton(mode.upper())
             btn.setCheckable(True)
             btn.clicked.connect(lambda checked, m=mode: self.change_mode(m))
             btn.setMinimumHeight(34)
+            btn.setToolTip(mode_tooltips[mode])
             self.mode_btns.addButton(btn, i)
             mode_box.addWidget(btn)
         self.mode_btns.button(0).setChecked(True)
@@ -1542,28 +1789,51 @@ class EpidemicApp(QMainWindow):
         self.quarantine_checkbox = QCheckBox("Quarantine Zone")
         self.quarantine_checkbox.setChecked(params.quarantine_enabled)
         self.quarantine_checkbox.stateChanged.connect(self.toggle_quarantine)
+        self.quarantine_checkbox.setToolTip("""Quarantine Zone: Enable/disable quarantine isolation (Keyboard: Q)
+
+When enabled:
+• Symptomatic infected particles move to right side
+• Quarantined particles cannot infect main population
+• Asymptomatic cases remain in main population
+
+Use for: Testing isolation effectiveness, intervention strategies""")
         interv_box.addWidget(self.quarantine_checkbox)
 
         self.marketplace_checkbox = QCheckBox("Marketplace Gatherings")
         self.marketplace_checkbox.setChecked(params.marketplace_enabled)
         self.marketplace_checkbox.stateChanged.connect(self.toggle_marketplace)
+        self.marketplace_checkbox.setToolTip("""Marketplace Gatherings: Periodic mass gathering events (Keyboard: M)
+
+When enabled:
+• Particles periodically gather at central marketplace
+• Dramatically increases contact rate during event
+• Models superspreader events (concerts, festivals, etc.)
+
+Use for: Studying impact of mass gatherings on epidemic spread""")
         interv_box.addWidget(self.marketplace_checkbox)
 
         mp_grid = QGridLayout()
         mp_grid.setSpacing(5)
-        mp_grid.addWidget(QLabel("Interval (days):"), 0, 0)
+
+        interval_label = QLabel("Interval (days):")
+        interval_label.setToolTip("Days between marketplace gathering events\n\nLower = more frequent gatherings\nHigher = rare events")
+        mp_grid.addWidget(interval_label, 0, 0)
         self.marketplace_interval_spin = QSpinBox()
         self.marketplace_interval_spin.setRange(1, 30)
         self.marketplace_interval_spin.setValue(params.marketplace_interval)
         self.marketplace_interval_spin.valueChanged.connect(lambda v: setattr(params, 'marketplace_interval', v))
+        self.marketplace_interval_spin.setToolTip("How often marketplace gatherings occur\n\n1-7: Weekly or more frequent\n7-14: Every 1-2 weeks\n14-30: Rare events")
         mp_grid.addWidget(self.marketplace_interval_spin, 0, 1)
 
-        mp_grid.addWidget(QLabel("Attendance:"), 1, 0)
+        attendance_label = QLabel("Attendance:")
+        attendance_label.setToolTip("Fraction of population attending each marketplace event\n\n0.1 = 10% attend\n0.5 = 50% attend\n1.0 = 100% attend")
+        mp_grid.addWidget(attendance_label, 1, 0)
         self.marketplace_attendance_spin = QDoubleSpinBox()
         self.marketplace_attendance_spin.setRange(0.1, 1.0)
         self.marketplace_attendance_spin.setSingleStep(0.1)
         self.marketplace_attendance_spin.setValue(params.marketplace_attendance)
         self.marketplace_attendance_spin.valueChanged.connect(lambda v: setattr(params, 'marketplace_attendance', v))
+        self.marketplace_attendance_spin.setToolTip("Percentage of population participating in marketplace\n\nHigher attendance = larger superspreader potential")
         mp_grid.addWidget(self.marketplace_attendance_spin, 1, 1)
 
         interv_box.addLayout(mp_grid)
@@ -1583,6 +1853,7 @@ class EpidemicApp(QMainWindow):
 
         vis_tabs = QTabWidget()
         vis_tabs.setMinimumHeight(400)  # Much taller now!
+        vis_tabs.setToolTip("Epidemic visualization graphs\n\nTIME SERIES: S/I/R percentages over time\nPIE CHART: Current population distribution")
         vis_tabs.setStyleSheet(f"""
             QTabWidget::pane {{
                 border: 2px solid {BORDER_GREEN}; background-color: {BG_BLACK};
@@ -1606,6 +1877,17 @@ class EpidemicApp(QMainWindow):
         self.graph_widget.showGrid(x=True, y=True, alpha=0.15)
         self.graph_widget.setYRange(0, 100)
         self.graph_widget.setMinimumHeight(380)  # Much taller!
+        self.graph_widget.setToolTip("""Time Series Graph: Track epidemic progression over time
+
+Shows percentage of population in each state:
+• Blue (Cyan): Susceptible - healthy, can be infected
+• Red: Infected - currently infectious
+• Green: Removed - recovered or deceased
+
+Watch for:
+• Peak infection rate (epidemic peak)
+• Final size (total affected)
+• Curve shape (exponential growth, plateau, decline)""")
 
         for side in ['left', 'bottom', 'right', 'top']:
             axis = self.graph_widget.getAxis(side)
@@ -1618,6 +1900,14 @@ class EpidemicApp(QMainWindow):
 
         self.pie_chart = PieChartWidget(parent=self, width=3.8, height=3.8, dpi=80)
         self.pie_chart.setMinimumHeight(250)
+        self.pie_chart.setToolTip("""Pie Chart: Current population distribution snapshot
+
+Shows current state of entire population:
+• Blue: Susceptible (healthy)
+• Red: Infected (currently infectious)
+• Green: Removed (recovered/deceased)
+
+Updates in real-time as simulation progresses.""")
 
         vis_tabs.addTab(self.graph_widget, "TIME SERIES")
         vis_tabs.addTab(self.pie_chart, "PIE CHART")
@@ -1858,17 +2148,22 @@ class EpidemicApp(QMainWindow):
         # Reset simulation with new parameters
         self.reset_sim()
         self.sim.log(f"LOADED PRESET: {preset_name}")
+        self.status_label.setText(f"✓ Loaded preset: {preset_name}. Simulation reset with new parameters.")
 
     def update_param(self, param, value, label, label_text, is_int=False):
         setattr(params, param, value)
         if is_int:
             label.setText(f"{label_text}: {int(value)} (reset to apply)")
+            self.status_label.setText(f"⚠ {label_text} changed to {int(value)}. Click RESET to apply.")
         else:
             label.setText(f"{label_text}: {value:.2f}")
+            self.status_label.setText(f"✓ {label_text} updated to {value:.2f}")
 
     def change_mode(self, mode):
         self.sim.mode = mode
         self.reset_sim()
+        mode_names = {'simple': 'Simple', 'quarantine': 'Quarantine', 'communities': 'Communities'}
+        self.status_label.setText(f"✓ Mode changed to: {mode_names.get(mode, mode)}")
 
     def toggle_quarantine(self, state):
         """Toggle quarantine on/off"""
@@ -1959,9 +2254,40 @@ class EpidemicApp(QMainWindow):
         else:
             self.fullscreen_btn.setText("FULL")
 
+    def adjust_font_size(self, delta):
+        """Adjust the base font size of the application"""
+        if not hasattr(self, 'base_font_size'):
+            self.base_font_size = 10  # Default size
+
+        # Adjust size with limits (8-14)
+        new_size = max(8, min(14, self.base_font_size + delta))
+
+        if new_size == self.base_font_size:
+            if delta > 0:
+                self.status_label.setText("⚠ Maximum font size reached (14pt)")
+            else:
+                self.status_label.setText("⚠ Minimum font size reached (8pt)")
+            return
+
+        self.base_font_size = new_size
+
+        # Apply new font to application
+        from PyQt5.QtWidgets import QApplication
+        font = QFont("Courier New", self.base_font_size)
+        QApplication.instance().setFont(font)
+
+        # Save preference
+        self.settings.setValue("font_size", self.base_font_size)
+
+        self.status_label.setText(f"✓ Font size: {self.base_font_size}pt")
+
     def toggle_pause(self):
         self.paused = not self.paused
         self.pause_btn.setText("RESUME" if self.paused else "PAUSE")
+        if self.paused:
+            self.status_label.setText(f"⏸ Simulation PAUSED at Day {self.sim.day_count}. Adjust parameters or press SPACE to resume.")
+        else:
+            self.status_label.setText(f"▶ Simulation RESUMED at {self.speed}x speed.")
 
     def reset_sim(self):
         self.sim.initialize()
