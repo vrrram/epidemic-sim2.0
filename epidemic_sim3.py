@@ -757,8 +757,11 @@ class EpidemicSimulation(QObject):
                 self._update_particle_physics(p, self.bounds, nearby)
 
         if self.quarantine_particles:
-            # Smaller quarantine zone
-            q_bounds = (-1.5, -1.15, 0.7, 0.95)
+            # Quarantine zone bounds - depends on mode
+            if self.mode == 'communities':
+                q_bounds = (-2.9, -1.1, -2.9, -1.1)  # Lower-left tile
+            else:
+                q_bounds = (-0.95, -0.6, -0.95, -0.6)  # Lower-left corner
             self.spatial_grid.clear()
             for p in self.quarantine_particles:
                 self.spatial_grid.insert(p)
@@ -952,14 +955,16 @@ class SimulationCanvas(QWidget):
             painter.setBrush(QBrush(QColor(255, 170, 0, 30)))
             painter.drawEllipse(center[0] - radius, center[1] - radius, radius * 2, radius * 2)
 
-        if params.quarantine_enabled and self.sim.quarantine_particles:
-            # Quarantine box (lower-left corner) - now visible!
+        # Draw quarantine zone if enabled (always visible when enabled)
+        if params.quarantine_enabled:
+            # Quarantine box (lower-left corner)
             tl = self._to_screen(-0.95, -0.6)
             br = self._to_screen(-0.6, -0.95)
             painter.setPen(QPen(QColor("#ff0000"), 3))
             painter.setBrush(QBrush(QColor(255, 0, 0, 20)))  # Semi-transparent red fill
             painter.drawRect(tl[0], tl[1], br[0] - tl[0], br[1] - tl[1])
 
+            # Draw quarantined particles if any
             for p in self.sim.quarantine_particles:
                 self._draw_particle(painter, p)
 
@@ -982,7 +987,8 @@ class SimulationCanvas(QWidget):
             for p in comm['particles']:
                 self._draw_particle(painter, p)
 
-        if params.quarantine_enabled and self.sim.quarantine_particles:
+        # Draw quarantine zone if enabled (always visible when enabled)
+        if params.quarantine_enabled:
             # Quarantine zone: Lower-left tile (community 0)
             # Highlight with red border and fill
             tl = self._to_screen(-2.9, -1.1)
@@ -991,6 +997,7 @@ class SimulationCanvas(QWidget):
             painter.setBrush(QBrush(QColor(255, 0, 0, 30)))  # Semi-transparent red fill
             painter.drawRect(tl[0], tl[1], br[0] - tl[0], br[1] - tl[1])
 
+            # Draw quarantined particles if any
             for p in self.sim.quarantine_particles:
                 self._draw_particle(painter, p)
 
@@ -1227,6 +1234,10 @@ class EpidemicApp(QMainWindow):
         # Tooltip system
         self.tooltips_enabled = True  # Tooltips enabled by default
         self.tooltip_storage = {}  # Store original tooltips
+
+        # Reduce tooltip flickering by increasing show delay
+        QApplication.instance().setStyleHint(QApplication.SH_ToolTip_WakeUpDelay, 300)  # 300ms delay
+        QApplication.instance().setStyleHint(QApplication.SH_ToolTip_FallAsleepDelay, 0)  # No fall asleep delay
 
         self.setup_ui()
         self.sim.initialize()
@@ -1954,8 +1965,8 @@ Updates in real-time as simulation progresses.""")
 
         # === SHORTCUTS ===
         shortcuts = QLabel(
-            "SHORTCUTS: SPACE=Pause | R=Reset | T=Theme | F=Fullscreen | H=Tooltips\n"
-            "Q=Quarantine | M=Marketplace | 1-9=Presets"
+            "SHORTCUTS: SPACE=Pause | R=Reset | T=Tooltips | Shift+T=Theme | F=Fullscreen\n"
+            "Q=Quarantine | M=Marketplace | 1-9=Presets | Ctrl+T=Param Overview"
         )
         shortcuts.setStyleSheet(f"""
             font-size: 9px; padding: 5px; color: {NEON_GREEN};
@@ -2084,7 +2095,7 @@ Updates in real-time as simulation progresses.""")
             }}
             QPushButton:checked {{
                 background-color: {NEON_GREEN};
-                color: {BG_BLACK};
+                color: #000000;  /* Always black text when selected for maximum contrast */
                 border: 2px solid {NEON_GREEN};
                 font-weight: bold;
             }}
@@ -2096,7 +2107,7 @@ Updates in real-time as simulation progresses.""")
             QPushButton:checked:hover {{
                 background-color: {checked_hover_bg};
                 border: 2px solid {hover_border};
-                color: {BG_BLACK};
+                color: #000000;  /* Keep black text on hover too */
             }}
             QLabel {{
                 color: {NEON_GREEN};
@@ -2369,6 +2380,113 @@ Updates in real-time as simulation progresses.""")
         if any(keyword in message for keyword in important_keywords):
             self.status_label.setText(message)
 
+    def show_parameter_overview(self):
+        """Show comprehensive parameter overview dialog (Ctrl+T)"""
+        from PyQt5.QtWidgets import QDialog, QVBoxLayout, QTextEdit, QPushButton
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Parameter Overview (All Modes)")
+        dialog.setMinimumSize(700, 600)
+
+        layout = QVBoxLayout()
+
+        # Create text display
+        text_display = QTextEdit()
+        text_display.setReadOnly(True)
+        text_display.setStyleSheet(f"""
+            background-color: {BG_BLACK};
+            color: {NEON_GREEN};
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            border: 2px solid {BORDER_GREEN};
+            padding: 10px;
+        """)
+
+        # Build parameter overview text
+        overview = f"""
+╔══════════════════════════════════════════════════════════════════╗
+║              EPIDEMIC SIMULATOR - PARAMETER OVERVIEW             ║
+║                      Current Mode: {self.sim.mode.upper()}                      ║
+╚══════════════════════════════════════════════════════════════════╝
+
+📊 DISEASE PARAMETERS (All Modes):
+┌──────────────────────────────────────────────────────────────────┐
+│ Infection Radius:        {params.infection_radius:.3f}
+│ Infection Probability:   {params.prob_infection:.3f} ({params.prob_infection*100:.1f}%)
+│ Infection Duration:      {params.infection_duration:.1f} days
+│ Mortality Rate:          {params.mortality_rate:.3f} ({params.mortality_rate*100:.1f}%)
+│ Initial Infected:        {params.fraction_infected_init:.4f} ({params.fraction_infected_init*100:.2f}%)
+└──────────────────────────────────────────────────────────────────┘
+
+👥 POPULATION PARAMETERS (All Modes):
+┌──────────────────────────────────────────────────────────────────┐
+│ Population Size:         {params.num_particles}
+│ Social Distance Factor:  {params.social_distance_factor:.2f}
+│ Social Distance Compliance: {params.social_distance_obedient:.2f} ({params.social_distance_obedient*100:.0f}%)
+└──────────────────────────────────────────────────────────────────┘
+
+🛡️ INTERVENTION PARAMETERS (All Modes):
+┌──────────────────────────────────────────────────────────────────┐
+│ Social Distance Range:   {params.boxes_to_consider}
+│ Quarantine After:        {params.quarantine_after:.0f} days
+│ Quarantine Start Day:    {params.start_quarantine}
+│ Asymptomatic Rate:       {params.prob_no_symptoms:.3f} ({params.prob_no_symptoms*100:.1f}%)
+│ Quarantine Enabled:      {'YES' if params.quarantine_enabled else 'NO'}
+│ Marketplace Enabled:     {'YES' if params.marketplace_enabled else 'NO'}
+└──────────────────────────────────────────────────────────────────┘
+"""
+
+        # Add mode-specific parameters
+        if self.sim.mode == 'communities':
+            overview += f"""
+🏘️ COMMUNITY MODE PARAMETERS:
+┌──────────────────────────────────────────────────────────────────┐
+│ Number of Communities:   9 (3x3 grid)
+│ Particles per Community: {params.num_per_community}
+│ Travel Probability:      {params.travel_probability:.4f}/day
+│ Communities to Infect:   {params.communities_to_infect}
+│ Marketplace Community:   {params.marketplace_community_id} (center tile)
+└──────────────────────────────────────────────────────────────────┘
+"""
+
+        if params.marketplace_enabled:
+            overview += f"""
+🏪 MARKETPLACE PARAMETERS:
+┌──────────────────────────────────────────────────────────────────┐
+│ Marketplace Interval:    {params.marketplace_interval} days
+│ Marketplace Duration:    {params.marketplace_duration} time steps
+│ Attendance Rate:         {params.marketplace_attendance:.2f} ({params.marketplace_attendance*100:.0f}%)
+│ Marketplace Location:    {'Center Tile' if self.sim.mode == 'communities' else f'({params.marketplace_x:.2f}, {params.marketplace_y:.2f})'}
+└──────────────────────────────────────────────────────────────────┘
+"""
+
+        overview += f"""
+⚙️ SIMULATION PARAMETERS:
+┌──────────────────────────────────────────────────────────────────┐
+│ Time Steps per Day:      {params.time_steps_per_day}
+│ Current Speed:           {self.speed}x
+│ Current Day:             {self.sim.day_count}
+│ Paused:                  {'YES' if self.paused else 'NO'}
+│ Frame Skip:              {self.skip_frames} (rendering every {self.skip_frames} frames)
+└──────────────────────────────────────────────────────────────────┘
+
+Press ESC or click Close to exit this overview.
+"""
+
+        text_display.setPlainText(overview)
+        layout.addWidget(text_display)
+
+        # Add close button
+        close_btn = QPushButton("Close")
+        close_btn.clicked.connect(dialog.accept)
+        close_btn.setMinimumHeight(35)
+        layout.addWidget(close_btn)
+
+        dialog.setLayout(layout)
+        dialog.exec_()
+
+        self.status_label.setText("✓ Parameter overview displayed")
+
     def toggle_tooltips(self):
         """Toggle all tooltips on/off"""
         self.tooltips_enabled = not self.tooltips_enabled
@@ -2380,13 +2498,13 @@ Updates in real-time as simulation progresses.""")
                 if tooltip:
                     self.tooltip_storage[widget] = tooltip
                     widget.setToolTip("")
-            self.status_label.setText("ℹ Tooltips DISABLED (Press H to re-enable)")
+            self.status_label.setText("ℹ Tooltips DISABLED (Press T to re-enable)")
         else:
             # Restore all tooltips
             for widget, tooltip in self.tooltip_storage.items():
                 widget.setToolTip(tooltip)
             self.tooltip_storage.clear()
-            self.status_label.setText("ℹ Tooltips ENABLED (Press H to disable)")
+            self.status_label.setText("ℹ Tooltips ENABLED (Press T to disable)")
 
     def keyPressEvent(self, event):
         """Handle keyboard shortcuts"""
@@ -2423,19 +2541,23 @@ Updates in real-time as simulation progresses.""")
             self.marketplace_checkbox.setChecked(new_state)
             return
 
-        # T: Toggle theme (Light/Dark)
+        # T: Toggle tooltips (if no modifier) or theme (if Shift) or show overview (if Ctrl)
         if key == Qt.Key_T:
-            self.toggle_theme()
+            modifiers = event.modifiers()
+            if modifiers & Qt.ControlModifier:
+                # Ctrl+T: Show parameter overview
+                self.show_parameter_overview()
+            elif modifiers & Qt.ShiftModifier:
+                # Shift+T: Toggle theme
+                self.toggle_theme()
+            else:
+                # T alone: Toggle tooltips
+                self.toggle_tooltips()
             return
 
         # F: Toggle fullscreen
         if key == Qt.Key_F:
             self.toggle_fullscreen()
-            return
-
-        # H: Toggle tooltips (Help)
-        if key == Qt.Key_H:
-            self.toggle_tooltips()
             return
 
         # Pass other events to parent
