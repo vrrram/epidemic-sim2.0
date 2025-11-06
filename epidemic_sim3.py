@@ -405,6 +405,9 @@ class EpidemicSimulation(QObject):
         self.log(f"CREATING 9 COMMUNITIES (INFECTING: {infected_communities})")
 
         total_infected = 0
+        # Quarantine zone is community 0 (lower-left tile)
+        quarantine_comm_id = 0
+
         for i in range(3):
             for j in range(3):
                 comm_id = i * 3 + j
@@ -413,6 +416,10 @@ class EpidemicSimulation(QObject):
                     'bounds': bounds,
                     'particles': []
                 }
+
+                # Skip adding initial population to quarantine zone (community 0)
+                if comm_id == quarantine_comm_id:
+                    continue  # Keep quarantine zone empty at start
 
                 if comm_id in infected_communities:
                     num_infected = max(1, int(params.num_per_community * params.fraction_infected_init))
@@ -429,9 +436,11 @@ class EpidemicSimulation(QObject):
                     state = 'infected' if k < num_infected else 'susceptible'
                     self.communities[comm_id]['particles'].append(Particle(x, y, state))
 
-        self.initial_population = params.num_per_community * 9
+        # Adjust initial population count (8 communities instead of 9)
+        self.initial_population = params.num_per_community * 8
         self.log(f"TOTAL: {self.initial_population} PARTICLES ({total_infected} INFECTED)")
         self.log(f">> PATIENT ZERO INITIALIZED IN {num_to_infect} COMMUNIT{'Y' if num_to_infect == 1 else 'IES'}")
+        self.log(f">> LOWER-LEFT TILE RESERVED FOR QUARANTINE")
 
     def get_all_particles(self):
         if self.mode == 'communities':
@@ -544,7 +553,10 @@ class EpidemicSimulation(QObject):
                     # Base probability adjusted by individual's immune response (susceptibility)
                     # Susceptibility from Normal distribution (mean=1.0, std=0.2)
                     # Example: susceptibility=1.2 means 20% more likely to get infected
-                    effective_prob = (params.prob_infection / params.time_steps_per_day) * sus_p.infection_susceptibility
+                    #
+                    # FIXED: Use prob_infection directly as per-contact probability
+                    # No division by time_steps_per_day - the slider shows the actual contact probability
+                    effective_prob = params.prob_infection * sus_p.infection_susceptibility
 
                     if random.random() < effective_prob:
                         sus_p.state = 'infected'
@@ -608,9 +620,16 @@ class EpidemicSimulation(QObject):
         particle.quarantined = True
         particle.obeys_social_distance = False
 
-        # Smaller quarantine zone (top-left corner)
-        particle.x = random.uniform(-1.5, -1.15)
-        particle.y = random.uniform(0.7, 0.95)
+        if self.mode == 'communities':
+            # Communities mode: Use lower-left tile (community 0)
+            # Bounds: (-3, -1, -3, -1)
+            particle.x = random.uniform(-2.9, -1.1)
+            particle.y = random.uniform(-2.9, -1.1)
+        else:
+            # Simple mode: Lower-left corner of main bounds
+            particle.x = random.uniform(-0.95, -0.6)
+            particle.y = random.uniform(-0.95, -0.6)
+
         particle.vx = random.uniform(-0.05, 0.05)
         particle.vy = random.uniform(-0.05, 0.05)
 
@@ -934,10 +953,11 @@ class SimulationCanvas(QWidget):
             painter.drawEllipse(center[0] - radius, center[1] - radius, radius * 2, radius * 2)
 
         if params.quarantine_enabled and self.sim.quarantine_particles:
-            # Smaller quarantine box (top-left)
-            tl = self._to_screen(-1.5, 0.95)
-            br = self._to_screen(-1.15, 0.7)
+            # Quarantine box (lower-left corner) - now visible!
+            tl = self._to_screen(-0.95, -0.6)
+            br = self._to_screen(-0.6, -0.95)
             painter.setPen(QPen(QColor("#ff0000"), 3))
+            painter.setBrush(QBrush(QColor(255, 0, 0, 20)))  # Semi-transparent red fill
             painter.drawRect(tl[0], tl[1], br[0] - tl[0], br[1] - tl[1])
 
             for p in self.sim.quarantine_particles:
@@ -963,9 +983,12 @@ class SimulationCanvas(QWidget):
                 self._draw_particle(painter, p)
 
         if params.quarantine_enabled and self.sim.quarantine_particles:
-            tl = self._to_screen(-1.5, 0.95)
-            br = self._to_screen(-1.15, 0.7)
-            painter.setPen(QPen(QColor("#ff0000"), 3))
+            # Quarantine zone: Lower-left tile (community 0)
+            # Highlight with red border and fill
+            tl = self._to_screen(-2.9, -1.1)
+            br = self._to_screen(-1.1, -2.9)
+            painter.setPen(QPen(QColor("#ff0000"), 4))  # Thicker red border
+            painter.setBrush(QBrush(QColor(255, 0, 0, 30)))  # Semi-transparent red fill
             painter.drawRect(tl[0], tl[1], br[0] - tl[0], br[1] - tl[1])
 
             for p in self.sim.quarantine_particles:
@@ -1856,7 +1879,7 @@ Use for: Studying impact of mass gatherings on epidemic spread""")
         vis_box.addWidget(self.show_radius_checkbox)
 
         vis_tabs = QTabWidget()
-        vis_tabs.setMinimumHeight(400)  # Much taller now!
+        vis_tabs.setMinimumHeight(300)  # Reasonable height for charts
         vis_tabs.setToolTip("Epidemic visualization graphs\n\nTIME SERIES: S/I/R percentages over time\nPIE CHART: Current population distribution")
         vis_tabs.setStyleSheet(f"""
             QTabWidget::pane {{
@@ -1880,7 +1903,7 @@ Use for: Studying impact of mass gatherings on epidemic spread""")
         self.graph_widget.setLabel('bottom', 'Day', color=NEON_GREEN)
         self.graph_widget.showGrid(x=True, y=True, alpha=0.15)
         self.graph_widget.setYRange(0, 100)
-        self.graph_widget.setMinimumHeight(380)  # Much taller!
+        self.graph_widget.setMinimumHeight(280)  # Reasonable height
         self.graph_widget.setToolTip("""Time Series Graph: Track epidemic progression over time
 
 Shows percentage of population in each state:
