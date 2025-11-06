@@ -1201,6 +1201,10 @@ class EpidemicApp(QMainWindow):
         self.frame_count = 0
         self.skip_frames = 1  # Render every Nth frame (adjusted dynamically)
 
+        # Tooltip system
+        self.tooltips_enabled = True  # Tooltips enabled by default
+        self.tooltip_storage = {}  # Store original tooltips
+
         self.setup_ui()
         self.sim.initialize()
 
@@ -1927,7 +1931,7 @@ Updates in real-time as simulation progresses.""")
 
         # === SHORTCUTS ===
         shortcuts = QLabel(
-            "SHORTCUTS: SPACE=Pause | R=Reset | T=Theme | F=Fullscreen\n"
+            "SHORTCUTS: SPACE=Pause | R=Reset | T=Theme | F=Fullscreen | H=Tooltips\n"
             "Q=Quarantine | M=Marketplace | 1-9=Presets"
         )
         shortcuts.setStyleSheet(f"""
@@ -1969,11 +1973,19 @@ Updates in real-time as simulation progresses.""")
             hover_border = "#2e7d32"  # Darker green
             hover_text = "#1b5e20"  # Dark green text
             checked_hover_bg = "#4caf50"  # Brighter green
+            # Tooltip colors for light mode
+            tooltip_bg = "#ffffff"  # White background
+            tooltip_text = "#000000"  # Black text
+            tooltip_border = "#2e7d32"  # Dark green border
         else:  # Dark theme
             hover_bg = "#1a1a1a"  # Dark gray
             hover_border = "#ffffff"  # White
             hover_text = "#ffffff"  # White
             checked_hover_bg = "#00dd00"  # Bright green
+            # Tooltip colors for dark mode
+            tooltip_bg = "#1a1a1a"  # Dark gray background
+            tooltip_text = "#00ff00"  # Neon green text
+            tooltip_border = "#00aa00"  # Green border
 
         self.setStyleSheet(f"""
             QMainWindow {{
@@ -1983,6 +1995,14 @@ Updates in real-time as simulation progresses.""")
                 background-color: {PANEL_BLACK};
                 color: {NEON_GREEN};
                 font-family: 'Courier New', monospace;
+            }}
+            QToolTip {{
+                background-color: {tooltip_bg};
+                color: {tooltip_text};
+                border: 2px solid {tooltip_border};
+                padding: 5px;
+                font-family: 'Courier New', monospace;
+                font-size: 11px;
             }}
             QScrollArea {{
                 border: 2px solid {BORDER_GREEN};
@@ -2271,15 +2291,18 @@ Updates in real-time as simulation progresses.""")
 
         self.base_font_size = new_size
 
-        # Apply new font to application
+        # Apply new font to application - MUST preserve monospace retro "hacker" font!
         from PyQt5.QtWidgets import QApplication
+        from PyQt5.QtGui import QFont
         font = QFont("Courier New", self.base_font_size)
+        font.setStyleHint(QFont.Monospace)  # Ensure monospace fallback
+        font.setFamily("Courier New")  # Force Courier New
         QApplication.instance().setFont(font)
 
         # Save preference
         self.settings.setValue("font_size", self.base_font_size)
 
-        self.status_label.setText(f"✓ Font size: {self.base_font_size}pt")
+        self.status_label.setText(f"✓ Font size: {self.base_font_size}pt (Courier New preserved)")
 
     def toggle_pause(self):
         self.paused = not self.paused
@@ -2322,6 +2345,25 @@ Updates in real-time as simulation progresses.""")
         important_keywords = ['INITIALIZING', 'PATIENT ZERO', 'PRESET', 'QUARANTINE', 'SPEED']
         if any(keyword in message for keyword in important_keywords):
             self.status_label.setText(message)
+
+    def toggle_tooltips(self):
+        """Toggle all tooltips on/off"""
+        self.tooltips_enabled = not self.tooltips_enabled
+
+        if not self.tooltips_enabled:
+            # Store and clear all tooltips
+            for widget in self.findChildren(QWidget):
+                tooltip = widget.toolTip()
+                if tooltip:
+                    self.tooltip_storage[widget] = tooltip
+                    widget.setToolTip("")
+            self.status_label.setText("ℹ Tooltips DISABLED (Press H to re-enable)")
+        else:
+            # Restore all tooltips
+            for widget, tooltip in self.tooltip_storage.items():
+                widget.setToolTip(tooltip)
+            self.tooltip_storage.clear()
+            self.status_label.setText("ℹ Tooltips ENABLED (Press H to disable)")
 
     def keyPressEvent(self, event):
         """Handle keyboard shortcuts"""
@@ -2366,6 +2408,11 @@ Updates in real-time as simulation progresses.""")
         # F: Toggle fullscreen
         if key == Qt.Key_F:
             self.toggle_fullscreen()
+            return
+
+        # H: Toggle tooltips (Help)
+        if key == Qt.Key_H:
+            self.toggle_tooltips()
             return
 
         # Pass other events to parent
