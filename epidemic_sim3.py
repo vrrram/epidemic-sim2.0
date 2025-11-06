@@ -1235,10 +1235,6 @@ class EpidemicApp(QMainWindow):
         self.tooltips_enabled = True  # Tooltips enabled by default
         self.tooltip_storage = {}  # Store original tooltips
 
-        # Reduce tooltip flickering by increasing show delay
-        QApplication.instance().setStyleHint(QApplication.SH_ToolTip_WakeUpDelay, 300)  # 300ms delay
-        QApplication.instance().setStyleHint(QApplication.SH_ToolTip_FallAsleepDelay, 0)  # No fall asleep delay
-
         self.setup_ui()
         self.sim.initialize()
 
