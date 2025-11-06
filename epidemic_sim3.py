@@ -1238,6 +1238,9 @@ class EpidemicApp(QMainWindow):
         self.setup_ui()
         self.sim.initialize()
 
+        # Configure tooltip behavior to reduce flickering
+        self._configure_tooltips()
+
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_simulation)
         self.timer.start(16)  # 60 FPS target
@@ -2002,7 +2005,10 @@ Updates in real-time as simulation progresses.""")
             hover_bg = "#e8f5e9"  # Light green tint
             hover_border = "#2e7d32"  # Darker green
             hover_text = "#1b5e20"  # Dark green text
-            checked_hover_bg = "#4caf50"  # Brighter green
+            checked_bg = "#66bb6a"  # Light green background when checked
+            checked_text = "#000000"  # Black text when checked
+            checked_border = "#2e7d32"  # Dark green border when checked
+            checked_hover_bg = "#4caf50"  # Brighter green on hover
             # Tooltip colors for light mode
             tooltip_bg = "#ffffff"  # White background
             tooltip_text = "#000000"  # Black text
@@ -2011,7 +2017,10 @@ Updates in real-time as simulation progresses.""")
             hover_bg = "#1a1a1a"  # Dark gray
             hover_border = "#ffffff"  # White
             hover_text = "#ffffff"  # White
-            checked_hover_bg = "#00dd00"  # Bright green
+            checked_bg = "#00ff00"  # Neon green background when checked
+            checked_text = "#000000"  # Black text when checked (max contrast)
+            checked_border = "#00ff00"  # Neon green border when checked
+            checked_hover_bg = "#00dd00"  # Bright green on hover
             # Tooltip colors for dark mode
             tooltip_bg = "#1a1a1a"  # Dark gray background
             tooltip_text = "#00ff00"  # Neon green text
@@ -2030,9 +2039,11 @@ Updates in real-time as simulation progresses.""")
                 background-color: {tooltip_bg};
                 color: {tooltip_text};
                 border: 2px solid {tooltip_border};
-                padding: 5px;
+                padding: 8px;
+                margin: 0px;
                 font-family: 'Courier New', monospace;
                 font-size: 11px;
+                opacity: 255;
             }}
             QScrollArea {{
                 border: 2px solid {BORDER_GREEN};
@@ -2090,9 +2101,9 @@ Updates in real-time as simulation progresses.""")
                 color: {hover_text};
             }}
             QPushButton:checked {{
-                background-color: {NEON_GREEN};
-                color: #000000;  /* Always black text when selected for maximum contrast */
-                border: 2px solid {NEON_GREEN};
+                background-color: {checked_bg};
+                color: {checked_text};
+                border: 2px solid {checked_border};
                 font-weight: bold;
             }}
             QPushButton:pressed {{
@@ -2103,7 +2114,7 @@ Updates in real-time as simulation progresses.""")
             QPushButton:checked:hover {{
                 background-color: {checked_hover_bg};
                 border: 2px solid {hover_border};
-                color: #000000;  /* Keep black text on hover too */
+                color: {checked_text};
             }}
             QLabel {{
                 color: {NEON_GREEN};
@@ -2482,6 +2493,24 @@ Press ESC or click Close to exit this overview.
         dialog.exec_()
 
         self.status_label.setText("✓ Parameter overview displayed")
+
+    def _configure_tooltips(self):
+        """Configure tooltip behavior to reduce flickering"""
+        # Set tooltip duration on all widgets to prevent premature hiding
+        for widget in self.findChildren(QWidget):
+            if widget.toolTip():
+                # Enable mouse tracking for smoother tooltip behavior
+                widget.setMouseTracking(True)
+
+        # Set global tooltip palette for better rendering
+        from PyQt5.QtWidgets import QApplication
+        from PyQt5.QtGui import QPalette
+        app = QApplication.instance()
+        if app:
+            palette = app.palette()
+            # This helps prevent tooltip flashing
+            palette.setColor(QPalette.ToolTipBase, palette.color(QPalette.Base))
+            palette.setColor(QPalette.ToolTipText, palette.color(QPalette.Text))
 
     def toggle_tooltips(self):
         """Toggle all tooltips on/off"""

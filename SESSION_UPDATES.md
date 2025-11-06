@@ -156,14 +156,59 @@ def adjust_font_size(self, delta):
 
 **Updated shortcuts list:**
 ```
-SPACE = Pause/Resume
-R     = Reset simulation
-T     = Toggle Light/Dark theme
-F     = Fullscreen mode
-H     = Toggle tooltips on/off (NEW!)
-Q     = Toggle quarantine
-M     = Toggle marketplace
-1-9   = Load presets 1-9
+SPACE   = Pause/Resume
+R       = Reset simulation
+T       = Toggle tooltips on/off
+Shift+T = Toggle Light/Dark theme
+Ctrl+T  = Show parameter overview (NEW!)
+F       = Fullscreen mode
+Q       = Toggle quarantine
+M       = Toggle marketplace
+1-9     = Load presets 1-9
+```
+
+### 7. Parameter Overview Dialog (Ctrl+T)
+
+**Keyboard Shortcut:** `Ctrl+T`
+
+**Purpose:** Display comprehensive overview of all simulation parameters grouped by category
+
+**Implementation:**
+```python
+def show_parameter_overview(self):
+    """Show comprehensive parameter overview dialog (Ctrl+T)"""
+    dialog = QDialog(self)
+    dialog.setWindowTitle("Parameter Overview (All Modes)")
+    dialog.setMinimumSize(700, 600)
+
+    # Displays parameters in beautiful ASCII-art formatted boxes
+    # Groups: Disease, Population, Intervention, Community (if applicable), Marketplace (if enabled)
+```
+
+**Features:**
+- **Organized display**: Parameters grouped by Disease/Population/Intervention/Community/Marketplace
+- **Mode-aware**: Shows community parameters only in Communities mode
+- **Conditional sections**: Marketplace parameters only displayed when enabled
+- **ASCII-art formatting**: Professional box-drawing characters for visual appeal
+- **Theme-consistent**: Uses current theme colors (neon green on black / black on white)
+- **Read-only**: Non-editable reference view
+- **Current values**: Shows real-time parameter values with units and percentages
+
+**Example Output:**
+```
+╔══════════════════════════════════════════════════════════════════╗
+║              EPIDEMIC SIMULATOR - PARAMETER OVERVIEW             ║
+║                      Current Mode: SIMPLE                         ║
+╚══════════════════════════════════════════════════════════════════╝
+
+📊 DISEASE PARAMETERS (All Modes):
+┌──────────────────────────────────────────────────────────────────┐
+│ Infection Radius:        0.150
+│ Infection Probability:   0.300 (30.0%)
+│ Infection Duration:      21.0 days
+│ Mortality Rate:          0.020 (2.0%)
+│ Initial Infected:        0.0100 (1.00%)
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -277,11 +322,113 @@ self.graph_widget.setMinimumHeight(280)  # Was 380px
 
 ---
 
+### Issue 4: BUTTON TEXT UNREADABLE WHEN SELECTED (FIXED)
+**Commit:** `TBD` (latest session)
+
+**Problem:** When selecting speed or mode buttons, text became unreadable (black on dark background)
+
+**Root Cause:**
+- Stylesheet used `{NEON_GREEN}` variable for checked button background
+- In light theme, this didn't provide proper theme-aware colors
+- Button text color wasn't properly defined for checked state in each theme
+
+**Solution:**
+```python
+# In apply_theme() method - define theme-specific colors:
+if current_theme == LIGHT_THEME:
+    checked_bg = "#66bb6a"  # Light green background when checked
+    checked_text = "#000000"  # Black text when checked
+    checked_border = "#2e7d32"  # Dark green border when checked
+else:  # Dark theme
+    checked_bg = "#00ff00"  # Neon green background when checked
+    checked_text = "#000000"  # Black text when checked (max contrast)
+    checked_border = "#00ff00"  # Neon green border when checked
+
+# In stylesheet:
+QPushButton:checked {{
+    background-color: {checked_bg};
+    color: {checked_text};
+    border: 2px solid {checked_border};
+    font-weight: bold;
+}}
+```
+
+**Location:** `epidemic_sim3.py:1999-2025` (apply_theme method), `epidemic_sim3.py:2098-2103` (button stylesheet)
+
+**Impact:**
+- Dark mode: Black text on neon green background (maximum contrast)
+- Light mode: Black text on light green background (professional, readable)
+- Both themes now have proper visual feedback for selected buttons
+
+---
+
+### Issue 5: TOOLTIP FLICKERING (FIXED)
+**Commit:** `TBD` (latest session)
+
+**Problem:** Tooltips flickered constantly when hovering over UI elements
+
+**Root Causes:**
+1. Insufficient padding causing tooltips to hide when cursor moved slightly
+2. No mouse tracking enabled on widgets
+3. Default Qt tooltip behavior causing rapid show/hide cycles
+
+**Solution:**
+
+**1. Enhanced Tooltip Stylesheet:**
+```python
+QToolTip {{
+    background-color: {tooltip_bg};
+    color: {tooltip_text};
+    border: 2px solid {tooltip_border};
+    padding: 8px;  # Increased from 5px
+    margin: 0px;   # Remove margins for stability
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    opacity: 255;  # Full opacity, no fading
+}}
+```
+
+**2. Added Tooltip Configuration Method:**
+```python
+def _configure_tooltips(self):
+    """Configure tooltip behavior to reduce flickering"""
+    # Enable mouse tracking on all widgets with tooltips
+    for widget in self.findChildren(QWidget):
+        if widget.toolTip():
+            widget.setMouseTracking(True)
+
+    # Set global tooltip palette for better rendering
+    app = QApplication.instance()
+    if app:
+        palette = app.palette()
+        palette.setColor(QPalette.ToolTipBase, palette.color(QPalette.Base))
+        palette.setColor(QPalette.ToolTipText, palette.color(QPalette.Text))
+```
+
+**3. Called During Initialization:**
+```python
+# In __init__ method after setup_ui():
+self._configure_tooltips()
+```
+
+**Location:**
+- `epidemic_sim3.py:2035-2044` (tooltip stylesheet)
+- `epidemic_sim3.py:2497-2513` (_configure_tooltips method)
+- `epidemic_sim3.py:1241-1242` (initialization call)
+
+**Impact:**
+- Tooltips remain stable when hovering
+- Smooth appearance and disappearance
+- Mouse tracking prevents premature hiding
+- Better user experience for tooltip-heavy interface
+
+---
+
 ## 📁 FILE CHANGES SUMMARY
 
 ### epidemic_sim3.py
 
-**Lines Modified:**
+**Lines Modified (Original Session):**
 - **Line 550:** Infection logic fix (removed time_steps_per_day division)
 - **Line 610-628:** Quarantine positioning (mode-aware placement)
 - **Lines 408-443:** Communities initialization (reserve lower-left tile)
@@ -295,11 +442,20 @@ self.graph_widget.setMinimumHeight(280)  # Was 380px
 - **Lines 1731-1779:** Intervention checkbox tooltips
 - **Lines 1827-1857:** Graph/chart tooltips
 - **Lines 1882, 1906:** Chart height adjustments
-- **Lines 1995-2002:** QToolTip stylesheet
+- **Lines 1995-2002:** QToolTip stylesheet (original)
 - **Lines 2099-2112:** Enhanced status feedback
 - **Lines 2254-2301:** Font size adjustment (preserves Courier New)
 - **Lines 2349-2366:** Tooltip toggle feature
 - **Lines 2413-2416:** H key handler for tooltips
+
+**Lines Modified (Latest Session - Button & Tooltip Fixes):**
+- **Lines 1999-2025:** apply_theme() method - added theme-specific button colors (checked_bg, checked_text, checked_border)
+- **Lines 2035-2044:** Enhanced QToolTip stylesheet - increased padding, added margin, opacity
+- **Lines 2098-2113:** QPushButton:checked and :checked:hover - use theme-specific variables
+- **Lines 1241-1242:** Added _configure_tooltips() call in __init__
+- **Lines 2497-2513:** New _configure_tooltips() method for tooltip stability
+- **Lines 2376-2495:** show_parameter_overview() method for Ctrl+T dialog
+- **Lines 2530-2540:** Updated keyPressEvent() for T/Shift+T/Ctrl+T shortcuts
 
 ---
 
@@ -483,11 +639,18 @@ effective_prob = params.prob_infection * sus_p.infection_susceptibility
 
 ## 📊 COMMITS MADE
 
+### Original Session:
 1. **`8c6ab30`** - Implement TICKET-008: ISO 9241-110 UI/UX Polish
 2. **`d32f4d9`** - Fix critical UI issues: tooltips, fonts, and add tooltip toggle
 3. **`35174e8`** - Fix 3 CRITICAL issues: infection logic, quarantine positioning, chart height
+4. **`ee34573`** - Add comprehensive session documentation
+5. **`571e5fc`** - Fix UI/UX issues: button styling, tooltip shortcuts, quarantine visibility, Ctrl+T overview
+6. **`eaea92c`** - Fix critical AttributeError: Remove invalid QApplication.setStyleHint calls
 
-**Total Lines Changed:** ~400 lines added/modified
+### Latest Session (Continued):
+7. **`TBD`** - Fix button text visibility and tooltip flickering, update documentation
+
+**Total Lines Changed:** ~500 lines added/modified (including latest session)
 
 ---
 
@@ -507,11 +670,19 @@ effective_prob = params.prob_infection * sus_p.infection_susceptibility
    - Qt has default tooltips that need overriding
    - Use QToolTip stylesheet for consistent appearance
    - Theme-aware colors are essential
+   - Mouse tracking prevents flickering
+   - Increased padding improves stability
 
 4. **Font handling:**
    - Explicitly set font family AND style hint
    - Test that font changes don't break monospace appearance
    - Preserve user's aesthetic preferences
+
+5. **Theme-aware styling (NEW):**
+   - Always define separate colors for each theme
+   - Don't reuse variables across themes without checking compatibility
+   - Test button states (normal, hover, checked) in both themes
+   - Use explicit color variables rather than global fallbacks
 
 ---
 
