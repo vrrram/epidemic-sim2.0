@@ -653,107 +653,92 @@ Acceptance Criteria Met:
 
 ---
 
-### Task 2: Death Functionality Implementation
+### Task 2: Death Functionality Implementation ✅ COMPLETED
 
-**Objective**: Make particles actually disappear from the simulation when they die, rather than just changing state.
+**Status**: COMPLETED (2025-11-07)
 
-**Current Behavior**:
-- Dead particles remain in the simulation with gray color
-- They're counted in statistics but still rendered and tracked
-- Population never decreases
+**Implementation Summary**:
+Death functionality was already fully implemented in the codebase. This task verification confirmed:
 
-**Required Behavior**:
-- When a particle dies, remove it completely from:
-  - `self.sim.particles` list (or relevant community list)
-  - `self.sim.removed_particles` list
-  - All spatial grid tracking structures
-  - Canvas rendering
-- Create new `self.sim.dead_particles` list (or counter) for statistics tracking
-- Dead count should persist but particles should not be rendered or tracked
+1. **Particle Removal**:
+   - Dead particles are correctly removed from particle lists (line 830, 838, 793, 801 in epidemic_sim3.py)
+   - Removal works in all modes: simple, quarantine, and communities
+   - Dead particles are NOT rendered or tracked after removal
+
+2. **Death Tracking**:
+   - Deaths calculated as `deaths = initial_population - current_population` (line 888)
+   - Dead count tracked in statistics dictionary (line 893, 904)
+   - Deaths displayed in UI when mortality_rate > 0 (line 2944-2945)
+   - Deaths shown on graph as separate dark red line (line 2994-3002)
+
+3. **Mortality System**:
+   - `mortality_rate` parameter exposed in UI (line 1356)
+   - Mortality check at end of infection duration (line 600)
+   - Particles marked as 'dead' and added to removal list (line 602-603)
+   - Efficient removal using set-based filtering
 
 **Implementation Details**:
-- Add `dead_count` or `self.dead_particles = []` to EpidemicSimulation class
-- When particle mortality check triggers death:
-  ```python
-  # Instead of: particle.state = 'dead'
-  # Do:
-  self.dead_count += 1  # or self.dead_particles.append(particle)
-  # Remove from active lists:
-  self.removed_particles.remove(particle)
-  # Remove from spatial grid if tracked
-  ```
-- Update population tracking to reflect actual living population
-- Ensure performance isn't impacted by list operations
+- `_update_infections()` method handles mortality checks (line 581-622)
+- Death removal happens daily during step() (line 786-838)
+- Population decreases correctly when particles die
+- Performance optimized with set-based removal
 
-**Statistics Impact**:
-- Total population = S + I + R (living only)
-- Dead count tracked separately
-- Percentages calculated against initial population (not current)
-- Graph should show dead as separate line/area
+**Task Enhancement**:
+Combined Task 2 verification with Task 3 implementation to show absolute numbers alongside percentages in the stats display.
 
 ---
 
-### Task 3: Absolute Numbers in Population Display
+### Task 3: Absolute Numbers in Population Display ✅ COMPLETED
 
-**Objective**: Show both percentages AND absolute numbers in the main right-hand side statistics display.
+**Status**: COMPLETED (2025-11-07)
 
-**Current Display**:
+**Implementation**:
+Updated `update_stats_display()` method (line 2930) to show both absolute counts and percentages.
+
+**Previous Display**:
 ```
 DAY: 025
 S: 45.2% | I: 12.3% | R: 42.5%
 ```
 
-**Required Display**:
+**New Display**:
 ```
 DAY: 025
-S: 226 (45.2%) | I: 62 (12.3%) | R: 212 (42.5%) | D: 0 (0.0%)
+S: 226 (45.2%) | I:  62 (12.3%) | R: 212 (42.5%) | D:   0 (0.0%)
 ```
 
-**Alternative Compact Format**:
-```
-DAY: 025
-Susceptible:  226 / 500 (45.2%)
-Infected:      62 / 500 (12.3%)
-Removed:      212 / 500 (42.5%)
-Dead:           0 / 500 (0.0%)
-```
+**Changes Made**:
+- Added absolute count variables: s_count, i_count, r_count, d_count (line 2942-2946)
+- Updated display format to show: `{count:3d} ({percentage:5.1f}%)` (line 2949-2951)
+- Maintained conditional display of deaths (only shown when > 0)
+- Format uses fixed-width integers for alignment
 
-**Implementation Details**:
-- Update `update_stats_display()` method in `epidemic_sim3.py`
-- Calculate absolute numbers from percentages and initial population
-- Format: `{absolute} ({percentage}%)` or `{absolute} / {initial} ({percentage}%)`
-- Ensure text fits in stats label (may need to increase height or use multi-line)
-- Keep color coding consistent
-- Update on every simulation step
-
-**User Experience**:
+**User Benefits**:
 - Users can see exact numbers of particles in each state
-- Easier to understand scale of epidemic
+- Easier to understand scale of epidemic at a glance
 - More informative than percentages alone
 - Matches expectations from real epidemiological data
+- Death count visible when mortality_rate > 0
 
 ---
 
-## Implementation Priority
+## Implementation Status
 
-**Suggested Order**:
-1. **Task 2 (Death Functionality)** - Core simulation mechanic, affects accuracy
-2. **Task 3 (Absolute Numbers)** - Quick win, improves user understanding
-3. **Task 1 (Contextual Parameters)** - Larger UI change, but most impactful for usability
+**Completed Tasks**:
+- ✅ **Task 2 (Death Functionality)** - Verified existing implementation, particles correctly disappear
+- ✅ **Task 3 (Absolute Numbers)** - Added absolute counts to stats display
 
-**Estimated Effort**:
-- Task 2: 1-2 hours (requires careful list management and testing)
-- Task 3: 30 minutes (simple display formatting change)
-- Task 1: 2-3 hours (requires UI restructuring, conditional visibility logic, thorough testing)
+**Remaining Tasks**:
+- ⏳ **Task 1 (Contextual Parameters)** - Larger UI change for mode-specific parameter visibility
 
-**Testing Requirements**:
-- Task 2: Verify particles disappear, counts accurate, no memory leaks, performance stable
-- Task 3: Verify numbers match percentages, display readable, updates correctly
-- Task 1: Test all combinations of modes and features, verify parameters appear/disappear correctly
+**Next Steps**:
+1. Test the updated stats display with mortality_rate > 0
+2. Proceed with Task 1 (Contextual Parameters) if requested
+3. Continue with German vocational project tickets
 
 ---
 
 **Last Updated**: 2025-11-07
-**Session ID**: 011CUpUPAGWL6PGL6gXbY45B
-**Current Branch**: claude/start-project-implementation-011CUpUPAGWL6PGL6gXbY45B
-**Status**: Ready to implement next tasks (documented above) ✅
+**Session ID**: 011CUtH8Y4FLFULjMMaSjpiB
+**Current Branch**: claude/death-implementation-011CUtH8Y4FLFULjMMaSjpiB
+**Status**: Task 2 completed (death functionality verified + absolute numbers added) ✅
