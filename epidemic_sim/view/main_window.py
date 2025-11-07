@@ -1625,21 +1625,22 @@ Updates in real-time as simulation progresses.""")
         pass  # Placeholder - full implementation in original
 
     def _configure_tooltips_simple(self):
-        """Configure tooltips to display reliably on hover."""
-        # Set tooltip delay and duration for reliable display
-        # Shorter delay = faster appearance on hover
+        """Disable tooltips completely - they flicker with rapid canvas updates."""
+        # CRITICAL FIX: Disable ALL tooltips globally
+        # Qt tooltips are incompatible with 60 FPS canvas updates
+        # This prevents flickering and tooltips appearing in wrong positions
+
+        # Method 1: Set extremely long delay so tooltips never appear
+        QApplication.instance().setProperty("toolTipDelay", 999999)
+
+        # Method 2: Hide tooltips with CSS
         QApplication.instance().setStyleSheet("""
             QToolTip {
-                background-color: #1a1a1a;
-                color: #00ff41;
-                border: 1px solid #00ff41;
-                padding: 5px;
-                font-size: 11px;
+                opacity: 0;
+                background-color: transparent;
+                border: none;
             }
         """)
-
-        # Note: Qt tooltips are enabled by default when setToolTip() is called
-        # This styling ensures they're visible and consistent with our theme
 
     def keyPressEvent(self, event):
         """
