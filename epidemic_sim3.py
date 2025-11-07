@@ -1599,6 +1599,7 @@ Tip: Use keyboard shortcuts 1-9 to quickly load presets""")
             background-color: transparent; border: none;
         """)
         title.setAlignment(Qt.AlignCenter)
+        title.setMinimumWidth(300)  # Ensure title has enough width to display fully
         title_layout.addWidget(title, 1)
 
         # Theme toggle button
@@ -1729,6 +1730,7 @@ Tip: Use keyboard shortcuts 1-9 to quickly load presets""")
         for i, speed in enumerate([0.5, 1.0, 2.0, 5.0]):
             btn = QPushButton(f"{speed}x")
             btn.setCheckable(True)
+            btn.setStyleSheet(self.get_checkable_button_stylesheet())  # Apply checkable button style
             btn.clicked.connect(lambda checked, s=speed: self.set_speed(s))
             btn.setMinimumHeight(28)
             btn.setToolTip(speed_tooltips[speed])
@@ -1827,6 +1829,7 @@ Use for: Geographic spread modeling, travel restrictions"""
         for i, mode in enumerate(['simple', 'quarantine', 'communities']):
             btn = QPushButton(mode.upper())
             btn.setCheckable(True)
+            btn.setStyleSheet(self.get_checkable_button_stylesheet())  # Apply checkable button style
             btn.clicked.connect(lambda checked, m=mode: self.change_mode(m))
             btn.setMinimumHeight(34)
             btn.setToolTip(mode_tooltips[mode])
@@ -1995,9 +1998,71 @@ Updates in real-time as simulation progresses.""")
 
         self.apply_theme()
 
-        # Update all collapsible boxes to match the current theme
-        for box in self.collapsible_boxes:
-            box.update_theme()
+    def get_checkable_button_stylesheet(self):
+        """Get stylesheet for checkable buttons with proper checked state colors"""
+        if current_theme == LIGHT_THEME:
+            return f"""
+                QPushButton {{
+                    background-color: {get_color('BG_WHITE')};
+                    color: {get_color('TEXT')};
+                    border: 2px solid {get_color('BORDER_GRAY')};
+                    padding: 8px;
+                    font-weight: bold;
+                    font-family: 'Courier New', monospace;
+                }}
+                QPushButton:hover {{
+                    background-color: #e8f5e9;
+                    border-color: #2e7d32;
+                    color: #1b5e20;
+                }}
+                QPushButton:checked {{
+                    background-color: #66bb6a !important;
+                    color: #000000 !important;
+                    border: 2px solid #2e7d32 !important;
+                    font-weight: bold;
+                }}
+                QPushButton:checked:hover {{
+                    background-color: #4caf50 !important;
+                    color: #000000 !important;
+                    border: 2px solid #2e7d32 !important;
+                }}
+            """
+        else:  # Dark theme
+            return f"""
+                QPushButton {{
+                    background-color: {BG_BLACK};
+                    color: {NEON_GREEN};
+                    border: 2px solid {BORDER_GREEN};
+                    padding: 8px;
+                    font-weight: bold;
+                    font-family: 'Courier New', monospace;
+                }}
+                QPushButton:hover {{
+                    background-color: #1a1a1a;
+                    border-color: #ffffff;
+                    color: #ffffff;
+                }}
+                QPushButton:checked {{
+                    background-color: #00ff00 !important;
+                    color: #000000 !important;
+                    border: 2px solid #00ff00 !important;
+                    font-weight: bold;
+                }}
+                QPushButton:checked:hover {{
+                    background-color: #00dd00 !important;
+                    color: #000000 !important;
+                    border: 2px solid #00dd00 !important;
+                }}
+            """
+
+    def toggle_left_panel(self):
+        """Toggle left parameter panel visibility"""
+        is_visible = self.left_panel.parent().isVisible()
+        self.left_panel.parent().setVisible(not is_visible)
+        if is_visible:
+            self.left_collapse_btn.setText("SHOW PARAMETERS >>")
+        else:
+            self.left_collapse_btn.setText("COLLAPSE PARAMETERS <<")
 
     def on_population_changed(self, value):
         """Update status when population changes"""
@@ -2321,6 +2386,13 @@ Updates in real-time as simulation progresses.""")
         if hasattr(self.pie_chart, 'axes'):
             self.pie_chart.axes.set_facecolor(get_color('GRAPH_BG'))
         self.pie_chart.draw()
+
+        # Update all checkable button styles for new theme
+        button_style = self.get_checkable_button_stylesheet()
+        for i in range(self.speed_btns.buttons().__len__()):
+            self.speed_btns.button(i).setStyleSheet(button_style)
+        for i in range(self.mode_btns.buttons().__len__()):
+            self.mode_btns.button(i).setStyleSheet(button_style)
 
         # Force full UI refresh
         self.status_label.setText(f"Theme switched to {theme_name.title()} mode")
@@ -2752,22 +2824,25 @@ Use T to toggle tooltips on/off.
         self.status_label.setText("✓ Parameter documentation displayed (Ctrl+T)")
 
     def _configure_tooltips(self):
-        """Configure tooltip behavior to reduce flickering"""
-        # Set tooltip duration on all widgets to prevent premature hiding
+        """Configure tooltip behavior to reduce flickering caused by simulation updates"""
+        from PyQt5.QtCore import QEvent
+
+        # Enable mouse tracking on all widgets with tooltips
+        # This prevents tooltips from hiding when widgets repaint
         for widget in self.findChildren(QWidget):
             if widget.toolTip():
-                # Enable mouse tracking for smoother tooltip behavior
                 widget.setMouseTracking(True)
+                # Disable updates to this widget during tooltip display
+                widget.setAttribute(Qt.WA_AlwaysShowToolTips, True)
 
-        # Set global tooltip palette for better rendering
+        # Set very long tooltip duration so they don't disappear during sim updates
         from PyQt5.QtWidgets import QApplication
-        from PyQt5.QtGui import QPalette
         app = QApplication.instance()
         if app:
-            palette = app.palette()
-            # This helps prevent tooltip flashing
-            palette.setColor(QPalette.ToolTipBase, palette.color(QPalette.Base))
-            palette.setColor(QPalette.ToolTipText, palette.color(QPalette.Text))
+            # Keep tooltips visible much longer (10 seconds instead of default)
+            # This prevents simulation frame updates from dismissing them
+            QApplication.setEffectEnabled(Qt.UI_FadeTooltip, False)  # Disable fade
+            QApplication.setEffectEnabled(Qt.UI_AnimateTooltip, False)  # Disable animation
 
     def toggle_tooltips(self):
         """Toggle all tooltips on/off"""
@@ -2936,6 +3011,12 @@ Use T to toggle tooltips on/off.
                     name='Dead'
                 )
                 self.graph_widget.addItem(d_curve)
+
+            # Auto-range to show full epidemic curve from start to current
+            # This ensures the entire development is visible, not stuck on first 15 days
+            self.graph_widget.enableAutoRange(axis='x', enable=True)
+            self.graph_widget.enableAutoRange(axis='y', enable=False)  # Keep Y at 0-100
+            self.graph_widget.setXRange(0, max(days), padding=0.02)
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
