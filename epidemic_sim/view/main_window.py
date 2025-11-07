@@ -357,11 +357,9 @@ Recommended: 0.15-0.30 (15-30%)
 Tip: Asymptomatic particles never quarantine, continuing to spread disease"""
         }
 
+        # Only keep general intervention parameter (Social Distance Range)
         interv_params = [
             ('boxes_to_consider', 'Social Distance Range', 1, 10, 2),
-            ('quarantine_after', 'Quarantine After (days)', 1, 20, 5),
-            ('start_quarantine', 'Quarantine Start Day', 0, 30, 10),
-            ('prob_no_symptoms', 'Asymptomatic Rate', 0, 0.5, 0.20),
         ]
         for param, label, min_val, max_val, default in interv_params:
             lbl = QLabel(f"{label}: {default:.3g}")
@@ -380,6 +378,245 @@ Tip: Asymptomatic particles never quarantine, continuing to spread disease"""
             interv_box.addWidget(slider)
             self.sliders[param] = (slider, lbl, label)
         left_layout.addWidget(interv_box)
+
+        # === COMMUNITY PARAMETERS (Contextual - only shown in Communities mode) ===
+        self.community_box = CollapsibleBox("COMMUNITY PARAMETERS")
+        self.collapsible_boxes.append(self.community_box)
+
+        community_tooltips = {
+            'num_per_community': """Particles Per Community: Population size in each community tile
+
+Recommended: 50-100
+• Lower (20-50): Small isolated groups
+• Medium (50-100): Realistic community sizes
+• Higher (100-200): Large population centers
+
+Tip: Total population = 9 communities × this value""",
+
+            'travel_probability': """Travel Probability: Daily chance for particle to travel between communities
+
+Recommended: 0.01-0.05 (1-5%)
+• Low (0.001-0.01): Rare travel, strong isolation
+• Medium (0.01-0.05): Occasional inter-community mixing
+• High (0.05-0.10): Frequent travel, weak isolation
+
+Tip: Controls speed of geographic spread""",
+
+            'communities_to_infect': """Initially Infected Communities: Number of communities with patient zero
+
+Recommended: 1-3
+• 1: Single outbreak origin
+• 2-3: Multiple simultaneous outbreaks
+• 4-9: Widespread initial infection
+
+Tip: Models multiple introduction events"""
+        }
+
+        community_params = [
+            ('num_per_community', 'Particles Per Community', 20, 200, 60),
+            ('travel_probability', 'Travel Probability', 0.001, 0.1, 0.02),
+            ('communities_to_infect', 'Initially Infected Communities', 1, 9, 2),
+        ]
+        for param, label, min_val, max_val, default in community_params:
+            lbl = QLabel(f"{label}: {default:.3g}")
+            lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+            lbl.setToolTip(community_tooltips.get(param, label))
+            self.community_box.addWidget(lbl)
+
+            if param == 'communities_to_infect':
+                # Use integer slider for communities_to_infect
+                slider = QSlider(Qt.Horizontal)
+                slider.setMinimum(int(min_val))
+                slider.setMaximum(int(max_val))
+                slider.setValue(int(default))
+                slider.setMinimumHeight(22)
+                slider.setToolTip(community_tooltips.get(param, label))
+                slider.valueChanged.connect(
+                    lambda val, p=param, l=lbl, label=label: self.update_param(p, val, l, label, is_int=True)
+                )
+            else:
+                # Float slider
+                slider = QSlider(Qt.Horizontal)
+                slider.setMinimum(int(min_val * 1000))
+                slider.setMaximum(int(max_val * 1000))
+                slider.setValue(int(default * 1000))
+                slider.setMinimumHeight(22)
+                slider.setToolTip(community_tooltips.get(param, label))
+                slider.valueChanged.connect(
+                    lambda val, p=param, l=lbl, label=label: self.update_param(p, val/1000, l, label)
+                )
+
+            self.community_box.addWidget(slider)
+            self.sliders[param] = (slider, lbl, label)
+        left_layout.addWidget(self.community_box)
+        self.community_box.hide()  # Hidden by default, shown only in communities mode
+
+        # === QUARANTINE PARAMETERS (Contextual - only shown when quarantine enabled) ===
+        self.quarantine_params_box = CollapsibleBox("QUARANTINE PARAMETERS")
+        self.collapsible_boxes.append(self.quarantine_params_box)
+
+        quarantine_params = [
+            ('quarantine_after', 'Quarantine After (days)', 1, 20, 5),
+            ('start_quarantine', 'Quarantine Start Day', 0, 30, 10),
+            ('prob_no_symptoms', 'Asymptomatic Rate', 0, 0.5, 0.20),
+        ]
+        for param, label, min_val, max_val, default in quarantine_params:
+            lbl = QLabel(f"{label}: {default:.3g}")
+            lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+            lbl.setToolTip(interv_tooltips.get(param, label))
+            self.quarantine_params_box.addWidget(lbl)
+            slider = QSlider(Qt.Horizontal)
+            slider.setMinimum(int(min_val * 100))
+            slider.setMaximum(int(max_val * 100))
+            slider.setValue(int(default * 100))
+            slider.setMinimumHeight(22)
+            slider.setToolTip(interv_tooltips.get(param, label))
+            slider.valueChanged.connect(
+                lambda val, p=param, l=lbl, label=label: self.update_param(p, val/100, l, label)
+            )
+            self.quarantine_params_box.addWidget(slider)
+            self.sliders[param] = (slider, lbl, label)
+        left_layout.addWidget(self.quarantine_params_box)
+        self.quarantine_params_box.hide()  # Hidden by default, shown when quarantine enabled
+
+        # === MARKETPLACE PARAMETERS (Contextual - only shown when marketplace enabled) ===
+        self.marketplace_params_box = CollapsibleBox("MARKETPLACE PARAMETERS")
+        self.collapsible_boxes.append(self.marketplace_params_box)
+
+        marketplace_tooltips = {
+            'marketplace_interval': """Marketplace Interval: Days between gathering events
+
+Recommended: 7-14
+• Frequent (1-7): Daily to weekly gatherings
+• Medium (7-14): Weekly to biweekly events
+• Rare (14-30): Monthly gatherings
+
+Tip: More frequent = higher impact on spread""",
+
+            'marketplace_duration': """Marketplace Duration: Time steps particles stay at gathering
+
+Recommended: 1-5
+• Short (1-2): Brief encounters
+• Medium (2-5): Extended mixing
+• Long (5-10): Prolonged contact
+
+Tip: Longer duration = more infections per event""",
+
+            'marketplace_attendance': """Marketplace Attendance: Fraction of population attending
+
+Recommended: 0.3-0.7
+• Low (0.1-0.3): Small gatherings
+• Medium (0.3-0.7): Moderate attendance
+• High (0.7-1.0): Mass gathering events
+
+Tip: Higher attendance = superspreader potential""",
+
+            'marketplace_x': """Marketplace X Coordinate: Horizontal location of gathering point
+
+Range: -1.0 to 1.0
+• -1.0: Left side of canvas
+• 0.0: Center (default)
+• 1.0: Right side
+
+Tip: (0, 0) places marketplace at canvas center""",
+
+            'marketplace_y': """Marketplace Y Coordinate: Vertical location of gathering point
+
+Range: -1.0 to 1.0
+• -1.0: Bottom of canvas
+• 0.0: Center (default)
+• 1.0: Top
+
+Tip: (0, 0) places marketplace at canvas center"""
+        }
+
+        # Marketplace interval (integer spinbox)
+        interval_lbl = QLabel(f"Marketplace Interval: {params.marketplace_interval}")
+        interval_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+        interval_lbl.setToolTip(marketplace_tooltips['marketplace_interval'])
+        self.marketplace_params_box.addWidget(interval_lbl)
+        interval_slider = QSlider(Qt.Horizontal)
+        interval_slider.setMinimum(1)
+        interval_slider.setMaximum(30)
+        interval_slider.setValue(params.marketplace_interval)
+        interval_slider.setMinimumHeight(22)
+        interval_slider.setToolTip(marketplace_tooltips['marketplace_interval'])
+        interval_slider.valueChanged.connect(
+            lambda val, l=interval_lbl: self.update_param('marketplace_interval', val, l, 'Marketplace Interval', is_int=True)
+        )
+        self.marketplace_params_box.addWidget(interval_slider)
+        self.sliders['marketplace_interval'] = (interval_slider, interval_lbl, 'Marketplace Interval')
+
+        # Marketplace duration (integer slider)
+        duration_lbl = QLabel(f"Marketplace Duration: {params.marketplace_duration}")
+        duration_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+        duration_lbl.setToolTip(marketplace_tooltips['marketplace_duration'])
+        self.marketplace_params_box.addWidget(duration_lbl)
+        duration_slider = QSlider(Qt.Horizontal)
+        duration_slider.setMinimum(1)
+        duration_slider.setMaximum(10)
+        duration_slider.setValue(params.marketplace_duration)
+        duration_slider.setMinimumHeight(22)
+        duration_slider.setToolTip(marketplace_tooltips['marketplace_duration'])
+        duration_slider.valueChanged.connect(
+            lambda val, l=duration_lbl: self.update_param('marketplace_duration', val, l, 'Marketplace Duration', is_int=True)
+        )
+        self.marketplace_params_box.addWidget(duration_slider)
+        self.sliders['marketplace_duration'] = (duration_slider, duration_lbl, 'Marketplace Duration')
+
+        # Marketplace attendance (float slider)
+        attendance_lbl = QLabel(f"Marketplace Attendance: {params.marketplace_attendance:.2f}")
+        attendance_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+        attendance_lbl.setToolTip(marketplace_tooltips['marketplace_attendance'])
+        self.marketplace_params_box.addWidget(attendance_lbl)
+        attendance_slider = QSlider(Qt.Horizontal)
+        attendance_slider.setMinimum(10)
+        attendance_slider.setMaximum(100)
+        attendance_slider.setValue(int(params.marketplace_attendance * 100))
+        attendance_slider.setMinimumHeight(22)
+        attendance_slider.setToolTip(marketplace_tooltips['marketplace_attendance'])
+        attendance_slider.valueChanged.connect(
+            lambda val, l=attendance_lbl: self.update_param('marketplace_attendance', val/100, l, 'Marketplace Attendance')
+        )
+        self.marketplace_params_box.addWidget(attendance_slider)
+        self.sliders['marketplace_attendance'] = (attendance_slider, attendance_lbl, 'Marketplace Attendance')
+
+        # Marketplace X coordinate (float slider)
+        x_lbl = QLabel(f"Marketplace X: {params.marketplace_x:.2f}")
+        x_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+        x_lbl.setToolTip(marketplace_tooltips['marketplace_x'])
+        self.marketplace_params_box.addWidget(x_lbl)
+        x_slider = QSlider(Qt.Horizontal)
+        x_slider.setMinimum(-100)
+        x_slider.setMaximum(100)
+        x_slider.setValue(int(params.marketplace_x * 100))
+        x_slider.setMinimumHeight(22)
+        x_slider.setToolTip(marketplace_tooltips['marketplace_x'])
+        x_slider.valueChanged.connect(
+            lambda val, l=x_lbl: self.update_param('marketplace_x', val/100, l, 'Marketplace X')
+        )
+        self.marketplace_params_box.addWidget(x_slider)
+        self.sliders['marketplace_x'] = (x_slider, x_lbl, 'Marketplace X')
+
+        # Marketplace Y coordinate (float slider)
+        y_lbl = QLabel(f"Marketplace Y: {params.marketplace_y:.2f}")
+        y_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+        y_lbl.setToolTip(marketplace_tooltips['marketplace_y'])
+        self.marketplace_params_box.addWidget(y_lbl)
+        y_slider = QSlider(Qt.Horizontal)
+        y_slider.setMinimum(-100)
+        y_slider.setMaximum(100)
+        y_slider.setValue(int(params.marketplace_y * 100))
+        y_slider.setMinimumHeight(22)
+        y_slider.setToolTip(marketplace_tooltips['marketplace_y'])
+        y_slider.valueChanged.connect(
+            lambda val, l=y_lbl: self.update_param('marketplace_y', val/100, l, 'Marketplace Y')
+        )
+        self.marketplace_params_box.addWidget(y_slider)
+        self.sliders['marketplace_y'] = (y_slider, y_lbl, 'Marketplace Y')
+
+        left_layout.addWidget(self.marketplace_params_box)
+        self.marketplace_params_box.hide()  # Hidden by default, shown when marketplace enabled
 
         # PRESETS
         presets_box = CollapsibleBox("PRESETS")
@@ -723,31 +960,9 @@ When enabled:
 Use for: Studying impact of mass gatherings on epidemic spread""")
         interv_box.addWidget(self.marketplace_checkbox)
 
-        mp_grid = QGridLayout()
-        mp_grid.setSpacing(5)
+        # Note: Marketplace parameters (interval, attendance, location) are now in the left panel
+        # under "MARKETPLACE PARAMETERS" section, shown only when marketplace is enabled.
 
-        interval_label = QLabel("Interval (days):")
-        interval_label.setToolTip("Days between marketplace gathering events\n\nLower = more frequent gatherings\nHigher = rare events")
-        mp_grid.addWidget(interval_label, 0, 0)
-        self.marketplace_interval_spin = QSpinBox()
-        self.marketplace_interval_spin.setRange(1, 30)
-        self.marketplace_interval_spin.setValue(params.marketplace_interval)
-        self.marketplace_interval_spin.valueChanged.connect(lambda v: setattr(params, 'marketplace_interval', v))
-        self.marketplace_interval_spin.setToolTip("How often marketplace gatherings occur\n\n1-7: Weekly or more frequent\n7-14: Every 1-2 weeks\n14-30: Rare events")
-        mp_grid.addWidget(self.marketplace_interval_spin, 0, 1)
-
-        attendance_label = QLabel("Attendance:")
-        attendance_label.setToolTip("Fraction of population attending each marketplace event\n\n0.1 = 10% attend\n0.5 = 50% attend\n1.0 = 100% attend")
-        mp_grid.addWidget(attendance_label, 1, 0)
-        self.marketplace_attendance_spin = QDoubleSpinBox()
-        self.marketplace_attendance_spin.setRange(0.1, 1.0)
-        self.marketplace_attendance_spin.setSingleStep(0.1)
-        self.marketplace_attendance_spin.setValue(params.marketplace_attendance)
-        self.marketplace_attendance_spin.valueChanged.connect(lambda v: setattr(params, 'marketplace_attendance', v))
-        self.marketplace_attendance_spin.setToolTip("Percentage of population participating in marketplace\n\nHigher attendance = larger superspreader potential")
-        mp_grid.addWidget(self.marketplace_attendance_spin, 1, 1)
-
-        interv_box.addLayout(mp_grid)
         right_layout.addWidget(interv_box)
 
         # === VISUALIZATIONS ===
@@ -1183,6 +1398,7 @@ Updates in real-time as simulation progresses.""")
     def change_mode(self, mode):
         """
         Change simulation mode and reset.
+        Also show/hide contextual community parameters based on mode.
 
         Args:
             mode (str): New simulation mode ('simple', 'quarantine', or 'communities')
@@ -1192,9 +1408,16 @@ Updates in real-time as simulation progresses.""")
         mode_names = {'simple': 'Simple', 'quarantine': 'Quarantine', 'communities': 'Communities'}
         self.status_label.setText(f"✓ Mode changed to: {mode_names.get(mode, mode)}")
 
+        # Show/hide community parameters based on mode
+        if mode == 'communities':
+            self.community_box.show()
+        else:
+            self.community_box.hide()
+
     def toggle_quarantine(self, state):
         """
         Toggle quarantine on/off.
+        Also show/hide contextual quarantine parameters.
 
         Args:
             state (int): Qt checkbox state (0=unchecked, 2=checked)
@@ -1202,15 +1425,28 @@ Updates in real-time as simulation progresses.""")
         params.quarantine_enabled = bool(state)
         self.status_label.setText(f"Quarantine {'enabled' if state else 'disabled'}")
 
+        # Show/hide quarantine parameters based on checkbox state
+        if state:
+            self.quarantine_params_box.show()
+        else:
+            self.quarantine_params_box.hide()
+
     def toggle_marketplace(self, state):
         """
         Toggle marketplace gatherings on/off.
+        Also show/hide contextual marketplace parameters.
 
         Args:
             state (int): Qt checkbox state (0=unchecked, 2=checked)
         """
         params.marketplace_enabled = bool(state)
         self.status_label.setText(f"Marketplace {'enabled' if state else 'disabled'}")
+
+        # Show/hide marketplace parameters based on checkbox state
+        if state:
+            self.marketplace_params_box.show()
+        else:
+            self.marketplace_params_box.hide()
 
     def toggle_infection_radius(self, state):
         """

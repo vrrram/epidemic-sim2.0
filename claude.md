@@ -722,19 +722,71 @@ S: 226 (45.2%) | I:  62 (12.3%) | R: 212 (42.5%) | D:   0 (0.0%)
 
 ---
 
+### Task 1: Contextual Parameter Controls on Left Panel ✅ COMPLETED
+
+**Status**: COMPLETED (2025-11-07)
+
+**Objective**: Display mode-specific and feature-specific parameters in the left-hand parameter panel, making them visible and editable only when the relevant mode or feature is enabled.
+
+**Implementation Summary**:
+
+**1. Community Mode Parameters** (shown only when Communities mode is active):
+- `num_per_community`: Particles per community tile (slider: 20-200)
+- `travel_probability`: Daily probability of inter-community travel (slider: 0.001-0.1)
+- `communities_to_infect`: Number of initially infected communities (slider: 1-9)
+- Appears in collapsible "COMMUNITY PARAMETERS" section
+- **Location**: `epidemic_sim/view/main_window.py:382-452`
+
+**2. Quarantine Parameters** (shown only when Quarantine checkbox is enabled):
+- `quarantine_after`: Days before symptomatic quarantine (slider: 1-20)
+- `start_quarantine`: Day when quarantine policy begins (slider: 0-30)
+- `prob_no_symptoms`: Asymptomatic carrier rate (slider: 0-0.5)
+- Appears in collapsible "QUARANTINE PARAMETERS" section
+- **Location**: `epidemic_sim/view/main_window.py:454-480`
+
+**3. Marketplace Parameters** (shown only when Marketplace checkbox is enabled):
+- `marketplace_interval`: Days between gathering events (slider: 1-30)
+- `marketplace_duration`: Time steps particles stay at marketplace (slider: 1-10)
+- `marketplace_attendance`: Fraction of population attending (slider: 0.1-1.0)
+- `marketplace_x`: X coordinate of gathering location (slider: -1.0 to 1.0)
+- `marketplace_y`: Y coordinate of gathering location (slider: -1.0 to 1.0)
+- Appears in collapsible "MARKETPLACE PARAMETERS" section
+- **Location**: `epidemic_sim/view/main_window.py:482-619`
+
+**Visibility Logic**:
+- Community parameters: `self.community_box.show()` when mode == 'communities', else `hide()`
+- Quarantine parameters: `self.quarantine_params_box.show()` when checkbox checked, else `hide()`
+- Marketplace parameters: `self.marketplace_params_box.show()` when checkbox checked, else `hide()`
+- Updated methods: `change_mode()`, `toggle_quarantine()`, `toggle_marketplace()`
+
+**User Experience Benefits**:
+- Left panel shows only relevant parameters for current configuration
+- Reduces clutter and confusion
+- Makes it clear which parameters affect the current simulation
+- Parameters update in real-time when changed
+- Comprehensive tooltips for all parameters with recommendations
+
+**Code Changes**:
+- Moved quarantine parameters from general interventions to dedicated contextual section
+- Moved marketplace controls from right panel to left panel
+- Added complete community parameter controls
+- Added marketplace location coordinate controls (X/Y sliders)
+- Removed duplicate marketplace controls from right panel
+- All parameters have detailed tooltips
+
+---
+
 ## Implementation Status
 
 **Completed Tasks**:
+- ✅ **Task 1 (Contextual Parameters)** - Mode-specific and feature-specific parameter visibility
 - ✅ **Task 2 (Death Functionality)** - Verified existing implementation, particles correctly disappear
 - ✅ **Task 3 (Absolute Numbers)** - Added absolute counts to stats display
 
-**Remaining Tasks**:
-- ⏳ **Task 1 (Contextual Parameters)** - Larger UI change for mode-specific parameter visibility
-
 **Next Steps**:
-1. Test the updated stats display with mortality_rate > 0
-2. Proceed with Task 1 (Contextual Parameters) if requested
-3. Continue with German vocational project tickets
+1. Continue with German vocational project tickets (TICKET-001 through TICKET-018)
+2. Implement remaining features from project plan
+3. Prepare documentation for IHK project submission
 
 ---
 
@@ -832,4 +884,18 @@ Benefits for German Vocational Project (IHK):
 **Last Updated**: 2025-11-07
 **Session ID**: 011CUtH8Y4FLFULjMMaSjpiB
 **Current Branch**: claude/death-implementation-011CUtH8Y4FLFULjMMaSjpiB
-**Status**: Task 2 completed + Stats display fixed + Complete refactoring ✅
+**Status**: All 3 tasks completed + Stats display fixed + Complete refactoring ✅
+
+### Summary of Session Accomplishments
+
+1. **✅ Task 1: Contextual Parameters** - Mode-specific and feature-specific parameter visibility
+2. **✅ Task 2: Death Implementation** - Verified and working (particles disappear when dead)
+3. **✅ Task 3: Absolute Numbers** - Stats display shows counts and percentages
+4. **✅ Stats Display Fix** - All categories (S/I/R/D) always visible
+5. **✅ Complete Refactoring** - 3,024-line monolith → clean modular architecture (15 files)
+
+**Key Achievements**:
+- Professional modular structure (config/model/view separation)
+- Contextual UI reduces clutter and improves UX significantly
+- All functionality preserved with 100% backward compatibility
+- Ready for German vocational project (IHK) documentation phase
