@@ -39,6 +39,7 @@ class SimParams:
         self.quarantine_enabled = False  # Toggle quarantine on/off
         self.quarantine_after = 5  # Quarantine earlier (5 days)
         self.start_quarantine = 10   # But start later (day 10)
+        self.quarantine_duration = 14  # Days to stay in quarantine (0 = until recovered)
         self.prob_no_symptoms = 0.20  # 20% asymptomatic (more realistic)
 
         # Mortality (SEIRD-ready)

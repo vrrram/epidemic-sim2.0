@@ -52,6 +52,7 @@ class Particle:
 
         # Behavior and symptoms
         self.quarantined = False
+        self.days_in_quarantine = 0  # Track quarantine duration
         self.shows_symptoms = True
         self.obeys_social_distance = random.random() < params.social_distance_obedient
 

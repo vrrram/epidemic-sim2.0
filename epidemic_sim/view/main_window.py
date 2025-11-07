@@ -470,6 +470,7 @@ Tip: Models multiple introduction events"""
         quarantine_params = [
             ('quarantine_after', 'Quarantine After (days)', 1, 20, 5),
             ('start_quarantine', 'Quarantine Start Day', 0, 30, 10),
+            ('quarantine_duration', 'Quarantine Duration (days)', 0, 50, 14),
             ('prob_no_symptoms', 'Asymptomatic Rate', 0, 0.5, 0.20),
         ]
         for param, label, min_val, max_val, default in quarantine_params:
@@ -839,14 +840,6 @@ Fastest spread dynamics.
 
 Use for: Baseline epidemic behavior, teaching basic SIR model""",
 
-            'quarantine': """Quarantine Mode: Infected particles can be isolated
-
-Symptomatic infected particles move to quarantine zone.
-Quarantine zone is on the right side of canvas.
-Asymptomatic cases continue spreading.
-
-Use for: Studying intervention effectiveness, isolation strategies""",
-
             'communities': """Communities Mode: Multiple isolated population groups
 
 Population divided into separate communities.
@@ -856,7 +849,7 @@ Slower inter-community transmission.
 Use for: Geographic spread modeling, travel restrictions"""
         }
 
-        for i, mode in enumerate(['simple', 'quarantine', 'communities']):
+        for i, mode in enumerate(['simple', 'communities']):
             btn = QPushButton(mode.upper())
             btn.setCheckable(True)
             btn.setStyleSheet(self.get_checkable_button_stylesheet())  # Apply checkable button style
@@ -1632,10 +1625,10 @@ Updates in real-time as simulation progresses.""")
         pass  # Placeholder - full implementation in original
 
     def _configure_tooltips_simple(self):
-        """Simple tooltip configuration - no flicker, no complexity."""
-        # KISS: Just disable tooltip animations and set a reasonable duration
-        QApplication.setEffectEnabled(Qt.UI_FadeTooltip, False)
-        QApplication.setEffectEnabled(Qt.UI_AnimateTooltip, False)
+        """Disable tooltips completely to prevent flickering."""
+        # KISS: Tooltips cause flickering issues with simulation updates
+        # Disable them entirely - users can read parameter labels
+        QApplication.setAttribute(Qt.AA_DisableNativeToolTips, True)
 
     def keyPressEvent(self, event):
         """

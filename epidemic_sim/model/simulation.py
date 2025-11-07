@@ -247,6 +247,63 @@ class EpidemicSimulation(QObject):
             particle.y = bounds[3] - margin
             particle.vy = -abs(particle.vy) * 0.5
 
+    def _enforce_quarantine_boundary(self, particle):
+        """
+        Prevent non-infected particles from entering quarantine zone.
+
+        Checks if a non-quarantined particle has entered the quarantine zone
+        and pushes them out with a bounce if they have. Only infected particles
+        that are officially quarantined should be in the quarantine zone.
+
+        Args:
+            particle (Particle): Particle to check
+        """
+        # Only enforce for non-quarantined particles
+        if particle.quarantined:
+            return
+
+        # Don't enforce during travel (let them pass through)
+        if particle.traveling_to_marketplace or particle.returning_home or particle.traveling_between_communities:
+            return
+
+        # Quarantine zone disabled - no boundary to enforce
+        if not params.quarantine_enabled:
+            return
+
+        # Define quarantine zone bounds based on mode
+        if self.mode == 'communities':
+            # Communities mode: lower-left tile (community 0)
+            q_xmin, q_xmax = -3, -1
+            q_ymin, q_ymax = -3, -1
+        else:
+            # Simple mode: lower-left corner
+            q_xmin, q_xmax = -1, -0.5
+            q_ymin, q_ymax = -1, -0.5
+
+        # Check if particle is inside quarantine zone
+        if q_xmin <= particle.x <= q_xmax and q_ymin <= particle.y <= q_ymax:
+            # Push particle out - find closest edge
+            dist_left = particle.x - q_xmin
+            dist_right = q_xmax - particle.x
+            dist_bottom = particle.y - q_ymin
+            dist_top = q_ymax - particle.y
+
+            min_dist = min(dist_left, dist_right, dist_bottom, dist_top)
+
+            # Push out through closest edge with bounce
+            if min_dist == dist_left:
+                particle.x = q_xmin - 0.1
+                particle.vx = -abs(particle.vx) * 0.8
+            elif min_dist == dist_right:
+                particle.x = q_xmax + 0.1
+                particle.vx = abs(particle.vx) * 0.8
+            elif min_dist == dist_bottom:
+                particle.y = q_ymin - 0.1
+                particle.vy = -abs(particle.vy) * 0.8
+            else:  # dist_top
+                particle.y = q_ymax + 0.1
+                particle.vy = abs(particle.vy) * 0.8
+
     def _update_particle_physics(self, particle, bounds, nearby_particles):
         """
         Update particle position and velocity based on physics simulation.
@@ -326,6 +383,7 @@ class EpidemicSimulation(QObject):
         particle.y += particle.vy * self.time_step
 
         self._clamp_to_bounds(particle, bounds)
+        self._enforce_quarantine_boundary(particle)
 
     def _check_infections(self, particle_list):
         """
@@ -396,10 +454,22 @@ class EpidemicSimulation(QObject):
         """
         to_quarantine = []
         to_remove_dead = []  # Particles that died
+        to_release = []  # Particles to release from quarantine
         recovered = 0
         died = 0
 
         for p in particle_list:
+            # Update quarantine duration for quarantined particles
+            if p.quarantined:
+                p.days_in_quarantine += 1
+
+                # Release if duration expired or particle recovered/died
+                duration_expired = (params.quarantine_duration > 0 and
+                                  p.days_in_quarantine >= params.quarantine_duration)
+
+                if p.state == 'removed' or p.state == 'dead' or duration_expired:
+                    to_release.append(p)
+
             if p.state == 'infected':
                 p.days_infected += 1
 
@@ -433,8 +503,10 @@ class EpidemicSimulation(QObject):
             self.log(f">> {recovered} RECOVERED")
         if died > 0:
             self.log(f">> {died} DIED (mortality: {params.mortality_rate*100:.1f}%)")
+        if len(to_release) > 0:
+            self.log(f">> {len(to_release)} RELEASED from quarantine")
 
-        return to_quarantine, to_remove_dead
+        return to_quarantine, to_remove_dead, to_release
 
     def _move_to_quarantine(self, particle, from_list):
         """
@@ -465,6 +537,50 @@ class EpidemicSimulation(QObject):
 
         from_list.remove(particle)
         self.quarantine_particles.append(particle)
+
+    def _release_from_quarantine(self, particle, target_list):
+        """
+        Release a particle from quarantine back to main population.
+
+        Repositions the particle away from quarantine zone, resets quarantine flags,
+        and transfers particle from quarantine list back to target population list.
+
+        Args:
+            particle (Particle): Particle to release
+            target_list (list): Destination list to add particle to
+        """
+        particle.quarantined = False
+        particle.days_in_quarantine = 0
+        particle.obeys_social_distance = random.random() < params.social_distance_obedient
+
+        if self.mode == 'communities':
+            # Communities mode: Place in a random non-quarantine community (1-8)
+            # Avoid community 0 (quarantine zone)
+            target_comm_id = random.randint(1, 8)
+            target_bounds = self.communities[target_comm_id]['bounds']
+            particle.x = random.uniform(target_bounds[0] + 0.1, target_bounds[1] - 0.1)
+            particle.y = random.uniform(target_bounds[2] + 0.1, target_bounds[3] - 0.1)
+            # Add to the target community's particle list
+            self.communities[target_comm_id]['particles'].append(particle)
+        else:
+            # Simple mode: Place in main area (avoid lower-left quarantine corner)
+            # Use right side or upper area of simulation space
+            if random.random() < 0.5:
+                # Right side
+                particle.x = random.uniform(0.1, 0.9)
+                particle.y = random.uniform(-0.9, 0.9)
+            else:
+                # Upper area
+                particle.x = random.uniform(-0.9, 0.9)
+                particle.y = random.uniform(0.1, 0.9)
+            # Add to target list (main particles)
+            target_list.append(particle)
+
+        particle.vx = random.uniform(-0.05, 0.05)
+        particle.vy = random.uniform(-0.05, 0.05)
+
+        # Remove from quarantine list
+        self.quarantine_particles.remove(particle)
 
     def _get_marketplace_location(self):
         """
@@ -652,13 +768,21 @@ class EpidemicSimulation(QObject):
             if self.mode == 'communities':
                 total_new_infections = 0
                 total_quarantined = 0
+                total_released = 0
 
                 for comm in self.communities.values():
                     total_new_infections += self._check_infections(comm['particles'])
-                    to_q, to_dead = self._update_infections(comm['particles'])
+                    to_q, to_dead, to_release = self._update_infections(comm['particles'])
                     total_quarantined += len(to_q)
+                    total_released += len(to_release)
+
                     for p in to_q:
                         self._move_to_quarantine(p, comm['particles'])
+
+                    # Release particles back to communities (method handles placement)
+                    for p in to_release:
+                        self._release_from_quarantine(p, None)  # None because method handles community placement
+
                     # Remove dead particles efficiently (build new list instead of removing)
                     if to_dead:
                         to_dead_set = set(to_dead)
@@ -666,7 +790,14 @@ class EpidemicSimulation(QObject):
 
                 if self.quarantine_particles:
                     self._check_infections(self.quarantine_particles)
-                    _, to_dead = self._update_infections(self.quarantine_particles)
+                    _, to_dead, to_release_q = self._update_infections(self.quarantine_particles)
+
+                    # Release particles from quarantine back to communities
+                    if to_release_q:
+                        total_released += len(to_release_q)
+                        for p in to_release_q:
+                            self._release_from_quarantine(p, None)  # None because method handles community placement
+
                     # Remove dead particles from quarantine efficiently
                     if to_dead:
                         to_dead_set = set(to_dead)
@@ -689,12 +820,17 @@ class EpidemicSimulation(QObject):
 
             else:
                 self._check_infections(self.particles)
-                to_q, to_dead = self._update_infections(self.particles)
+                to_q, to_dead, to_release = self._update_infections(self.particles)
 
                 if to_q:
                     self.log(f">> {len(to_q)} MOVED TO QUARANTINE")
                     for p in to_q:
                         self._move_to_quarantine(p, self.particles)
+
+                # Release particles from quarantine back to main population
+                if to_release:
+                    for p in to_release:
+                        self._release_from_quarantine(p, self.particles)
 
                 # Remove dead particles efficiently
                 if to_dead:
@@ -703,7 +839,13 @@ class EpidemicSimulation(QObject):
 
                 if self.quarantine_particles:
                     self._check_infections(self.quarantine_particles)
-                    _, to_dead = self._update_infections(self.quarantine_particles)
+                    _, to_dead, to_release_q = self._update_infections(self.quarantine_particles)
+
+                    # Release particles from quarantine back to main population
+                    if to_release_q:
+                        for p in to_release_q:
+                            self._release_from_quarantine(p, self.particles)
+
                     # Remove dead particles from quarantine efficiently
                     if to_dead:
                         to_dead_set = set(to_dead)
