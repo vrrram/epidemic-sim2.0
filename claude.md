@@ -611,7 +611,225 @@ Acceptance Criteria Met:
 
 ---
 
-**Last Updated**: 2025-11-05
-**Session ID**: 011CUni2yWfK1jg17LEpZqhC
-**Current Ticket**: TICKET-000 (Awaiting Assignment)
-**Status**: Documentation complete, ready for implementation ✅
+## 🎯 Next Implementation Tasks
+
+### Task 1: Contextual Parameter Controls on Left Panel
+
+**Objective**: Display mode-specific and feature-specific parameters in the left-hand parameter panel, making them visible and editable only when the relevant mode or feature is enabled.
+
+**Requirements**:
+
+1. **Community Mode Parameters** (show only when Communities mode is active):
+   - `num_per_community`: Particles per community tile
+   - `travel_probability`: Daily probability of inter-community travel
+   - `communities_to_infect`: Number of initially infected communities
+   - Should appear in a collapsible "COMMUNITY PARAMETERS" section
+
+2. **Quarantine Parameters** (show only when Quarantine checkbox is enabled):
+   - `quarantine_after`: Days before symptomatic quarantine
+   - `start_quarantine`: Day when quarantine policy begins
+   - `prob_no_symptoms`: Asymptomatic carrier rate
+   - Should appear in a collapsible "QUARANTINE PARAMETERS" section
+
+3. **Marketplace Parameters** (show only when Marketplace checkbox is enabled):
+   - `marketplace_interval`: Days between gathering events
+   - `marketplace_duration`: Time steps particles stay at marketplace
+   - `marketplace_attendance`: Fraction of population attending
+   - `marketplace_x`, `marketplace_y`: Coordinates of gathering location
+   - Should appear in a collapsible "MARKETPLACE PARAMETERS" section
+
+**Implementation Details**:
+- Use conditional visibility: hide/show sections based on mode selection or checkbox state
+- Parameters should be editable sliders/spinboxes with same styling as existing controls
+- When mode/feature is disabled, hide the entire section (not just disable controls)
+- Update layout dynamically when toggling modes or features
+- Maintain consistent tooltip documentation for all parameters
+
+**User Experience**:
+- Left panel shows only relevant parameters for current configuration
+- Reduces clutter and confusion
+- Makes it clear which parameters affect the current simulation
+- Parameters update in real-time when changed
+
+---
+
+### Task 2: Death Functionality Implementation ✅ COMPLETED
+
+**Status**: COMPLETED (2025-11-07)
+
+**Implementation Summary**:
+Death functionality was already fully implemented in the codebase. This task verification confirmed:
+
+1. **Particle Removal**:
+   - Dead particles are correctly removed from particle lists (line 830, 838, 793, 801 in epidemic_sim3.py)
+   - Removal works in all modes: simple, quarantine, and communities
+   - Dead particles are NOT rendered or tracked after removal
+
+2. **Death Tracking**:
+   - Deaths calculated as `deaths = initial_population - current_population` (line 888)
+   - Dead count tracked in statistics dictionary (line 893, 904)
+   - Deaths displayed in UI when mortality_rate > 0 (line 2944-2945)
+   - Deaths shown on graph as separate dark red line (line 2994-3002)
+
+3. **Mortality System**:
+   - `mortality_rate` parameter exposed in UI (line 1356)
+   - Mortality check at end of infection duration (line 600)
+   - Particles marked as 'dead' and added to removal list (line 602-603)
+   - Efficient removal using set-based filtering
+
+**Implementation Details**:
+- `_update_infections()` method handles mortality checks (line 581-622)
+- Death removal happens daily during step() (line 786-838)
+- Population decreases correctly when particles die
+- Performance optimized with set-based removal
+
+**Task Enhancement**:
+Combined Task 2 verification with Task 3 implementation to show absolute numbers alongside percentages in the stats display.
+
+---
+
+### Task 3: Absolute Numbers in Population Display ✅ COMPLETED
+
+**Status**: COMPLETED (2025-11-07)
+
+**Implementation**:
+Updated `update_stats_display()` method (line 2930) to show both absolute counts and percentages.
+
+**Previous Display**:
+```
+DAY: 025
+S: 45.2% | I: 12.3% | R: 42.5%
+```
+
+**New Display**:
+```
+DAY: 025
+S: 226 (45.2%) | I:  62 (12.3%) | R: 212 (42.5%) | D:   0 (0.0%)
+```
+
+**Changes Made**:
+- Added absolute count variables: s_count, i_count, r_count, d_count (line 2942-2946)
+- Updated display format to show: `{count:3d} ({percentage:5.1f}%)` (line 2949-2951)
+- Maintained conditional display of deaths (only shown when > 0)
+- Format uses fixed-width integers for alignment
+
+**User Benefits**:
+- Users can see exact numbers of particles in each state
+- Easier to understand scale of epidemic at a glance
+- More informative than percentages alone
+- Matches expectations from real epidemiological data
+- Death count visible when mortality_rate > 0
+
+---
+
+## Implementation Status
+
+**Completed Tasks**:
+- ✅ **Task 2 (Death Functionality)** - Verified existing implementation, particles correctly disappear
+- ✅ **Task 3 (Absolute Numbers)** - Added absolute counts to stats display
+
+**Remaining Tasks**:
+- ⏳ **Task 1 (Contextual Parameters)** - Larger UI change for mode-specific parameter visibility
+
+**Next Steps**:
+1. Test the updated stats display with mortality_rate > 0
+2. Proceed with Task 1 (Contextual Parameters) if requested
+3. Continue with German vocational project tickets
+
+---
+
+---
+
+## Refactoring Update (2025-11-07)
+
+### Complete Modularization ✅
+
+The entire application has been comprehensively refactored into a clean modular architecture following Python best practices.
+
+#### New Structure
+
+```
+epidemic-sim2.0/
+├── epidemic_sim/                    # Main package ✨ NEW
+│   ├── __init__.py                 # Package init with version and exports
+│   ├── main.py                     # New entry point (47 lines)
+│   ├── config/
+│   │   ├── __init__.py
+│   │   ├── parameters.py           # SimParams class
+│   │   └── presets.py              # Disease scenarios
+│   ├── model/
+│   │   ├── __init__.py
+│   │   ├── particle.py             # Particle class (95 lines)
+│   │   ├── simulation.py           # EpidemicSimulation (580 lines)
+│   │   └── spatial_grid.py         # SpatialGrid (67 lines)
+│   ├── view/
+│   │   ├── __init__.py
+│   │   ├── canvas.py               # SimulationCanvas (245 lines)
+│   │   ├── main_window.py          # EpidemicApp (1,625 lines)
+│   │   ├── theme.py                # Theme system (90 lines)
+│   │   └── widgets.py              # CollapsibleBox, PieChart (289 lines)
+│   └── utils/
+│       └── __init__.py
+├── epidemic_sim3.py                 # Legacy entry point (55 lines) ⚡ REDUCED
+└── requirements.txt
+```
+
+#### Key Improvements
+
+**1. Separation of Concerns**
+- **Config Layer**: Parameters and presets isolated
+- **Model Layer**: Pure simulation logic, no UI dependencies
+- **View Layer**: All UI components separated from business logic
+- **Utils Layer**: Ready for future helper functions
+
+**2. File Size Reduction**
+- `epidemic_sim3.py`: 3,024 lines → 55 lines (98% reduction!)
+- Code split into focused, maintainable modules
+- Each module has single responsibility
+
+**3. Code Quality**
+- Comprehensive docstrings for all classes and methods
+- Clean imports with no circular dependencies
+- Package-level exports for easy importing
+- Backward compatibility maintained
+
+**4. Import Convenience**
+```python
+# New modular imports
+from epidemic_sim import params, Particle, EpidemicSimulation, PRESETS
+
+# Or detailed imports
+from epidemic_sim.config.parameters import SimParams
+from epidemic_sim.model.simulation import EpidemicSimulation
+from epidemic_sim.view.main_window import EpidemicApp
+```
+
+**5. Running the Application**
+```bash
+# New recommended way
+python -m epidemic_sim.main
+
+# Legacy way (still works!)
+python epidemic_sim3.py
+```
+
+#### Refactoring Benefits for Future Tasks
+
+This modular structure makes Task 1 (Contextual Parameters) much easier:
+- Parameters are centralized in `config/parameters.py`
+- UI generation is isolated in `view/main_window.py`
+- Conditional visibility logic can be cleanly added
+- Testing individual components is now straightforward
+
+Benefits for German Vocational Project (IHK):
+- Professional code organization demonstrates advanced skills
+- Clean architecture shows software engineering competence
+- Modular design facilitates documentation and testing
+- Easier to extend with new features (TICKET-001 through TICKET-018)
+
+---
+
+**Last Updated**: 2025-11-07
+**Session ID**: 011CUtH8Y4FLFULjMMaSjpiB
+**Current Branch**: claude/death-implementation-011CUtH8Y4FLFULjMMaSjpiB
+**Status**: Task 2 completed + Stats display fixed + Complete refactoring ✅
