@@ -395,10 +395,11 @@ Tip: Total population = 9 communities × this value""",
 
             'travel_probability': """Travel Probability: Daily chance for particle to travel between communities
 
-Recommended: 0.01-0.05 (1-5%)
-• Low (0.001-0.01): Rare travel, strong isolation
-• Medium (0.01-0.05): Occasional inter-community mixing
-• High (0.05-0.10): Frequent travel, weak isolation
+Recommended: 1-5%
+• Low (0-1%): Rare travel, strong isolation
+• Medium (1-5%): Occasional inter-community mixing
+• High (5-20%): Frequent travel, weak isolation
+• Very High (20-100%): Constant mixing
 
 Tip: Controls speed of geographic spread""",
 
@@ -412,42 +413,57 @@ Recommended: 1-3
 Tip: Models multiple introduction events"""
         }
 
-        community_params = [
-            ('num_per_community', 'Particles Per Community', 20, 200, 60),
-            ('travel_probability', 'Travel Probability', 0.001, 0.1, 0.02),
-            ('communities_to_infect', 'Initially Infected Communities', 1, 9, 2),
-        ]
-        for param, label, min_val, max_val, default in community_params:
-            lbl = QLabel(f"{label}: {default:.3g}")
-            lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
-            lbl.setToolTip(community_tooltips.get(param, label))
-            self.community_box.addWidget(lbl)
+        # Particles Per Community - INTEGER slider
+        num_lbl = QLabel(f"Particles Per Community: {params.num_per_community}")
+        num_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+        num_lbl.setToolTip(community_tooltips['num_per_community'])
+        self.community_box.addWidget(num_lbl)
+        num_slider = QSlider(Qt.Horizontal)
+        num_slider.setMinimum(20)
+        num_slider.setMaximum(200)
+        num_slider.setValue(params.num_per_community)
+        num_slider.setMinimumHeight(22)
+        num_slider.setToolTip(community_tooltips['num_per_community'])
+        num_slider.valueChanged.connect(
+            lambda val, l=num_lbl: self.update_param('num_per_community', val, l, 'Particles Per Community', is_int=True)
+        )
+        self.community_box.addWidget(num_slider)
+        self.sliders['num_per_community'] = (num_slider, num_lbl, 'Particles Per Community')
 
-            if param == 'communities_to_infect':
-                # Use integer slider for communities_to_infect
-                slider = QSlider(Qt.Horizontal)
-                slider.setMinimum(int(min_val))
-                slider.setMaximum(int(max_val))
-                slider.setValue(int(default))
-                slider.setMinimumHeight(22)
-                slider.setToolTip(community_tooltips.get(param, label))
-                slider.valueChanged.connect(
-                    lambda val, p=param, l=lbl, label=label: self.update_param(p, val, l, label, is_int=True)
-                )
-            else:
-                # Float slider
-                slider = QSlider(Qt.Horizontal)
-                slider.setMinimum(int(min_val * 1000))
-                slider.setMaximum(int(max_val * 1000))
-                slider.setValue(int(default * 1000))
-                slider.setMinimumHeight(22)
-                slider.setToolTip(community_tooltips.get(param, label))
-                slider.valueChanged.connect(
-                    lambda val, p=param, l=lbl, label=label: self.update_param(p, val/1000, l, label)
-                )
+        # Travel Probability - PERCENTAGE slider (0-100%)
+        travel_lbl = QLabel(f"Travel Probability: {params.travel_probability*100:.1f}%")
+        travel_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+        travel_lbl.setToolTip(community_tooltips['travel_probability'])
+        self.community_box.addWidget(travel_lbl)
+        travel_slider = QSlider(Qt.Horizontal)
+        travel_slider.setMinimum(0)
+        travel_slider.setMaximum(100)
+        travel_slider.setValue(int(params.travel_probability * 100))
+        travel_slider.setMinimumHeight(22)
+        travel_slider.setToolTip(community_tooltips['travel_probability'])
+        travel_slider.valueChanged.connect(
+            lambda val, l=travel_lbl: self.update_param('travel_probability', val/100, l, 'Travel Probability')
+        )
+        self.community_box.addWidget(travel_slider)
+        self.sliders['travel_probability'] = (travel_slider, travel_lbl, 'Travel Probability')
 
-            self.community_box.addWidget(slider)
-            self.sliders[param] = (slider, lbl, label)
+        # Initially Infected Communities - INTEGER slider
+        infect_lbl = QLabel(f"Initially Infected Communities: {params.communities_to_infect}")
+        infect_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+        infect_lbl.setToolTip(community_tooltips['communities_to_infect'])
+        self.community_box.addWidget(infect_lbl)
+        infect_slider = QSlider(Qt.Horizontal)
+        infect_slider.setMinimum(1)
+        infect_slider.setMaximum(9)
+        infect_slider.setValue(params.communities_to_infect)
+        infect_slider.setMinimumHeight(22)
+        infect_slider.setToolTip(community_tooltips['communities_to_infect'])
+        infect_slider.valueChanged.connect(
+            lambda val, l=infect_lbl: self.update_param('communities_to_infect', val, l, 'Initially Infected Communities', is_int=True)
+        )
+        self.community_box.addWidget(infect_slider)
+        self.sliders['communities_to_infect'] = (infect_slider, infect_lbl, 'Initially Infected Communities')
+
         left_layout.addWidget(self.community_box)
         self.community_box.hide()  # Hidden by default, shown only in communities mode
 
@@ -1068,6 +1084,9 @@ Updates in real-time as simulation progresses.""")
 
         self.apply_theme()
 
+        # Initialize contextual parameter visibility based on current state
+        self._init_contextual_visibility()
+
     def get_checkable_button_stylesheet(self):
         """
         Generate stylesheet for checkable buttons with proper checked state colors.
@@ -1376,6 +1395,26 @@ Updates in real-time as simulation progresses.""")
         self.sim.log(f"LOADED PRESET: {preset_name}")
         self.status_label.setText(f"✓ Loaded preset: {preset_name}. Simulation reset with new parameters.")
 
+    def _init_contextual_visibility(self):
+        """Initialize visibility of contextual parameter sections based on current state."""
+        # Show/hide community parameters based on mode
+        if self.sim.mode == 'communities':
+            self.community_box.show()
+        else:
+            self.community_box.hide()
+
+        # Show/hide quarantine parameters based on checkbox
+        if params.quarantine_enabled:
+            self.quarantine_params_box.show()
+        else:
+            self.quarantine_params_box.hide()
+
+        # Show/hide marketplace parameters based on checkbox
+        if params.marketplace_enabled:
+            self.marketplace_params_box.show()
+        else:
+            self.marketplace_params_box.hide()
+
     def update_param(self, param, value, label, label_text, is_int=False):
         """
         Update a simulation parameter and its label.
@@ -1388,7 +1427,12 @@ Updates in real-time as simulation progresses.""")
             is_int (bool): Whether value should be displayed as integer
         """
         setattr(params, param, value)
-        if is_int:
+
+        # Special handling for percentage parameters
+        if param == 'travel_probability':
+            label.setText(f"{label_text}: {value*100:.1f}%")
+            self.status_label.setText(f"✓ {label_text} updated to {value*100:.1f}%")
+        elif is_int:
             label.setText(f"{label_text}: {int(value)} (reset to apply)")
             self.status_label.setText(f"⚠ {label_text} changed to {int(value)}. Click RESET to apply.")
         else:
@@ -1417,19 +1461,44 @@ Updates in real-time as simulation progresses.""")
     def toggle_quarantine(self, state):
         """
         Toggle quarantine on/off.
-        Also show/hide contextual quarantine parameters.
+        Also show/hide contextual quarantine parameters and manage quarantine zone.
 
         Args:
             state (int): Qt checkbox state (0=unchecked, 2=checked)
         """
         params.quarantine_enabled = bool(state)
-        self.status_label.setText(f"Quarantine {'enabled' if state else 'disabled'}")
 
         # Show/hide quarantine parameters based on checkbox state
         if state:
             self.quarantine_params_box.show()
+            self.status_label.setText("Quarantine enabled - zone will activate when criteria met")
         else:
             self.quarantine_params_box.hide()
+            # Clear quarantine zone when disabled - move all quarantined particles back
+            if self.sim.quarantine_particles:
+                num_released = len(self.sim.quarantine_particles)
+                # Move all quarantined particles back to main population
+                if self.sim.mode == 'communities':
+                    # In communities mode, distribute back to their home communities
+                    for p in self.sim.quarantine_particles:
+                        p.quarantined = False
+                        # Find closest community and add particle there
+                        # For simplicity, add to community 0
+                        self.sim.communities[0]['particles'].append(p)
+                else:
+                    # In simple mode, move back to main particles list
+                    for p in self.sim.quarantine_particles:
+                        p.quarantined = False
+                        self.sim.particles.append(p)
+
+                # Clear the quarantine zone
+                self.sim.quarantine_particles.clear()
+                self.status_label.setText(f"Quarantine disabled - {num_released} particles released")
+            else:
+                self.status_label.setText("Quarantine disabled")
+
+        # Force canvas redraw to show/hide quarantine zone
+        self.canvas.update()
 
     def toggle_marketplace(self, state):
         """
