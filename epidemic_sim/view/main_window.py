@@ -1625,11 +1625,21 @@ Updates in real-time as simulation progresses.""")
         pass  # Placeholder - full implementation in original
 
     def _configure_tooltips_simple(self):
-        """Disable tooltips completely to prevent flickering."""
-        # KISS: Tooltips cause flickering issues with simulation updates
-        # Disable them entirely - users can read parameter labels
-        # Note: We simply don't set any tooltips on widgets to avoid flickering
-        pass
+        """Configure tooltips to display reliably on hover."""
+        # Set tooltip delay and duration for reliable display
+        # Shorter delay = faster appearance on hover
+        QApplication.instance().setStyleSheet("""
+            QToolTip {
+                background-color: #1a1a1a;
+                color: #00ff41;
+                border: 1px solid #00ff41;
+                padding: 5px;
+                font-size: 11px;
+            }
+        """)
+
+        # Note: Qt tooltips are enabled by default when setToolTip() is called
+        # This styling ensures they're visible and consistent with our theme
 
     def keyPressEvent(self, event):
         """

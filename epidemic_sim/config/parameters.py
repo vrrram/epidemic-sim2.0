@@ -50,11 +50,11 @@ class SimParams:
         self.num_per_community = 60
         self.communities_to_infect = 2
 
-        # Marketplace gathering parameters
+        # Marketplace gathering parameters (REALISTIC SETTINGS)
         self.marketplace_enabled = False
-        self.marketplace_interval = 7  # Days between gatherings (weekly)
-        self.marketplace_duration = 2  # Time steps particles stay (hours)
-        self.marketplace_attendance = 0.6  # 60% of population attends
+        self.marketplace_interval = 1  # Daily marketplace availability
+        self.marketplace_duration = 50  # Time steps particles stay (realistic shopping/work time)
+        self.marketplace_attendance = 0.08  # 8% attend daily (realistic trickle, not mass gathering)
         self.marketplace_x = 0.0  # Center location (simple/quarantine mode)
         self.marketplace_y = 0.0
         self.marketplace_community_id = 4  # Center tile in 3x3 grid (communities mode)
