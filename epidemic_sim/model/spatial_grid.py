@@ -55,13 +55,15 @@ class SpatialGrid:
 
         Args:
             x, y: Query position
-            radius: Number of cells to search in each direction
+            radius: Number of cells to search in each direction (converted to int)
 
         Returns:
             list: All particles in nearby cells
         """
         cell_x, cell_y = self._hash(x, y)
         nearby = []
+        # Convert radius to int in case it comes from a slider (which divides by 100)
+        radius = int(radius)
         for dx in range(-radius, radius + 1):
             for dy in range(-radius, radius + 1):
                 nearby.extend(self.grid.get((cell_x + dx, cell_y + dy), []))
