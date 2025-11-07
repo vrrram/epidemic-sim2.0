@@ -1046,6 +1046,16 @@ class CollapsibleBox(QWidget):
         self.toggle_button = QPushButton(f"▼ {title}")
         self.toggle_button.setCheckable(True)
         self.toggle_button.setChecked(True)
+
+        # Set initial stylesheet - will be updated by update_theme() after init
+        # Use current theme colors for initial render
+        if current_theme == LIGHT_THEME:
+            hover_bg = "#e8f5e9"
+            hover_border = "#2e7d32"
+        else:
+            hover_bg = "#002200"
+            hover_border = NEON_GREEN
+
         self.toggle_button.setStyleSheet(f"""
             QPushButton {{
                 text-align: left;
@@ -1058,8 +1068,8 @@ class CollapsibleBox(QWidget):
                 font-size: 12px;
             }}
             QPushButton:hover {{
-                background-color: #002200;
-                border-color: {NEON_GREEN};
+                background-color: {hover_bg};
+                border-color: {hover_border};
             }}
         """)
         self.toggle_button.clicked.connect(self.toggle)
@@ -1096,6 +1106,14 @@ class CollapsibleBox(QWidget):
 
     def update_theme(self):
         """Update collapsible box theme colors"""
+        # Set hover color based on current theme
+        if current_theme == LIGHT_THEME:
+            hover_bg = "#e8f5e9"  # Light green tint
+            hover_border = "#2e7d32"  # Darker green
+        else:
+            hover_bg = "#002200"  # Very dark green
+            hover_border = NEON_GREEN
+
         self.toggle_button.setStyleSheet(f"""
             QPushButton {{
                 text-align: left;
@@ -1108,8 +1126,8 @@ class CollapsibleBox(QWidget):
                 font-size: 12px;
             }}
             QPushButton:hover {{
-                background-color: {DARK_GREEN};
-                border-color: {NEON_GREEN};
+                background-color: {hover_bg};
+                border-color: {hover_border};
             }}
         """)
 
@@ -1285,13 +1303,6 @@ class EpidemicApp(QMainWindow):
         left_layout = QVBoxLayout(self.left_panel)
         left_layout.setSpacing(10)
         left_layout.setContentsMargins(10, 10, 10, 10)
-
-        # Collapse button
-        collapse_btn = QPushButton("COLLAPSE PARAMETERS <<")
-        collapse_btn.clicked.connect(self.toggle_left_panel)
-        collapse_btn.setMinimumHeight(30)
-        left_layout.addWidget(collapse_btn)
-        self.left_collapse_btn = collapse_btn
 
         # === LEFT PANEL: ALL PARAMETERS ===
         self.sliders = {}
