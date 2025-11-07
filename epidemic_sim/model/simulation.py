@@ -170,7 +170,10 @@ class EpidemicSimulation(QObject):
         for i in range(3):
             for j in range(3):
                 comm_id = i * 3 + j
-                bounds = (-3 + i * 2.2, -1 + i * 2.2, -3 + j * 2.2, -1 + j * 2.2)
+                # FIX: Use 2.0 spacing for perfectly contiguous tiles without gaps
+                # Each community is exactly 2.0 x 2.0 units
+                # Total space: -3 to +3 = 6 units, divided into 3 tiles = 2.0 each
+                bounds = (-3 + i * 2.0, -3 + (i+1) * 2.0, -3 + j * 2.0, -3 + (j+1) * 2.0)
                 self.communities[comm_id] = {
                     'bounds': bounds,
                     'particles': []
@@ -409,7 +412,7 @@ class EpidemicSimulation(QObject):
         infected_particles = [p for p in particle_list if p.state == 'infected']
 
         for inf_p in infected_particles:
-            nearby = self.spatial_grid.get_nearby(inf_p.x, inf_p.y, radius=2)
+            nearby = self.spatial_grid.get_nearby(inf_p.x, inf_p.y, radius=params.boxes_to_consider)
             for sus_p in nearby:
                 dist = inf_p.distance_to(sus_p)
                 if dist < params.infection_radius:
@@ -418,9 +421,11 @@ class EpidemicSimulation(QObject):
                     # Susceptibility from Normal distribution (mean=1.0, std=0.2)
                     # Example: susceptibility=1.2 means 20% more likely to get infected
                     #
-                    # FIXED: Use prob_infection directly as per-contact probability
-                    # No division by time_steps_per_day - the slider shows the actual contact probability
-                    effective_prob = params.prob_infection * sus_p.infection_susceptibility
+                    # CRITICAL FIX: Divide by time_steps_per_day since we now check EVERY step
+                    # This maintains the same daily infection rate as before
+                    # E.g., 3% daily with 24 steps/day = 0.125% per step
+                    per_step_prob = params.prob_infection / params.time_steps_per_day
+                    effective_prob = per_step_prob * sus_p.infection_susceptibility
 
                     if random.random() < effective_prob:
                         sus_p.state = 'infected'
@@ -432,8 +437,10 @@ class EpidemicSimulation(QObject):
 
                         new_infections += 1
 
-        if new_infections > 0:
-            self.log(f">> {new_infections} NEW INFECTION(S)")
+        # NOTE: Logging disabled for per-step infection checking (performance)
+        # Infections are logged as totals in daily stats instead
+        # if new_infections > 0:
+        #     self.log(f">> {new_infections} NEW INFECTION(S)")
 
         return new_infections
 
@@ -525,7 +532,7 @@ class EpidemicSimulation(QObject):
         if self.mode == 'communities':
             # Communities mode: Use lower-left tile (community 0)
             # Bounds: (-3, -1, -3, -1)
-            particle.x = random.uniform(-2.9, -1.1)
+            particle.x = random.uniform(-2.9, -1.1)  # Slightly inside to avoid edge
             particle.y = random.uniform(-2.9, -1.1)
         else:
             # Simple mode: Lower-left corner of main bounds
@@ -731,6 +738,7 @@ class EpidemicSimulation(QObject):
         manages quarantine transfers, and processes daily events (marketplace,
         community travel). Emits statistics updates on day boundaries.
         """
+        # === PHYSICS UPDATE (Every Step) ===
         if self.mode == 'communities':
             for comm in self.communities.values():
                 self.spatial_grid.clear()
@@ -740,7 +748,24 @@ class EpidemicSimulation(QObject):
                 for p in comm['particles']:
                     nearby = self.spatial_grid.get_nearby(p.x, p.y, radius=params.boxes_to_consider)
                     self._update_particle_physics(p, comm['bounds'], nearby)
+
+                # OPTIMIZATION: Reuse spatial grid for infection checking (same particles)
+                self._check_infections(comm['particles'])
+
+            if self.quarantine_particles:
+                # Quarantine zone - build grid once for both physics and infections
+                q_bounds = (-3, -1, -3, -1)  # Lower-left tile (community 0)
+                self.spatial_grid.clear()
+                for p in self.quarantine_particles:
+                    self.spatial_grid.insert(p)
+                for p in self.quarantine_particles:
+                    nearby = self.spatial_grid.get_nearby(p.x, p.y, radius=params.boxes_to_consider)
+                    self._update_particle_physics(p, q_bounds, nearby)
+                # OPTIMIZATION: Reuse spatial grid for infection checking
+                self._check_infections(self.quarantine_particles)
+
         else:
+            # Simple mode - build grid once for both physics and infections
             self.spatial_grid.clear()
             for p in self.particles:
                 self.spatial_grid.insert(p)
@@ -749,29 +774,37 @@ class EpidemicSimulation(QObject):
                 nearby = self.spatial_grid.get_nearby(p.x, p.y, radius=params.boxes_to_consider)
                 self._update_particle_physics(p, self.bounds, nearby)
 
-        if self.quarantine_particles:
-            # Quarantine zone bounds - depends on mode
-            if self.mode == 'communities':
-                q_bounds = (-2.9, -1.1, -2.9, -1.1)  # Lower-left tile
-            else:
-                q_bounds = (-0.95, -0.6, -0.95, -0.6)  # Lower-left corner
-            self.spatial_grid.clear()
-            for p in self.quarantine_particles:
-                self.spatial_grid.insert(p)
-            for p in self.quarantine_particles:
-                nearby = self.spatial_grid.get_nearby(p.x, p.y, radius=params.boxes_to_consider)
-                self._update_particle_physics(p, q_bounds, nearby)
+            # OPTIMIZATION: Reuse spatial grid for infection checking
+            self._check_infections(self.particles)
 
+            if self.quarantine_particles:
+                # Quarantine zone - build grid once for both physics and infections
+                q_bounds = (-0.95, -0.6, -0.95, -0.6)  # Lower-left corner
+                self.spatial_grid.clear()
+                for p in self.quarantine_particles:
+                    self.spatial_grid.insert(p)
+                for p in self.quarantine_particles:
+                    nearby = self.spatial_grid.get_nearby(p.x, p.y, radius=params.boxes_to_consider)
+                    self._update_particle_physics(p, q_bounds, nearby)
+                # OPTIMIZATION: Reuse spatial grid for infection checking
+                self._check_infections(self.quarantine_particles)
+
+        # === DAILY EVENTS (Once Per Day) ===
         if self.time_count % params.time_steps_per_day == 0:
             self.log(f"==================== DAY {self.day_count + 1} ====================")
 
+            # Log daily infection totals (count current infected)
+            all_particles = self.get_all_particles()
+            current_infected = sum(1 for p in all_particles if p.state == 'infected')
+            if current_infected > 0:
+                self.log(f">> ACTIVE INFECTIONS: {current_infected}")
+
             if self.mode == 'communities':
-                total_new_infections = 0
                 total_quarantined = 0
                 total_released = 0
 
                 for comm in self.communities.values():
-                    total_new_infections += self._check_infections(comm['particles'])
+                    # NOTE: Infection checking moved to every-step section above
                     to_q, to_dead, to_release = self._update_infections(comm['particles'])
                     total_quarantined += len(to_q)
                     total_released += len(to_release)
@@ -789,7 +822,7 @@ class EpidemicSimulation(QObject):
                         comm['particles'] = [p for p in comm['particles'] if p not in to_dead_set]
 
                 if self.quarantine_particles:
-                    self._check_infections(self.quarantine_particles)
+                    # NOTE: Infection checking moved to every-step section above
                     _, to_dead, to_release_q = self._update_infections(self.quarantine_particles)
 
                     # Release particles from quarantine back to communities
@@ -819,7 +852,7 @@ class EpidemicSimulation(QObject):
                     self._handle_marketplace(all_comm_particles)
 
             else:
-                self._check_infections(self.particles)
+                # NOTE: Infection checking moved to every-step section above
                 to_q, to_dead, to_release = self._update_infections(self.particles)
 
                 if to_q:
@@ -838,7 +871,7 @@ class EpidemicSimulation(QObject):
                     self.particles = [p for p in self.particles if p not in to_dead_set]
 
                 if self.quarantine_particles:
-                    self._check_infections(self.quarantine_particles)
+                    # NOTE: Infection checking moved to every-step section above
                     _, to_dead, to_release_q = self._update_infections(self.quarantine_particles)
 
                     # Release particles from quarantine back to main population
