@@ -2939,10 +2939,16 @@ Use T to toggle tooltips on/off.
         r_pct = counts['removed']/initial*100
         d_pct = counts['dead']/initial*100
 
+        # Get absolute counts
+        s_count = counts['susceptible']
+        i_count = counts['infected']
+        r_count = counts['removed']
+        d_count = counts['dead']
+
         text = f"DAY: {self.sim.day_count:03d}\n"
-        text += f"S: {s_pct:5.1f}% | I: {i_pct:5.1f}% | R: {r_pct:5.1f}%"
+        text += f"S: {s_count:3d} ({s_pct:5.1f}%) | I: {i_count:3d} ({i_pct:5.1f}%) | R: {r_count:3d} ({r_pct:5.1f}%)"
         if counts['dead'] > 0:
-            text += f" | D: {d_pct:5.1f}%"
+            text += f" | D: {d_count:3d} ({d_pct:5.1f}%)"
         self.stats_label.setText(text)
 
         # Update pie chart only every 5 days to reduce stuttering
