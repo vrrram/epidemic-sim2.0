@@ -96,6 +96,9 @@ class EpidemicApp(QMainWindow):
         self.frame_count = 0
         self.skip_frames = 1  # Render every Nth frame (adjusted dynamically)
 
+        # Tooltip state (enabled by default)
+        self.tooltips_enabled = True
+
         self.setup_ui()
         self.sim.initialize()
 
@@ -659,6 +662,8 @@ Tip: Use keyboard shortcuts 1-9 to quickly load presets""")
 
         # === CENTER: CANVAS ===
         self.canvas = SimulationCanvas(self.sim)
+        # Disable tooltips on canvas to prevent flickering from 60 FPS repaints
+        self.canvas.setAttribute(Qt.WA_AlwaysShowToolTips, False)
         main_layout.addWidget(self.canvas, 5)
 
         # === RIGHT PANEL: CONTROLS ===
@@ -1529,6 +1534,34 @@ Updates in real-time as simulation progresses.""")
         else:
             self.fullscreen_btn.setText("FULL")
 
+    def toggle_tooltips(self):
+        """Toggle tooltips on/off globally (Ctrl+T)."""
+        self.tooltips_enabled = not self.tooltips_enabled
+
+        if self.tooltips_enabled:
+            # Enable tooltips with proper styling
+            QApplication.instance().setStyleSheet("""
+                QToolTip {
+                    background-color: #2b2b2b;
+                    color: #00ff00;
+                    border: 1px solid #00ff00;
+                    padding: 5px;
+                    border-radius: 3px;
+                    font-size: 11px;
+                }
+            """)
+            self.add_log("Tooltips enabled (Ctrl+T)")
+        else:
+            # Disable tooltips by hiding them
+            QApplication.instance().setStyleSheet("""
+                QToolTip {
+                    opacity: 0;
+                    background-color: transparent;
+                    border: none;
+                }
+            """)
+            self.add_log("Tooltips disabled (Ctrl+T)")
+
     def adjust_font_size(self, delta):
         """
         Adjust the base font size of the application.
@@ -1625,20 +1658,21 @@ Updates in real-time as simulation progresses.""")
         pass  # Placeholder - full implementation in original
 
     def _configure_tooltips_simple(self):
-        """Disable tooltips completely - they flicker with rapid canvas updates."""
-        # CRITICAL FIX: Disable ALL tooltips globally
-        # Qt tooltips are incompatible with 60 FPS canvas updates
-        # This prevents flickering and tooltips appearing in wrong positions
+        """Configure tooltips to work properly without flickering."""
+        # Set a reasonable tooltip delay (500ms)
+        # This prevents tooltips from appearing too quickly and flickering
+        app = QApplication.instance()
+        app.setAttribute(Qt.AA_EnableHighDpiScaling, True)
 
-        # Method 1: Set extremely long delay so tooltips never appear
-        QApplication.instance().setProperty("toolTipDelay", 999999)
-
-        # Method 2: Hide tooltips with CSS
-        QApplication.instance().setStyleSheet("""
+        # Configure tooltip styling and behavior
+        app.setStyleSheet("""
             QToolTip {
-                opacity: 0;
-                background-color: transparent;
-                border: none;
+                background-color: #2b2b2b;
+                color: #00ff00;
+                border: 1px solid #00ff00;
+                padding: 5px;
+                border-radius: 3px;
+                font-size: 11px;
             }
         """)
 
@@ -1652,12 +1686,19 @@ Updates in real-time as simulation progresses.""")
             F: Fullscreen toggle
             Q: Toggle quarantine
             M: Toggle marketplace
+            Ctrl+T: Toggle tooltips
             1-9: Load preset by number
 
         Args:
             event (QKeyEvent): Keyboard event
         """
         key = event.key()
+        modifiers = event.modifiers()
+
+        # Ctrl+T: Toggle tooltips
+        if key == Qt.Key_T and modifiers & Qt.ControlModifier:
+            self.toggle_tooltips()
+            return
 
         # Space: Pause/Resume
         if key == Qt.Key_Space:
