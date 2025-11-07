@@ -611,7 +611,149 @@ Acceptance Criteria Met:
 
 ---
 
-**Last Updated**: 2025-11-05
-**Session ID**: 011CUni2yWfK1jg17LEpZqhC
-**Current Ticket**: TICKET-000 (Awaiting Assignment)
-**Status**: Documentation complete, ready for implementation ✅
+## 🎯 Next Implementation Tasks
+
+### Task 1: Contextual Parameter Controls on Left Panel
+
+**Objective**: Display mode-specific and feature-specific parameters in the left-hand parameter panel, making them visible and editable only when the relevant mode or feature is enabled.
+
+**Requirements**:
+
+1. **Community Mode Parameters** (show only when Communities mode is active):
+   - `num_per_community`: Particles per community tile
+   - `travel_probability`: Daily probability of inter-community travel
+   - `communities_to_infect`: Number of initially infected communities
+   - Should appear in a collapsible "COMMUNITY PARAMETERS" section
+
+2. **Quarantine Parameters** (show only when Quarantine checkbox is enabled):
+   - `quarantine_after`: Days before symptomatic quarantine
+   - `start_quarantine`: Day when quarantine policy begins
+   - `prob_no_symptoms`: Asymptomatic carrier rate
+   - Should appear in a collapsible "QUARANTINE PARAMETERS" section
+
+3. **Marketplace Parameters** (show only when Marketplace checkbox is enabled):
+   - `marketplace_interval`: Days between gathering events
+   - `marketplace_duration`: Time steps particles stay at marketplace
+   - `marketplace_attendance`: Fraction of population attending
+   - `marketplace_x`, `marketplace_y`: Coordinates of gathering location
+   - Should appear in a collapsible "MARKETPLACE PARAMETERS" section
+
+**Implementation Details**:
+- Use conditional visibility: hide/show sections based on mode selection or checkbox state
+- Parameters should be editable sliders/spinboxes with same styling as existing controls
+- When mode/feature is disabled, hide the entire section (not just disable controls)
+- Update layout dynamically when toggling modes or features
+- Maintain consistent tooltip documentation for all parameters
+
+**User Experience**:
+- Left panel shows only relevant parameters for current configuration
+- Reduces clutter and confusion
+- Makes it clear which parameters affect the current simulation
+- Parameters update in real-time when changed
+
+---
+
+### Task 2: Death Functionality Implementation
+
+**Objective**: Make particles actually disappear from the simulation when they die, rather than just changing state.
+
+**Current Behavior**:
+- Dead particles remain in the simulation with gray color
+- They're counted in statistics but still rendered and tracked
+- Population never decreases
+
+**Required Behavior**:
+- When a particle dies, remove it completely from:
+  - `self.sim.particles` list (or relevant community list)
+  - `self.sim.removed_particles` list
+  - All spatial grid tracking structures
+  - Canvas rendering
+- Create new `self.sim.dead_particles` list (or counter) for statistics tracking
+- Dead count should persist but particles should not be rendered or tracked
+
+**Implementation Details**:
+- Add `dead_count` or `self.dead_particles = []` to EpidemicSimulation class
+- When particle mortality check triggers death:
+  ```python
+  # Instead of: particle.state = 'dead'
+  # Do:
+  self.dead_count += 1  # or self.dead_particles.append(particle)
+  # Remove from active lists:
+  self.removed_particles.remove(particle)
+  # Remove from spatial grid if tracked
+  ```
+- Update population tracking to reflect actual living population
+- Ensure performance isn't impacted by list operations
+
+**Statistics Impact**:
+- Total population = S + I + R (living only)
+- Dead count tracked separately
+- Percentages calculated against initial population (not current)
+- Graph should show dead as separate line/area
+
+---
+
+### Task 3: Absolute Numbers in Population Display
+
+**Objective**: Show both percentages AND absolute numbers in the main right-hand side statistics display.
+
+**Current Display**:
+```
+DAY: 025
+S: 45.2% | I: 12.3% | R: 42.5%
+```
+
+**Required Display**:
+```
+DAY: 025
+S: 226 (45.2%) | I: 62 (12.3%) | R: 212 (42.5%) | D: 0 (0.0%)
+```
+
+**Alternative Compact Format**:
+```
+DAY: 025
+Susceptible:  226 / 500 (45.2%)
+Infected:      62 / 500 (12.3%)
+Removed:      212 / 500 (42.5%)
+Dead:           0 / 500 (0.0%)
+```
+
+**Implementation Details**:
+- Update `update_stats_display()` method in `epidemic_sim3.py`
+- Calculate absolute numbers from percentages and initial population
+- Format: `{absolute} ({percentage}%)` or `{absolute} / {initial} ({percentage}%)`
+- Ensure text fits in stats label (may need to increase height or use multi-line)
+- Keep color coding consistent
+- Update on every simulation step
+
+**User Experience**:
+- Users can see exact numbers of particles in each state
+- Easier to understand scale of epidemic
+- More informative than percentages alone
+- Matches expectations from real epidemiological data
+
+---
+
+## Implementation Priority
+
+**Suggested Order**:
+1. **Task 2 (Death Functionality)** - Core simulation mechanic, affects accuracy
+2. **Task 3 (Absolute Numbers)** - Quick win, improves user understanding
+3. **Task 1 (Contextual Parameters)** - Larger UI change, but most impactful for usability
+
+**Estimated Effort**:
+- Task 2: 1-2 hours (requires careful list management and testing)
+- Task 3: 30 minutes (simple display formatting change)
+- Task 1: 2-3 hours (requires UI restructuring, conditional visibility logic, thorough testing)
+
+**Testing Requirements**:
+- Task 2: Verify particles disappear, counts accurate, no memory leaks, performance stable
+- Task 3: Verify numbers match percentages, display readable, updates correctly
+- Task 1: Test all combinations of modes and features, verify parameters appear/disappear correctly
+
+---
+
+**Last Updated**: 2025-11-07
+**Session ID**: 011CUpUPAGWL6PGL6gXbY45B
+**Current Branch**: claude/start-project-implementation-011CUpUPAGWL6PGL6gXbY45B
+**Status**: Ready to implement next tasks (documented above) ✅
