@@ -1628,7 +1628,8 @@ Updates in real-time as simulation progresses.""")
         """Disable tooltips completely to prevent flickering."""
         # KISS: Tooltips cause flickering issues with simulation updates
         # Disable them entirely - users can read parameter labels
-        QApplication.setAttribute(Qt.AA_DisableNativeToolTips, True)
+        # Note: We simply don't set any tooltips on widgets to avoid flickering
+        pass
 
     def keyPressEvent(self, event):
         """
