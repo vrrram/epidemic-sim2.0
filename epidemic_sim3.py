@@ -1602,6 +1602,10 @@ Tip: Use keyboard shortcuts 1-9 to quickly load presets""")
         title.setMinimumWidth(300)  # Ensure title has enough width to display fully
         title_layout.addWidget(title, 1)
 
+        # Store references for theme updates
+        self.title_container = title_container
+        self.title_label = title
+
         # Theme toggle button
         # Set correct initial text based on current theme
         initial_text = "☀ LIGHT" if current_theme == DARK_THEME else "🌙 DARK"
@@ -1633,6 +1637,7 @@ Tip: Use keyboard shortcuts 1-9 to quickly load presets""")
         font_size_label.setStyleSheet(f"color: {NEON_GREEN}; font-size: 10px; margin: 0px;")
         font_size_label.setToolTip("Adjust UI font size for better readability")
         title_layout.addWidget(font_size_label)
+        self.font_size_label = font_size_label  # Store for theme updates
 
         self.font_smaller_btn = QPushButton("A-")
         self.font_smaller_btn.setToolTip("Decrease font size\n\nMake UI text smaller for more content.")
@@ -1685,6 +1690,7 @@ Tip: Use keyboard shortcuts 1-9 to quickly load presets""")
         ctrl_group.setStyleSheet(f"background-color: {PANEL_BLACK}; border: 2px solid {BORDER_GREEN}; padding: 8px;")
         ctrl_layout = QVBoxLayout(ctrl_group)
         ctrl_layout.setSpacing(8)
+        self.ctrl_group = ctrl_group  # Store for theme updates
 
         # Control buttons
         btn_row = QHBoxLayout()
@@ -1716,6 +1722,7 @@ Tip: Use keyboard shortcuts 1-9 to quickly load presets""")
         speed_label.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 5px;")
         speed_label.setToolTip("Simulation speed multiplier\n\nControls how fast time progresses.\nDoes not affect physics or disease mechanics.")
         ctrl_layout.addWidget(speed_label)
+        self.speed_label = speed_label  # Store for theme updates
 
         speed_row = QHBoxLayout()
         speed_row.setSpacing(4)
@@ -1744,6 +1751,7 @@ Tip: Use keyboard shortcuts 1-9 to quickly load presets""")
         pop_label = QLabel("Population:")
         pop_label.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 8px;")
         ctrl_layout.addWidget(pop_label)
+        self.pop_label = pop_label  # Store for theme updates
 
         pop_row = QHBoxLayout()
         self.population_spin = QSpinBox()
@@ -2364,6 +2372,22 @@ Updates in real-time as simulation progresses.""")
         # Update all collapsible boxes
         for box in self.collapsible_boxes:
             box.update_theme()
+
+        # Update all slider labels and other widgets with explicit stylesheets
+        for param, (slider, lbl, label_text) in self.sliders.items():
+            lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+
+        # Update title and control widgets
+        self.title_container.setStyleSheet(f"background-color: {PANEL_BLACK}; border: 2px solid {BORDER_GREEN};")
+        self.title_label.setStyleSheet(f"""
+            font-size: 16px; font-weight: bold; color: {NEON_GREEN};
+            font-family: 'Courier New', monospace;
+            background-color: transparent; border: none;
+        """)
+        self.ctrl_group.setStyleSheet(f"background-color: {PANEL_BLACK}; border: 2px solid {BORDER_GREEN}; padding: 8px;")
+        self.font_size_label.setStyleSheet(f"color: {NEON_GREEN}; font-size: 10px; margin: 0px;")
+        self.speed_label.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 5px;")
+        self.pop_label.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 8px;")
 
         # Update canvas background
         self.canvas.update()
