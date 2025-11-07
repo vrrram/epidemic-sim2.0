@@ -417,9 +417,9 @@ class EpidemicSimulation(QObject):
                     'particles': []
                 }
 
-                # Skip adding initial population to quarantine zone (community 0)
-                if comm_id == quarantine_comm_id:
-                    continue  # Keep quarantine zone empty at start
+                # Skip adding initial population to quarantine zone ONLY if quarantine is enabled
+                if params.quarantine_enabled and comm_id == quarantine_comm_id:
+                    continue  # Keep quarantine zone empty at start when quarantine mode is active
 
                 if comm_id in infected_communities:
                     num_infected = max(1, int(params.num_per_community * params.fraction_infected_init))
@@ -436,11 +436,16 @@ class EpidemicSimulation(QObject):
                     state = 'infected' if k < num_infected else 'susceptible'
                     self.communities[comm_id]['particles'].append(Particle(x, y, state))
 
-        # Adjust initial population count (8 communities instead of 9)
-        self.initial_population = params.num_per_community * 8
-        self.log(f"TOTAL: {self.initial_population} PARTICLES ({total_infected} INFECTED)")
-        self.log(f">> PATIENT ZERO INITIALIZED IN {num_to_infect} COMMUNIT{'Y' if num_to_infect == 1 else 'IES'}")
-        self.log(f">> LOWER-LEFT TILE RESERVED FOR QUARANTINE")
+        # Adjust initial population count (8 communities if quarantine enabled, 9 otherwise)
+        if params.quarantine_enabled:
+            self.initial_population = params.num_per_community * 8
+            self.log(f"TOTAL: {self.initial_population} PARTICLES ({total_infected} INFECTED)")
+            self.log(f">> PATIENT ZERO INITIALIZED IN {num_to_infect} COMMUNIT{'Y' if num_to_infect == 1 else 'IES'}")
+            self.log(f">> LOWER-LEFT TILE RESERVED FOR QUARANTINE")
+        else:
+            self.initial_population = params.num_per_community * 9
+            self.log(f"TOTAL: {self.initial_population} PARTICLES ({total_infected} INFECTED)")
+            self.log(f">> PATIENT ZERO INITIALIZED IN {num_to_infect} COMMUNIT{'Y' if num_to_infect == 1 else 'IES'}")
 
     def get_all_particles(self):
         if self.mode == 'communities':
@@ -2100,21 +2105,29 @@ Updates in real-time as simulation progresses.""")
                 border-width: 2px;
                 color: {hover_text};
             }}
+            QPushButton:pressed {{
+                background-color: {BORDER_GREEN};
+                border: 2px solid {NEON_GREEN};
+                padding: 10px;
+            }}
             QPushButton:checked {{
                 background-color: {checked_bg};
                 color: {checked_text};
                 border: 2px solid {checked_border};
                 font-weight: bold;
-            }}
-            QPushButton:pressed {{
-                background-color: {BORDER_GREEN};
-                border: 2px solid {NEON_GREEN};
                 padding: 10px;
             }}
             QPushButton:checked:hover {{
                 background-color: {checked_hover_bg};
                 border: 2px solid {hover_border};
                 color: {checked_text};
+                padding: 10px;
+            }}
+            QPushButton:checked:pressed {{
+                background-color: {checked_bg};
+                color: {checked_text};
+                border: 2px solid {checked_border};
+                padding: 10px;
             }}
             QLabel {{
                 color: {NEON_GREEN};
@@ -2388,96 +2401,322 @@ Updates in real-time as simulation progresses.""")
             self.status_label.setText(message)
 
     def show_parameter_overview(self):
-        """Show comprehensive parameter overview dialog (Ctrl+T)"""
-        from PyQt5.QtWidgets import QDialog, QVBoxLayout, QTextEdit, QPushButton
+        """Show comprehensive parameter documentation dialog (Ctrl+T)"""
+        from PyQt5.QtWidgets import QDialog, QVBoxLayout, QTextEdit, QPushButton, QScrollArea, QWidget
 
         dialog = QDialog(self)
-        dialog.setWindowTitle("Parameter Overview (All Modes)")
-        dialog.setMinimumSize(700, 600)
+        dialog.setWindowTitle(f"Parameter Documentation - {self.sim.mode.upper()} Mode")
+        dialog.setMinimumSize(900, 700)
 
         layout = QVBoxLayout()
 
-        # Create text display
+        # Create scrollable text display
         text_display = QTextEdit()
         text_display.setReadOnly(True)
         text_display.setStyleSheet(f"""
             background-color: {BG_BLACK};
             color: {NEON_GREEN};
             font-family: 'Courier New', monospace;
-            font-size: 11px;
+            font-size: 10px;
             border: 2px solid {BORDER_GREEN};
-            padding: 10px;
+            padding: 15px;
         """)
 
-        # Build parameter overview text
-        overview = f"""
-╔══════════════════════════════════════════════════════════════════╗
-║              EPIDEMIC SIMULATOR - PARAMETER OVERVIEW             ║
-║                      Current Mode: {self.sim.mode.upper()}                      ║
-╚══════════════════════════════════════════════════════════════════╝
+        # Build comprehensive documentation overview
+        overview = f"""╔════════════════════════════════════════════════════════════════════════════╗
+║            EPIDEMIC SIMULATOR - PARAMETER DOCUMENTATION                    ║
+║                    Current Mode: {self.sim.mode.upper():15}                              ║
+╚════════════════════════════════════════════════════════════════════════════╝
 
-📊 DISEASE PARAMETERS (All Modes):
-┌──────────────────────────────────────────────────────────────────┐
-│ Infection Radius:        {params.infection_radius:.3f}
-│ Infection Probability:   {params.prob_infection:.3f} ({params.prob_infection*100:.1f}%)
-│ Infection Duration:      {params.infection_duration:.1f} days
-│ Mortality Rate:          {params.mortality_rate:.3f} ({params.mortality_rate*100:.1f}%)
-│ Initial Infected:        {params.fraction_infected_init:.4f} ({params.fraction_infected_init*100:.2f}%)
-└──────────────────────────────────────────────────────────────────┘
+📊 DISEASE PARAMETERS
+═══════════════════════════════════════════════════════════════════════════════
 
-👥 POPULATION PARAMETERS (All Modes):
-┌──────────────────────────────────────────────────────────────────┐
-│ Population Size:         {params.num_particles}
-│ Social Distance Factor:  {params.social_distance_factor:.2f}
-│ Social Distance Compliance: {params.social_distance_obedient:.2f} ({params.social_distance_obedient*100:.0f}%)
-└──────────────────────────────────────────────────────────────────┘
+┏━ INFECTION RADIUS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Current Value: {params.infection_radius:.3f}
+┃
+┃ How far the disease can spread between particles
+┃
+┃ Recommended: 0.10-0.20
+┃ • Smaller (0.05-0.10): Localized outbreaks, slow spread
+┃ • Medium (0.10-0.20): Realistic epidemic behavior
+┃ • Larger (0.20-0.40): Rapid, aggressive spread
+┃
+┃ Tip: Combine with infection probability for fine control
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-🛡️ INTERVENTION PARAMETERS (All Modes):
-┌──────────────────────────────────────────────────────────────────┐
-│ Social Distance Range:   {params.boxes_to_consider}
-│ Quarantine After:        {params.quarantine_after:.0f} days
-│ Quarantine Start Day:    {params.start_quarantine}
-│ Asymptomatic Rate:       {params.prob_no_symptoms:.3f} ({params.prob_no_symptoms*100:.1f}%)
-│ Quarantine Enabled:      {'YES' if params.quarantine_enabled else 'NO'}
-│ Marketplace Enabled:     {'YES' if params.marketplace_enabled else 'NO'}
-└──────────────────────────────────────────────────────────────────┘
+┏━ INFECTION PROBABILITY ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Current Value: {params.prob_infection:.3f} ({params.prob_infection*100:.1f}%)
+┃
+┃ Chance of transmission when particles are within infection radius
+┃
+┃ Recommended: 0.10-0.30
+┃ • Low (0.05-0.15): Slow spread, allows time for interventions
+┃ • Medium (0.15-0.50): Realistic epidemic dynamics
+┃ • High (0.50-1.00): Extremely contagious disease
+┃
+┃ Tip: Modified by individual susceptibility (Normal distribution)
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+┏━ INFECTION DURATION ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Current Value: {params.infection_duration:.1f} days
+┃
+┃ How many days a particle remains infected
+┃
+┃ Recommended: 14-28 days
+┃ • Short (1-7 days): Quick recovery, rapid turnover
+┃ • Medium (7-21 days): Typical viral infection
+┃ • Long (21-100 days): Chronic infection
+┃
+┃ Tip: Modified by recovery time variation (Exponential distribution)
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+┏━ MORTALITY RATE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Current Value: {params.mortality_rate:.3f} ({params.mortality_rate*100:.1f}%)
+┃
+┃ Probability that an infected particle dies instead of recovering
+┃
+┃ Recommended: 0.00-0.05
+┃ • 0%: No deaths, pure SIR model
+┃ • 1-5%: Realistic mortality for serious diseases
+┃ • 5-20%: High-mortality outbreak
+┃ • >20%: Extreme scenario
+┃
+┃ Tip: Deaths remove particles permanently from simulation
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+┏━ INITIAL INFECTED % ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Current Value: {params.fraction_infected_init:.4f} ({params.fraction_infected_init*100:.2f}%)
+┃
+┃ Percentage of population starting as infected (Patient Zero)
+┃
+┃ Recommended: 0.005-0.02 (0.5%-2%)
+┃ • Very Low (0.001-0.005): Single patient zero scenario
+┃ • Low (0.005-0.02): Few initial cases
+┃ • Medium (0.02-0.05): Multiple outbreak sources
+┃
+┃ Tip: Lower values show clearer epidemic curve development
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+👥 POPULATION PARAMETERS
+═══════════════════════════════════════════════════════════════════════════════
+
+┏━ POPULATION SIZE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Current Value: {params.num_particles}
+┃
+┃ Number of particles (people) in the simulation
+┃
+┃ Recommended: 200-500 for balance of detail and performance
+┃ • Small (50-200): Fast, good for testing, less realistic statistics
+┃ • Medium (200-500): Balanced performance and statistical validity
+┃ • Large (500-1000): More realistic, slower performance
+┃
+┃ Tip: Requires RESET to apply. Larger populations need more time to show trends
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+┏━ SOCIAL DISTANCING STRENGTH ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Current Value: {params.social_distance_factor:.2f}
+┃
+┃ Repulsive force between nearby particles
+┃
+┃ Recommended: 0.5-1.5
+┃ • 0: No social distancing, normal behavior
+┃ • 0.5-1.0: Moderate distancing, maintaining personal space
+┃ • 1.0-2.0: Strong distancing, active avoidance
+┃
+┃ Tip: Simulates behavior changes during epidemic awareness
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+┏━ SOCIAL DISTANCE COMPLIANCE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Current Value: {params.social_distance_obedient:.2f} ({params.social_distance_obedient*100:.0f}%)
+┃
+┃ Percentage of population following distancing rules
+┃
+┃ Recommended: 0.5-0.9
+┃ • Low (0-0.5): Poor compliance, many ignore rules
+┃ • Medium (0.5-0.8): Realistic mixed compliance
+┃ • High (0.8-1.0): Excellent public cooperation
+┃
+┃ Tip: Combine with distance strength to model intervention effectiveness
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+🛡️ INTERVENTION PARAMETERS
+═══════════════════════════════════════════════════════════════════════════════
+
+┏━ SOCIAL DISTANCE RANGE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Current Value: {params.boxes_to_consider}
+┃
+┃ How many grid cells away particles check for crowding
+┃
+┃ Recommended: 1-3
+┃ • 1: Only immediate neighbors affect distancing
+┃ • 2-3: Moderate awareness of surrounding density
+┃ • 4-10: Wide-area crowd avoidance
+┃
+┃ Tip: Higher values increase computation but more realistic behavior
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+┏━ ASYMPTOMATIC RATE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Current Value: {params.prob_no_symptoms:.3f} ({params.prob_no_symptoms*100:.1f}%)
+┃
+┃ Proportion of infected who never show symptoms
+┃
+┃ Recommended: 0.15-0.30 (15-30%)
+┃ • Low (0-0.15): Most infections detectable
+┃ • Medium (0.15-0.30): Realistic for many diseases (e.g., COVID-19)
+┃ • High (0.30-0.50): Many hidden spreaders
+┃
+┃ Tip: Asymptomatic particles never quarantine, continuing to spread disease
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
 """
 
-        # Add mode-specific parameters
+        # QUARANTINE PARAMETERS - Only show when quarantine is ENABLED
+        if params.quarantine_enabled:
+            overview += f"""
+🚨 QUARANTINE PARAMETERS (ACTIVE)
+═══════════════════════════════════════════════════════════════════════════════
+
+┏━ QUARANTINE AFTER ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Current Value: {params.quarantine_after:.0f} days
+┃
+┃ Days infected before symptomatic particles quarantine
+┃
+┃ Recommended: 3-7 days
+┃ • Short (1-3): Quick isolation, unrealistic early detection
+┃ • Medium (3-7): Realistic symptom onset timing
+┃ • Long (7-20): Delayed response, more spread before isolation
+┃
+┃ Tip: Only applies to symptomatic cases (see Asymptomatic Rate)
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+┏━ QUARANTINE START DAY ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Current Value: {params.start_quarantine}
+┃
+┃ Simulation day when quarantine policy begins
+┃
+┃ Recommended: 10-20 days
+┃ • Early (0-10): Proactive intervention before major spread
+┃ • Medium (10-20): Reactive after outbreak detected
+┃ • Late (20-30): Delayed response, epidemic already advanced
+┃
+┃ Tip: Set to 0 for immediate quarantine from start
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+┏━ QUARANTINE ZONE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Location: {'Lower-left tile (Community 0)' if self.sim.mode == 'communities' else 'Lower-left corner'}
+┃ Visual: Red border with semi-transparent fill
+┃ Status: {'Reserved (empty at start)' if self.sim.mode == 'communities' else 'Active'}
+┃
+┃ Symptomatic infected particles are moved to this zone for isolation
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+"""
+
+        # COMMUNITY MODE PARAMETERS - Only show in communities mode
         if self.sim.mode == 'communities':
             overview += f"""
-🏘️ COMMUNITY MODE PARAMETERS:
-┌──────────────────────────────────────────────────────────────────┐
-│ Number of Communities:   9 (3x3 grid)
-│ Particles per Community: {params.num_per_community}
-│ Travel Probability:      {params.travel_probability:.4f}/day
-│ Communities to Infect:   {params.communities_to_infect}
-│ Marketplace Community:   {params.marketplace_community_id} (center tile)
-└──────────────────────────────────────────────────────────────────┘
+🏘️ COMMUNITY MODE PARAMETERS (Active in Communities Mode)
+═══════════════════════════════════════════════════════════════════════════════
+
+┏━ PARTICLES PER COMMUNITY ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Current Value: {params.num_per_community}
+┃ Total Communities: 9 (3x3 grid)
+┃ Total Population: {params.num_per_community * (8 if params.quarantine_enabled else 9)}
+┃
+┃ Number of particles initialized in each community tile
+┃ {'Note: Lower-left tile reserved for quarantine (8 populated tiles)' if params.quarantine_enabled else 'All 9 tiles populated with particles'}
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+┏━ TRAVEL PROBABILITY ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Current Value: {params.travel_probability:.4f} per day
+┃ Per timestep: {params.travel_probability / params.time_steps_per_day:.6f}
+┃
+┃ Daily probability that a particle travels to a random neighboring community
+┃
+┃ Recommended: 0.01-0.05 (1-5% per day)
+┃ • Low (0.001-0.01): Isolated communities, minimal inter-community spread
+┃ • Medium (0.01-0.05): Realistic daily commuting/travel patterns
+┃ • High (0.05-0.20): High mobility, rapid disease propagation between communities
+┃
+┃ Tip: Lower values maintain spatial disease patterns, higher values homogenize spread
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+┏━ COMMUNITIES TO INFECT ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Current Value: {params.communities_to_infect}
+┃
+┃ Number of community tiles starting with infected particles
+┃
+┃ Range: 1-9 communities
+┃ • 1: Single outbreak origin, watch spatial spread
+┃ • 2-3: Multiple independent outbreak sources
+┃ • 4+: Widespread initial infection
+┃
+┃ Tip: Lower values show clearer spatial disease propagation patterns
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
 """
 
+        # MARKETPLACE PARAMETERS - Only show when marketplace is ENABLED
         if params.marketplace_enabled:
             overview += f"""
-🏪 MARKETPLACE PARAMETERS:
-┌──────────────────────────────────────────────────────────────────┐
-│ Marketplace Interval:    {params.marketplace_interval} days
-│ Marketplace Duration:    {params.marketplace_duration} time steps
-│ Attendance Rate:         {params.marketplace_attendance:.2f} ({params.marketplace_attendance*100:.0f}%)
-│ Marketplace Location:    {'Center Tile' if self.sim.mode == 'communities' else f'({params.marketplace_x:.2f}, {params.marketplace_y:.2f})'}
-└──────────────────────────────────────────────────────────────────┘
+🏪 MARKETPLACE PARAMETERS (ACTIVE)
+═══════════════════════════════════════════════════════════════════════════════
+
+┏━ MARKETPLACE INTERVAL ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Current Value: {params.marketplace_interval} days
+┃
+┃ How often the marketplace event occurs
+┃
+┃ Recommended: 3-7 days
+┃ • Frequent (1-3 days): Regular gathering, high transmission opportunity
+┃ • Weekly (7 days): Weekly market day pattern
+┃ • Rare (10+ days): Infrequent mass gathering events
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+┏━ MARKETPLACE DURATION ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Current Value: {params.marketplace_duration} time steps
+┃ Real time: {params.marketplace_duration / params.time_steps_per_day:.1f} hours
+┃
+┃ How long the marketplace event lasts (in simulation timesteps)
+┃
+┃ Tip: Longer duration = more transmission opportunity in crowded space
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+┏━ ATTENDANCE RATE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Current Value: {params.marketplace_attendance:.2f} ({params.marketplace_attendance*100:.0f}%)
+┃
+┃ Percentage of population attending the marketplace event
+┃
+┃ Recommended: 0.1-0.5 (10-50%)
+┃ • Low (0.1-0.3): Small gathering, limited superspreader potential
+┃ • Medium (0.3-0.5): Moderate crowd, realistic market attendance
+┃ • High (0.5-0.8): Large gathering, high superspreader risk
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+┏━ MARKETPLACE LOCATION ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Location: {'Center tile (Community 4)' if self.sim.mode == 'communities' else f'Coordinates ({params.marketplace_x:.2f}, {params.marketplace_y:.2f})'}
+┃ Visual: {'Central community tile' if self.sim.mode == 'communities' else 'Center of simulation space'}
+┃
+┃ Particles temporarily gather at this location during marketplace events
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
 """
 
         overview += f"""
-⚙️ SIMULATION PARAMETERS:
-┌──────────────────────────────────────────────────────────────────┐
-│ Time Steps per Day:      {params.time_steps_per_day}
-│ Current Speed:           {self.speed}x
-│ Current Day:             {self.sim.day_count}
-│ Paused:                  {'YES' if self.paused else 'NO'}
-│ Frame Skip:              {self.skip_frames} (rendering every {self.skip_frames} frames)
-└──────────────────────────────────────────────────────────────────┘
+⚙️ SIMULATION STATUS
+═══════════════════════════════════════════════════════════════════════════════
+Current Day:        {self.sim.day_count}
+Speed:              {self.speed}x
+Paused:             {'YES' if self.paused else 'NO'}
+Time Steps/Day:     {params.time_steps_per_day}
+Frame Skip:         Every {self.skip_frames} frames
 
-Press ESC or click Close to exit this overview.
+
+═══════════════════════════════════════════════════════════════════════════════
+Press ESC or click Close to exit.
+Use T to toggle tooltips on/off.
 """
 
         text_display.setPlainText(overview)
@@ -2487,12 +2726,24 @@ Press ESC or click Close to exit this overview.
         close_btn = QPushButton("Close")
         close_btn.clicked.connect(dialog.accept)
         close_btn.setMinimumHeight(35)
+        close_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {BG_BLACK};
+                color: {NEON_GREEN};
+                border: 2px solid {BORDER_GREEN};
+                padding: 10px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: {BORDER_GREEN};
+            }}
+        """)
         layout.addWidget(close_btn)
 
         dialog.setLayout(layout)
         dialog.exec_()
 
-        self.status_label.setText("✓ Parameter overview displayed")
+        self.status_label.setText("✓ Parameter documentation displayed (Ctrl+T)")
 
     def _configure_tooltips(self):
         """Configure tooltip behavior to reduce flickering"""
