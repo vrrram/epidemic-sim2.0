@@ -96,15 +96,11 @@ class EpidemicApp(QMainWindow):
         self.frame_count = 0
         self.skip_frames = 1  # Render every Nth frame (adjusted dynamically)
 
-        # Tooltip system
-        self.tooltips_enabled = True  # Tooltips enabled by default
-        self.tooltip_storage = {}  # Store original tooltips
-
         self.setup_ui()
         self.sim.initialize()
 
-        # Configure tooltip behavior to reduce flickering
-        self._configure_tooltips()
+        # Simple tooltip configuration - no flicker
+        self._configure_tooltips_simple()
 
         # Start simulation timer (60 FPS target)
         self.timer = QTimer()
@@ -710,81 +706,7 @@ Tip: Use keyboard shortcuts 1-9 to quickly load presets""")
         title.setMinimumWidth(300)  # Ensure title has enough width to display fully
         title_layout.addWidget(title, 1)
 
-        # Theme toggle button
-        # Set correct initial text based on current theme
-        initial_text = "☀ LIGHT" if theme_module.current_theme == DARK_THEME else "🌙 DARK"
-        self.theme_btn = QPushButton(initial_text)
-        self.theme_btn.setToolTip("Toggle Light/Dark Theme (Keyboard: T)\n\nSwitch between light and dark color schemes.\nPreference is saved between sessions.")
-        self.theme_btn.clicked.connect(self.toggle_theme)
-        self.theme_btn.setMinimumHeight(32)
-        self.theme_btn.setMaximumWidth(90)
-        self.theme_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {BG_BLACK};
-                color: {NEON_GREEN};
-                border: 2px solid {BORDER_GREEN};
-                padding: 5px;
-                font-weight: bold;
-                font-family: 'Courier New', monospace;
-                font-size: 11px;
-            }}
-            QPushButton:hover {{
-                background-color: #1a1a1a;
-                border-color: #ffffff;
-                color: #ffffff;
-            }}
-        """)
-        title_layout.addWidget(self.theme_btn)
-
-        # Font size controls
-        font_size_label = QLabel("UI:")
-        font_size_label.setStyleSheet(f"color: {NEON_GREEN}; font-size: 10px; margin: 0px;")
-        font_size_label.setToolTip("Adjust UI font size for better readability")
-        title_layout.addWidget(font_size_label)
-
-        self.font_smaller_btn = QPushButton("A-")
-        self.font_smaller_btn.setToolTip("Decrease font size\n\nMake UI text smaller for more content.")
-        self.font_smaller_btn.clicked.connect(lambda: self.adjust_font_size(-1))
-        self.font_smaller_btn.setMinimumHeight(32)
-        self.font_smaller_btn.setMaximumWidth(35)
-        self.font_smaller_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {BG_BLACK};
-                color: {NEON_GREEN};
-                border: 2px solid {BORDER_GREEN};
-                padding: 2px;
-                font-weight: bold;
-                font-size: 10px;
-            }}
-            QPushButton:hover {{
-                background-color: #1a1a1a;
-                border-color: #ffffff;
-                color: #ffffff;
-            }}
-        """)
-        title_layout.addWidget(self.font_smaller_btn)
-
-        self.font_larger_btn = QPushButton("A+")
-        self.font_larger_btn.setToolTip("Increase font size\n\nMake UI text larger for better readability.")
-        self.font_larger_btn.clicked.connect(lambda: self.adjust_font_size(1))
-        self.font_larger_btn.setMinimumHeight(32)
-        self.font_larger_btn.setMaximumWidth(35)
-        self.font_larger_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {BG_BLACK};
-                color: {NEON_GREEN};
-                border: 2px solid {BORDER_GREEN};
-                padding: 2px;
-                font-weight: bold;
-                font-size: 10px;
-            }}
-            QPushButton:hover {{
-                background-color: #1a1a1a;
-                border-color: #ffffff;
-                color: #ffffff;
-            }}
-        """)
-        title_layout.addWidget(self.font_larger_btn)
+        # Removed: Theme toggle and font size buttons (not working properly)
 
         right_layout.addWidget(title_container)
 
@@ -1069,8 +991,8 @@ Updates in real-time as simulation progresses.""")
 
         # === SHORTCUTS ===
         shortcuts = QLabel(
-            "SHORTCUTS: SPACE=Pause | R=Reset | T=Tooltips | Shift+T=Theme | F=Fullscreen\n"
-            "Q=Quarantine | M=Marketplace | 1-9=Presets | Ctrl+T=Param Overview"
+            "SHORTCUTS: SPACE=Pause | R=Reset | F=Fullscreen\n"
+            "Q=Quarantine | M=Marketplace | 1-9=Presets"
         )
         shortcuts.setStyleSheet(f"""
             font-size: 9px; padding: 5px; color: {NEON_GREEN};
@@ -1709,42 +1631,11 @@ Updates in real-time as simulation progresses.""")
         # This method shows a detailed dialog with all parameter documentation
         pass  # Placeholder - full implementation in original
 
-    def _configure_tooltips(self):
-        """Configure tooltip behavior to reduce flickering caused by simulation updates."""
-        # Enable mouse tracking on all widgets with tooltips
-        # This prevents tooltips from hiding when widgets repaint
-        for widget in self.findChildren(QWidget):
-            if widget.toolTip():
-                widget.setMouseTracking(True)
-                # Disable updates to this widget during tooltip display
-                widget.setAttribute(Qt.WA_AlwaysShowToolTips, True)
-
-        # Set very long tooltip duration so they don't disappear during sim updates
-        app = QApplication.instance()
-        if app:
-            # Keep tooltips visible much longer (10 seconds instead of default)
-            # This prevents simulation frame updates from dismissing them
-            QApplication.setEffectEnabled(Qt.UI_FadeTooltip, False)  # Disable fade
-            QApplication.setEffectEnabled(Qt.UI_AnimateTooltip, False)  # Disable animation
-
-    def toggle_tooltips(self):
-        """Toggle all tooltips on/off."""
-        self.tooltips_enabled = not self.tooltips_enabled
-
-        if not self.tooltips_enabled:
-            # Store and clear all tooltips
-            for widget in self.findChildren(QWidget):
-                tooltip = widget.toolTip()
-                if tooltip:
-                    self.tooltip_storage[widget] = tooltip
-                    widget.setToolTip("")
-            self.status_label.setText("ℹ Tooltips DISABLED (Press T to re-enable)")
-        else:
-            # Restore all tooltips
-            for widget, tooltip in self.tooltip_storage.items():
-                widget.setToolTip(tooltip)
-            self.tooltip_storage.clear()
-            self.status_label.setText("ℹ Tooltips ENABLED (Press T to disable)")
+    def _configure_tooltips_simple(self):
+        """Simple tooltip configuration - no flicker, no complexity."""
+        # KISS: Just disable tooltip animations and set a reasonable duration
+        QApplication.setEffectEnabled(Qt.UI_FadeTooltip, False)
+        QApplication.setEffectEnabled(Qt.UI_AnimateTooltip, False)
 
     def keyPressEvent(self, event):
         """
@@ -1754,9 +1645,6 @@ Updates in real-time as simulation progresses.""")
             SPACE: Pause/Resume
             R: Reset simulation
             F: Fullscreen toggle
-            T: Toggle tooltips
-            Shift+T: Toggle theme
-            Ctrl+T: Show parameter overview
             Q: Toggle quarantine
             M: Toggle marketplace
             1-9: Load preset by number
@@ -1795,20 +1683,6 @@ Updates in real-time as simulation progresses.""")
         if key == Qt.Key_M:
             new_state = not params.marketplace_enabled
             self.marketplace_checkbox.setChecked(new_state)
-            return
-
-        # T: Toggle tooltips (if no modifier) or theme (if Shift) or show overview (if Ctrl)
-        if key == Qt.Key_T:
-            modifiers = event.modifiers()
-            if modifiers & Qt.ControlModifier:
-                # Ctrl+T: Show parameter overview
-                self.show_parameter_overview()
-            elif modifiers & Qt.ShiftModifier:
-                # Shift+T: Toggle theme
-                self.toggle_theme()
-            else:
-                # T alone: Toggle tooltips
-                self.toggle_tooltips()
             return
 
         # F: Toggle fullscreen
