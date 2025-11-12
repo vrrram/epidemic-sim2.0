@@ -321,6 +321,10 @@ class EpidemicSimulation(QObject):
             bounds (tuple): Boundaries to respect
             nearby_particles (list): Nearby particles for social distancing calculations
         """
+        # CRITICAL FIX: Cancel community travel for quarantined particles
+        if particle.quarantined and particle.traveling_between_communities:
+            particle.traveling_between_communities = False
+
         # Handle marketplace movement first (overrides normal physics)
         self._update_marketplace_movement(particle)
 
@@ -470,11 +474,12 @@ class EpidemicSimulation(QObject):
             if p.quarantined:
                 p.days_in_quarantine += 1
 
-                # Release if duration expired or particle recovered/died
+                # Release if duration expired or particle recovered
+                # CRITICAL FIX: Dead particles should NOT be released - they get removed instead
                 duration_expired = (params.quarantine_duration > 0 and
                                   p.days_in_quarantine >= params.quarantine_duration)
 
-                if p.state == 'removed' or p.state == 'dead' or duration_expired:
+                if p.state == 'removed' or (duration_expired and p.state != 'dead'):
                     to_release.append(p)
 
             if p.state == 'infected':
@@ -528,6 +533,14 @@ class EpidemicSimulation(QObject):
         """
         particle.quarantined = True
         particle.obeys_social_distance = False
+
+        # CRITICAL FIX: Cancel any ongoing travel when quarantining
+        # Without this, particles continue traveling to marketplace/communities even after quarantine
+        particle.traveling_to_marketplace = False
+        particle.at_marketplace = False
+        particle.returning_home = False
+        particle.traveling_between_communities = False
+        particle.marketplace_timer = 0
 
         if self.mode == 'communities':
             # Communities mode: Use lower-left tile (community 0)
@@ -697,6 +710,14 @@ class EpidemicSimulation(QObject):
         Args:
             particle (Particle): Particle to update movement for
         """
+        # CRITICAL FIX: Quarantined particles should never travel to marketplace
+        # This is a safety check in case flags weren't reset properly
+        if particle.quarantined:
+            particle.traveling_to_marketplace = False
+            particle.at_marketplace = False
+            particle.returning_home = False
+            return
+
         if particle.traveling_to_marketplace:
             # Move toward marketplace
             dx = particle.target_x - particle.x
