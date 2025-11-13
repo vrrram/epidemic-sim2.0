@@ -16,6 +16,60 @@ All presets include:
 - boxes_to_consider: Infection spread range
 """
 
+
+# Preset categories for organized display
+PRESET_CATEGORIES = {
+    "Historical Pandemics": [
+        "Spanish Flu (1918)",
+        "Smallpox (Historical)",
+        "Black Death (Plague)",
+        "Polio (Pre-Vaccine Era)",
+    ],
+
+    "Modern Pandemics (COVID-19)": [
+        "COVID-19 (Original Strain)",
+        "COVID-19 (Delta Variant)",
+        "COVID-19 (Omicron Variant)",
+    ],
+
+    "Modern Outbreaks": [
+        "H1N1 Swine Flu (2009)",
+        "SARS (2003)",
+        "MERS (Coronavirus)",
+        "Ebola (2014 Outbreak)",
+        "Tuberculosis (Modern)",
+    ],
+
+    "Highly Contagious Viral": [
+        "Measles",
+        "Chickenpox (Varicella)",
+        "Pertussis (Whooping Cough)",
+        "Rubella (German Measles)",
+        "Mumps",
+    ],
+
+    "Bacterial Diseases": [
+        "Cholera (Vibrio cholerae)",
+        "Typhoid Fever (Salmonella typhi)",
+        "Diphtheria (Corynebacterium diphtheriae)",
+    ],
+
+    "Respiratory Viruses": [
+        "Influenza (Seasonal)",
+        "Common Cold (Rhinovirus)",
+    ],
+
+    "Educational Scenarios": [
+        "Baseline Epidemic",
+        "Slow Burn",
+        "Fast Outbreak",
+        "Social Distancing (Weak)",
+        "Social Distancing (Strong)",
+    ],
+}
+
+
+# Flat list of all presets for backward compatibility
 PRESETS = {
     # === REAL DISEASE PRESETS (Based on actual epidemiological data) ===
 
@@ -244,5 +298,217 @@ PRESETS = {
         'quarantine_after': 5,
         'start_quarantine': 10,
         'prob_no_symptoms': 0.20,
+    },
+
+    # === HISTORICAL PANDEMICS (Pre-20th Century) ===
+
+    "Smallpox (Historical)": {
+        # Historical data from WHO eradication program
+        # R0: 3.5-6.0 | CFR: 30% | Incubation: 12-14 days | Asymptomatic: 0%
+        # Source: WHO Smallpox Fact Sheet, Henderson DA (2009) Smallpox: The Death of a Disease
+        'infection_radius': 0.18,           # Airborne transmission (respiratory droplets)
+        'prob_infection': 0.045,            # High transmission (R0≈5)
+        'fraction_infected_init': 0.005,    # Patient Zero: 0.5%
+        'infection_duration': 21,           # 3 weeks illness
+        'mortality_rate': 0.30,             # 30% CFR (variola major)
+        'social_distance_factor': 0.0,
+        'social_distance_obedient': 1.0,
+        'boxes_to_consider': 2,
+        'quarantine_after': 12,             # After incubation
+        'start_quarantine': 3,              # Rapid isolation historically
+        'prob_no_symptoms': 0.0,            # Very symptomatic (distinctive rash)
+    },
+
+    "Black Death (Plague)": {
+        # Bubonic plague (Yersinia pestis) - 14th century pandemic
+        # R0: 1.5-3.0 | CFR: 50-90% | Incubation: 2-6 days | Asymptomatic: 0%
+        # Source: Benedictow OJ (2004) The Black Death 1346-1353
+        'infection_radius': 0.12,           # Flea-borne (close contact for pneumonic)
+        'prob_infection': 0.025,            # Moderate transmission (R0≈2)
+        'fraction_infected_init': 0.005,    # Patient Zero: 0.5%
+        'infection_duration': 7,            # Acute phase 3-7 days
+        'mortality_rate': 0.60,             # 60% CFR (without antibiotics)
+        'social_distance_factor': 0.0,
+        'social_distance_obedient': 1.0,
+        'boxes_to_consider': 2,
+        'quarantine_after': 4,              # After symptoms appear
+        'start_quarantine': 8,              # Limited medieval response
+        'prob_no_symptoms': 0.0,            # Highly symptomatic (buboes)
+    },
+
+    "Polio (Pre-Vaccine Era)": {
+        # Poliovirus - paralytic poliomyelitis
+        # R0: 5-7 | CFR: 5-15% (paralytic cases) | Incubation: 6-20 days | Asymptomatic: 90%
+        # Source: CDC Pink Book (2021), Paul JR (1971) A History of Poliomyelitis
+        'infection_radius': 0.20,           # Fecal-oral transmission (high contact)
+        'prob_infection': 0.055,            # High transmission (R0≈6)
+        'fraction_infected_init': 0.005,    # Patient Zero: 0.5%
+        'infection_duration': 14,           # 2 weeks acute phase
+        'mortality_rate': 0.10,             # 10% CFR (paralytic cases)
+        'social_distance_factor': 0.0,
+        'social_distance_obedient': 1.0,
+        'boxes_to_consider': 2,
+        'quarantine_after': 10,             # After incubation
+        'start_quarantine': 7,
+        'prob_no_symptoms': 0.90,           # 90% asymptomatic or mild
+    },
+
+    # === MODERN PANDEMICS (20th-21st Century) ===
+
+    "H1N1 Swine Flu (2009)": {
+        # 2009 H1N1 influenza pandemic
+        # R0: 1.4-1.6 | CFR: 0.02% | Incubation: 1-4 days | Asymptomatic: 20%
+        # Source: WHO (2010), CDC 2009 H1N1 Final Estimates
+        'infection_radius': 0.16,           # Respiratory droplets
+        'prob_infection': 0.022,            # Moderate contagiousness (R0≈1.5)
+        'fraction_infected_init': 0.01,     # Patient Zero: 1%
+        'infection_duration': 7,            # Week-long illness
+        'mortality_rate': 0.0002,           # 0.02% CFR (very low)
+        'social_distance_factor': 0.0,
+        'social_distance_obedient': 1.0,
+        'boxes_to_consider': 2,
+        'quarantine_after': 3,              # Short incubation
+        'start_quarantine': 10,             # Delayed response
+        'prob_no_symptoms': 0.20,           # 20% asymptomatic
+    },
+
+    "Tuberculosis (Modern)": {
+        # Mycobacterium tuberculosis - active pulmonary TB
+        # R0: 1-4 | CFR: 15-45% (untreated) | Incubation: weeks-months | Asymptomatic: 10%
+        # Source: WHO TB Report 2023, CDC TB Fact Sheet
+        'infection_radius': 0.15,           # Airborne (prolonged exposure)
+        'prob_infection': 0.03,             # Requires prolonged contact (R0≈2.5)
+        'fraction_infected_init': 0.005,    # Patient Zero: 0.5%
+        'infection_duration': 60,           # Chronic disease (months)
+        'mortality_rate': 0.30,             # 30% CFR (untreated)
+        'social_distance_factor': 0.0,
+        'social_distance_obedient': 1.0,
+        'boxes_to_consider': 2,
+        'quarantine_after': 14,             # After diagnosis
+        'start_quarantine': 20,             # Slow diagnosis historically
+        'prob_no_symptoms': 0.10,           # 10% asymptomatic carriers
+    },
+
+    # === HIGHLY CONTAGIOUS VIRAL DISEASES ===
+
+    "Chickenpox (Varicella)": {
+        # Varicella-zoster virus
+        # R0: 10-12 | CFR: 0.001% | Incubation: 10-21 days | Asymptomatic: 5%
+        # Source: CDC Chickenpox Fact Sheet, Marin M et al (2016)
+        'infection_radius': 0.28,           # Highly airborne (can spread through ventilation)
+        'prob_infection': 0.10,             # Extremely contagious (R0≈11)
+        'fraction_infected_init': 0.005,    # Patient Zero: 0.5%
+        'infection_duration': 10,           # 10 days of rash
+        'mortality_rate': 0.00001,          # 0.001% CFR (very low)
+        'social_distance_factor': 0.0,
+        'social_distance_obedient': 1.0,
+        'boxes_to_consider': 3,             # Long range transmission
+        'quarantine_after': 5,              # Early quarantine needed
+        'start_quarantine': 7,
+        'prob_no_symptoms': 0.05,           # 5% asymptomatic (rash usually visible)
+    },
+
+    "Pertussis (Whooping Cough)": {
+        # Bordetella pertussis
+        # R0: 12-17 | CFR: 1-2% (infants) | Incubation: 7-10 days | Asymptomatic: 10%
+        # Source: CDC Pertussis Surveillance, Cherry JD (2012)
+        'infection_radius': 0.20,           # Respiratory droplets (close contact)
+        'prob_infection': 0.13,             # Extremely contagious (R0≈15)
+        'fraction_infected_init': 0.005,    # Patient Zero: 0.5%
+        'infection_duration': 21,           # 3 weeks (catarrhal + paroxysmal phase)
+        'mortality_rate': 0.015,            # 1.5% CFR (mainly infants)
+        'social_distance_factor': 0.0,
+        'social_distance_obedient': 1.0,
+        'boxes_to_consider': 2,
+        'quarantine_after': 7,
+        'start_quarantine': 10,
+        'prob_no_symptoms': 0.10,           # 10% asymptomatic
+    },
+
+    "Mumps": {
+        # Mumps virus (paramyxovirus)
+        # R0: 4-7 | CFR: <0.01% | Incubation: 16-18 days | Asymptomatic: 20%
+        # Source: CDC Pink Book, Rubin S et al (2015)
+        'infection_radius': 0.18,           # Respiratory droplets
+        'prob_infection': 0.05,             # High contagiousness (R0≈5.5)
+        'fraction_infected_init': 0.005,    # Patient Zero: 0.5%
+        'infection_duration': 14,           # 2 weeks illness
+        'mortality_rate': 0.00005,          # <0.01% CFR (very low)
+        'social_distance_factor': 0.0,
+        'social_distance_obedient': 1.0,
+        'boxes_to_consider': 2,
+        'quarantine_after': 16,             # After incubation
+        'start_quarantine': 10,
+        'prob_no_symptoms': 0.20,           # 20% asymptomatic
+    },
+
+    "Rubella (German Measles)": {
+        # Rubella virus
+        # R0: 5-7 | CFR: <0.01% | Incubation: 14-21 days | Asymptomatic: 25-50%
+        # Source: CDC Pink Book, Lambert N et al (2015)
+        'infection_radius': 0.17,           # Respiratory droplets
+        'prob_infection': 0.055,            # High contagiousness (R0≈6)
+        'fraction_infected_init': 0.005,    # Patient Zero: 0.5%
+        'infection_duration': 10,           # 10 days rash
+        'mortality_rate': 0.00001,          # <0.01% CFR (very low)
+        'social_distance_factor': 0.0,
+        'social_distance_obedient': 1.0,
+        'boxes_to_consider': 2,
+        'quarantine_after': 14,             # After incubation
+        'start_quarantine': 7,
+        'prob_no_symptoms': 0.35,           # 35% asymptomatic (avg of 25-50%)
+    },
+
+    # === BACTERIAL DISEASES ===
+
+    "Cholera (Vibrio cholerae)": {
+        # Vibrio cholerae - epidemic cholera
+        # R0: 1.5-3.0 | CFR: 50% (untreated), 1% (treated) | Incubation: 1-3 days | Asymptomatic: 75%
+        # Source: WHO Cholera Fact Sheet, Ali M et al (2015)
+        'infection_radius': 0.10,           # Fecal-oral (contaminated water/food)
+        'prob_infection': 0.025,            # Moderate transmission (R0≈2)
+        'fraction_infected_init': 0.005,    # Patient Zero: 0.5%
+        'infection_duration': 7,            # 3-7 days acute diarrhea
+        'mortality_rate': 0.25,             # 25% CFR (limited treatment scenario)
+        'social_distance_factor': 0.0,
+        'social_distance_obedient': 1.0,
+        'boxes_to_consider': 1,             # Close contact/sanitation
+        'quarantine_after': 2,              # Rapid onset
+        'start_quarantine': 5,
+        'prob_no_symptoms': 0.75,           # 75% asymptomatic or mild
+    },
+
+    "Typhoid Fever (Salmonella typhi)": {
+        # Salmonella typhi
+        # R0: 3-21 (varies by sanitation) | CFR: 10-20% (untreated) | Incubation: 6-30 days | Asymptomatic: 10%
+        # Source: WHO Typhoid Fact Sheet, Crump JA et al (2015)
+        'infection_radius': 0.12,           # Fecal-oral transmission
+        'prob_infection': 0.08,             # High transmission in poor sanitation (R0≈10)
+        'fraction_infected_init': 0.005,    # Patient Zero: 0.5%
+        'infection_duration': 21,           # 3-4 weeks illness
+        'mortality_rate': 0.15,             # 15% CFR (untreated)
+        'social_distance_factor': 0.0,
+        'social_distance_obedient': 1.0,
+        'boxes_to_consider': 2,
+        'quarantine_after': 10,             # After symptoms appear
+        'start_quarantine': 8,
+        'prob_no_symptoms': 0.10,           # 10% asymptomatic carriers
+    },
+
+    "Diphtheria (Corynebacterium diphtheriae)": {
+        # Corynebacterium diphtheriae
+        # R0: 6-7 | CFR: 5-10% | Incubation: 2-5 days | Asymptomatic: 5%
+        # Source: CDC Pink Book, Truelove SA et al (2020)
+        'infection_radius': 0.17,           # Respiratory droplets (close contact)
+        'prob_infection': 0.06,             # High contagiousness (R0≈6.5)
+        'fraction_infected_init': 0.005,    # Patient Zero: 0.5%
+        'infection_duration': 14,           # 2 weeks illness
+        'mortality_rate': 0.075,            # 7.5% CFR (without antitoxin)
+        'social_distance_factor': 0.0,
+        'social_distance_obedient': 1.0,
+        'boxes_to_consider': 2,
+        'quarantine_after': 4,              # After symptoms appear
+        'start_quarantine': 5,
+        'prob_no_symptoms': 0.05,           # 5% asymptomatic carriers
     },
 }
