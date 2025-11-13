@@ -10,7 +10,7 @@ from PyQt5.QtWidgets import QWidget, QPushButton, QVBoxLayout
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 
-from epidemic_sim.view.theme import NEON_GREEN, DARK_GREEN, BG_BLACK, PANEL_BLACK, BORDER_GREEN
+from epidemic_sim.view.theme import NEON_GREEN, DARK_GREEN, BG_BLACK, PANEL_BLACK, BORDER_GREEN, get_color
 
 
 class CollapsibleBox(QWidget):
@@ -252,7 +252,8 @@ class PieChartWidget(FigureCanvasQTAgg):
         if counts['dead'] > 0:
             labels.append('Dead')
             sizes.append(counts['dead'])
-            colors.append('#500000')  # Dark red/black
+            # Use theme-aware color for dead particles (visible in both themes)
+            colors.append(get_color('PIE_DEAD'))
 
         if not sizes:
             return

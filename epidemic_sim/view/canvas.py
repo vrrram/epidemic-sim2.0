@@ -126,8 +126,11 @@ class SimulationCanvas(QWidget):
         if params.marketplace_enabled:
             center = self._to_screen(params.marketplace_x, params.marketplace_y)
             radius = int(0.25 * self.scale)  # Marketplace zone radius
-            painter.setPen(QPen(QColor("#ffaa00"), 2, Qt.DashLine))
-            painter.setBrush(QBrush(QColor(255, 170, 0, 30)))
+            # Use theme-aware colors for marketplace zone
+            pen_color = get_color('MARKETPLACE_PEN')
+            fill_color = get_color('MARKETPLACE_FILL')
+            painter.setPen(QPen(QColor(pen_color), 2, Qt.DashLine))
+            painter.setBrush(QBrush(QColor(fill_color[0], fill_color[1], fill_color[2], fill_color[3])))
             painter.drawEllipse(center[0] - radius, center[1] - radius, radius * 2, radius * 2)
 
         # Draw quarantine zone if enabled (always visible when enabled)
@@ -135,8 +138,11 @@ class SimulationCanvas(QWidget):
             # Quarantine box (lower-left corner)
             tl = self._to_screen(-0.95, -0.6)
             br = self._to_screen(-0.6, -0.95)
-            painter.setPen(QPen(QColor("#ff0000"), 3))
-            painter.setBrush(QBrush(QColor(255, 0, 0, 20)))  # Semi-transparent red fill
+            # Use theme-aware colors for quarantine zone
+            pen_color = get_color('QUARANTINE_PEN')
+            fill_color = get_color('QUARANTINE_FILL')
+            painter.setPen(QPen(QColor(pen_color), 3))
+            painter.setBrush(QBrush(QColor(fill_color[0], fill_color[1], fill_color[2], fill_color[3])))
             painter.drawRect(tl[0], tl[1], br[0] - tl[0], br[1] - tl[1])
 
             # Draw quarantined particles if any
@@ -167,8 +173,11 @@ class SimulationCanvas(QWidget):
 
             # Highlight center tile (marketplace) if marketplace enabled
             if params.marketplace_enabled and comm_id == params.marketplace_community_id:
-                painter.setPen(QPen(QColor("#ffaa00"), 3))  # Orange for marketplace
-                painter.setBrush(QBrush(QColor(255, 170, 0, 20)))  # Semi-transparent fill
+                # Use theme-aware colors for marketplace community
+                pen_color = get_color('MARKETPLACE_PEN')
+                fill_color = get_color('MARKETPLACE_FILL')
+                painter.setPen(QPen(QColor(pen_color), 3))
+                painter.setBrush(QBrush(QColor(fill_color[0], fill_color[1], fill_color[2], fill_color[3])))
             else:
                 painter.setPen(QPen(QColor(BORDER_GREEN), 2))
                 painter.setBrush(Qt.NoBrush)
@@ -184,8 +193,11 @@ class SimulationCanvas(QWidget):
             # Highlight with red border and fill
             tl = self._to_screen(-2.9, -1.1)
             br = self._to_screen(-1.1, -2.9)
-            painter.setPen(QPen(QColor("#ff0000"), 4))  # Thicker red border
-            painter.setBrush(QBrush(QColor(255, 0, 0, 30)))  # Semi-transparent red fill
+            # Use theme-aware colors for quarantine zone
+            pen_color = get_color('QUARANTINE_PEN')
+            fill_color = get_color('QUARANTINE_FILL')
+            painter.setPen(QPen(QColor(pen_color), 4))
+            painter.setBrush(QBrush(QColor(fill_color[0], fill_color[1], fill_color[2], fill_color[3])))
             painter.drawRect(tl[0], tl[1], br[0] - tl[0], br[1] - tl[1])
 
             # Draw quarantined particles if any
