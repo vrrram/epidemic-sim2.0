@@ -43,6 +43,13 @@ class SimulationCanvas(QWidget):
         self.sim = sim
         self.setMinimumSize(900, 900)
 
+        # Visual effects: Store particle position history for trails
+        # Dictionary mapping particle id to deque of recent positions
+        self.particle_trails = {}
+        self.max_trail_length = 10  # Number of trail points to keep
+        self.enable_trails = False  # Can be toggled by user
+        self.enable_glow = True  # Glow effect for infected particles
+
     def paintEvent(self, event):
         """
         Qt paint event handler - renders the entire simulation state.
@@ -206,16 +213,18 @@ class SimulationCanvas(QWidget):
 
     def _draw_particle(self, painter, p):
         """
-        Draw a single particle (individual) on the canvas.
+        Draw a single particle (individual) on the canvas with enhanced visual effects.
 
         Particles are colored based on their infection state:
         - Susceptible: Cyan/Blue
-        - Infected (symptomatic): Red
-        - Infected (asymptomatic): Orange
+        - Infected (symptomatic): Red with glow effect
+        - Infected (asymptomatic): Orange with glow effect
         - Removed: Gray
 
-        If enabled, also draws the infection radius as a semi-transparent circle
-        around infected particles.
+        Enhanced features:
+        - Glow effect for infected particles (larger semi-transparent halo)
+        - Infection radius visualization
+        - Theme-aware colors
 
         Args:
             painter (QPainter): Qt painter object for drawing
@@ -247,10 +256,20 @@ class SimulationCanvas(QWidget):
             else:
                 rgb = get_color('PARTICLE_INFECTED_SYMP')
                 color = QColor(rgb[0], rgb[1], rgb[2])
+
+            # Add glow effect for infected particles (visual enhancement)
+            if self.enable_glow:
+                glow_size = int(params.particle_size * 2.5)
+                glow_color = QColor(rgb[0], rgb[1], rgb[2], 40)  # Semi-transparent
+                painter.setBrush(glow_color)
+                painter.setPen(Qt.NoPen)
+                painter.drawEllipse(pos[0] - glow_size//2, pos[1] - glow_size//2,
+                                  glow_size, glow_size)
         else:
             rgb = get_color('PARTICLE_REMOVED')
             color = QColor(rgb[0], rgb[1], rgb[2])
 
+        # Draw main particle
         painter.setBrush(color)
         painter.setPen(Qt.NoPen)
         size = params.particle_size
