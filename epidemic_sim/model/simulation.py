@@ -80,12 +80,25 @@ class EpidemicSimulation(QObject):
 
         self.stats = {
             'susceptible': [100],
+            'exposed': [0],  # SEIRD model - exposed but not yet infectious
             'infected': [0],
             'removed': [0],
             'dead': [0],  # Track deaths separately (SEIRD-ready)
             'day': [0]
         }
         self.initial_population = 0  # Set during initialization
+
+        # Vaccination tracking
+        # NOTE: These parameters should be added to parameters.py by Instance 4
+        # For now, using hardcoded values with sensible defaults
+        self.vaccination_start_day = 30  # Start vaccinations on day 30
+        self.vaccination_daily_rate = 0.02  # Vaccinate 2% of population per day
+        self.vaccine_efficacy = 0.70  # 70% reduction in infection susceptibility
+
+        # SEIRD model - Exposed state (incubation period)
+        # NOTE: This parameter should be added to parameters.py by Instance 4
+        # For now, using hardcoded default based on typical disease incubation
+        self.incubation_period = 5  # Days before exposed becomes infectious (5 days typical)
 
     def log(self, message):
         """
@@ -112,6 +125,7 @@ class EpidemicSimulation(QObject):
         self.last_marketplace_day = -params.marketplace_interval  # Reset marketplace
         self.stats = {
             'susceptible': [100],
+            'exposed': [0],
             'infected': [0],
             'removed': [0],
             'dead': [0],
@@ -432,7 +446,10 @@ class EpidemicSimulation(QObject):
                     effective_prob = per_step_prob * sus_p.infection_susceptibility
 
                     if random.random() < effective_prob:
-                        sus_p.state = 'infected'
+                        # SEIRD MODEL: Set to 'exposed' state instead of 'infected'
+                        # Particle is infected but not yet contagious (incubation period)
+                        sus_p.state = 'exposed'
+                        sus_p.days_exposed = 0
                         sus_p.days_infected = 0
                         inf_p.infection_count += 1
 
@@ -468,8 +485,19 @@ class EpidemicSimulation(QObject):
         to_release = []  # Particles to release from quarantine
         recovered = 0
         died = 0
+        became_infectious = 0  # Track exposed -> infected transitions
 
         for p in particle_list:
+            # SEIRD MODEL: Transition from exposed to infected after incubation period
+            if p.state == 'exposed':
+                p.days_exposed += 1
+                if p.days_exposed >= self.incubation_period:
+                    # Incubation period over - become infectious
+                    p.state = 'infected'
+                    p.days_infected = 0
+                    became_infectious += 1
+                # Skip rest of infection logic for exposed particles
+                continue
             # Update quarantine duration for quarantined particles
             if p.quarantined:
                 p.days_in_quarantine += 1
@@ -511,6 +539,8 @@ class EpidemicSimulation(QObject):
                       not p.quarantined):
                     to_quarantine.append(p)
 
+        if became_infectious > 0:
+            self.log(f">> {became_infectious} BECAME INFECTIOUS (incubation complete)")
         if recovered > 0:
             self.log(f">> {recovered} RECOVERED")
         if died > 0:
@@ -519,6 +549,50 @@ class EpidemicSimulation(QObject):
             self.log(f">> {len(to_release)} RELEASED from quarantine")
 
         return to_quarantine, to_remove_dead, to_release
+
+    def _apply_daily_vaccinations(self, particle_list):
+        """
+        Apply daily vaccinations to susceptible particles.
+
+        Randomly selects susceptible, unvaccinated particles to vaccinate based on
+        the daily vaccination rate. Vaccinated particles have reduced infection
+        susceptibility.
+
+        Args:
+            particle_list (list): Particles eligible for vaccination
+
+        Returns:
+            int: Number of particles vaccinated this day
+        """
+        if self.day_count < self.vaccination_start_day:
+            return 0
+
+        # Find eligible particles (susceptible and not yet vaccinated)
+        eligible = [p for p in particle_list
+                   if p.state == 'susceptible' and not p.vaccinated]
+
+        if not eligible:
+            return 0
+
+        # Calculate how many to vaccinate today
+        num_to_vaccinate = int(len(eligible) * self.vaccination_daily_rate)
+        num_to_vaccinate = min(num_to_vaccinate, len(eligible))
+
+        if num_to_vaccinate == 0:
+            return 0
+
+        # Randomly select particles to vaccinate
+        to_vaccinate = random.sample(eligible, num_to_vaccinate)
+
+        for p in to_vaccinate:
+            p.vaccinated = True
+            p.vaccination_day = self.day_count
+            p.vaccine_efficacy = self.vaccine_efficacy
+            # Reduce infection susceptibility by vaccine efficacy
+            # Example: efficacy=0.7 means 70% reduction, so multiply by (1-0.7)=0.3
+            p.infection_susceptibility *= (1.0 - self.vaccine_efficacy)
+
+        return num_to_vaccinate
 
     def _move_to_quarantine(self, particle, from_list):
         """
@@ -820,6 +894,23 @@ class EpidemicSimulation(QObject):
             if current_infected > 0:
                 self.log(f">> ACTIVE INFECTIONS: {current_infected}")
 
+            # Apply vaccinations (before infections to prevent same-day infection)
+            total_vaccinated = 0
+            if self.mode == 'communities':
+                for comm in self.communities.values():
+                    total_vaccinated += self._apply_daily_vaccinations(comm['particles'])
+                # Also vaccinate quarantine particles if any
+                if self.quarantine_particles:
+                    total_vaccinated += self._apply_daily_vaccinations(self.quarantine_particles)
+            else:
+                total_vaccinated = self._apply_daily_vaccinations(self.particles)
+                # Also vaccinate quarantine particles if any
+                if self.quarantine_particles:
+                    total_vaccinated += self._apply_daily_vaccinations(self.quarantine_particles)
+
+            if total_vaccinated > 0:
+                self.log(f">> {total_vaccinated} VACCINATED (efficacy: {self.vaccine_efficacy*100:.0f}%)")
+
             if self.mode == 'communities':
                 total_quarantined = 0
                 total_released = 0
@@ -976,12 +1067,12 @@ class EpidemicSimulation(QObject):
         if self.initial_population == 0:
             return
 
-        counts = {'susceptible': 0, 'infected': 0, 'removed': 0, 'dead': deaths}
+        counts = {'susceptible': 0, 'exposed': 0, 'infected': 0, 'removed': 0, 'dead': deaths}
         for p in all_p:
             counts[p.state] += 1
 
         # Calculate percentages based on initial population
-        for state in ['susceptible', 'infected', 'removed']:
+        for state in ['susceptible', 'exposed', 'infected', 'removed']:
             percent = (counts[state] / self.initial_population) * 100
             self.stats[state].append(percent)
 

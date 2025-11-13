@@ -47,6 +47,7 @@ class Particle:
 
         # Epidemiological state
         self.state = state
+        self.days_exposed = 0  # Days in exposed state (incubation period)
         self.days_infected = 0
         self.infection_count = 0
 
@@ -85,6 +86,11 @@ class Particle:
         # Community travel tracking
         self.traveling_between_communities = False
         self.target_community_id = None
+
+        # Vaccination tracking
+        self.vaccinated = False
+        self.vaccination_day = None
+        self.vaccine_efficacy = 0.0  # Will be set when vaccinated
 
         # Check if particle is asymptomatic infected
         if state == 'infected' and random.random() < params.prob_no_symptoms:
