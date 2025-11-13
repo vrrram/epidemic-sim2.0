@@ -745,6 +745,13 @@ Tip: Use keyboard shortcuts 1-9 to quickly load presets""")
         self.fullscreen_btn.setMaximumWidth(50)
         btn_row.addWidget(self.fullscreen_btn)
 
+        self.theme_btn = QPushButton("☀ LIGHT")
+        self.theme_btn.setToolTip("Toggle theme (Keyboard: Alt+T)\n\nSwitch between dark and light themes.\nPreference is saved automatically.")
+        self.theme_btn.clicked.connect(self.toggle_theme)
+        self.theme_btn.setMinimumHeight(32)
+        self.theme_btn.setMaximumWidth(60)
+        btn_row.addWidget(self.theme_btn)
+
         ctrl_layout.addLayout(btn_row)
 
         # Speed buttons
@@ -928,7 +935,7 @@ Use for: Studying impact of mass gatherings on epidemic spread""")
             QTabBar::tab:selected {{
                 background-color: {BORDER_GREEN}; color: {BG_BLACK}; font-weight: bold;
             }}
-            QTabBar::tab:hover {{ background-color: #002200; }}
+            QTabBar::tab:hover {{ background-color: {get_color('HOVER_BG')}; }}
         """)
 
         # Graph
@@ -1522,6 +1529,22 @@ Updates in real-time as simulation progresses.""")
         for i in range(self.mode_btns.buttons().__len__()):
             self.mode_btns.button(i).setStyleSheet(button_style)
 
+        # Refresh tooltips with new theme colors if they're enabled
+        if self.tooltips_enabled:
+            tooltip_bg = get_color('TOOLTIP_BG')
+            tooltip_text = get_color('TOOLTIP_TEXT')
+            tooltip_border = get_color('TOOLTIP_BORDER')
+            QApplication.instance().setStyleSheet(f"""
+                QToolTip {{
+                    background-color: {tooltip_bg};
+                    color: {tooltip_text};
+                    border: 1px solid {tooltip_border};
+                    padding: 5px;
+                    border-radius: 3px;
+                    font-size: 11px;
+                }}
+            """)
+
         # Force full UI refresh
         self.status_label.setText(f"Theme switched to {theme_name.title()} mode")
 
@@ -1539,16 +1562,19 @@ Updates in real-time as simulation progresses.""")
         self.tooltips_enabled = not self.tooltips_enabled
 
         if self.tooltips_enabled:
-            # Enable tooltips with proper styling
-            QApplication.instance().setStyleSheet("""
-                QToolTip {
-                    background-color: #2b2b2b;
-                    color: #00ff00;
-                    border: 1px solid #00ff00;
+            # Enable tooltips with proper styling that respects current theme
+            tooltip_bg = get_color('TOOLTIP_BG')
+            tooltip_text = get_color('TOOLTIP_TEXT')
+            tooltip_border = get_color('TOOLTIP_BORDER')
+            QApplication.instance().setStyleSheet(f"""
+                QToolTip {{
+                    background-color: {tooltip_bg};
+                    color: {tooltip_text};
+                    border: 1px solid {tooltip_border};
                     padding: 5px;
                     border-radius: 3px;
                     font-size: 11px;
-                }
+                }}
             """)
             self.add_log("Tooltips enabled (Ctrl+T)")
         else:
@@ -1687,6 +1713,7 @@ Updates in real-time as simulation progresses.""")
             Q: Toggle quarantine
             M: Toggle marketplace
             Ctrl+T: Toggle tooltips
+            Alt+T: Toggle theme
             1-9: Load preset by number
 
         Args:
@@ -1698,6 +1725,11 @@ Updates in real-time as simulation progresses.""")
         # Ctrl+T: Toggle tooltips
         if key == Qt.Key_T and modifiers & Qt.ControlModifier:
             self.toggle_tooltips()
+            return
+
+        # Alt+T: Toggle theme
+        if key == Qt.Key_T and modifiers & Qt.AltModifier:
+            self.toggle_theme()
             return
 
         # Space: Pause/Resume
