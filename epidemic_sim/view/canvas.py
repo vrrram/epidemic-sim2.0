@@ -50,6 +50,45 @@ class SimulationCanvas(QWidget):
         self.enable_trails = False  # Can be toggled by user
         self.enable_glow = True  # Glow effect for infected particles
 
+        # Performance optimization: Cache color objects to avoid recreating them every frame
+        self._color_cache = {}
+        self._update_color_cache()
+
+    def _update_color_cache(self):
+        """
+        Update cached color objects from theme system.
+
+        Performance optimization: Pre-create QColor objects to avoid
+        recreating them every frame. Call this when theme changes.
+        """
+        # Particle colors (RGB tuples -> QColor objects)
+        rgb = get_color('PARTICLE_SUSCEPTIBLE')
+        self._color_cache['susceptible'] = QColor(rgb[0], rgb[1], rgb[2])
+
+        rgb = get_color('PARTICLE_INFECTED_SYMP')
+        self._color_cache['infected_symp'] = QColor(rgb[0], rgb[1], rgb[2])
+        self._color_cache['infected_symp_glow'] = QColor(rgb[0], rgb[1], rgb[2], 40)
+
+        rgb = get_color('PARTICLE_INFECTED_ASYMP')
+        self._color_cache['infected_asymp'] = QColor(rgb[0], rgb[1], rgb[2])
+        self._color_cache['infected_asymp_glow'] = QColor(rgb[0], rgb[1], rgb[2], 40)
+
+        rgb = get_color('PARTICLE_REMOVED')
+        self._color_cache['removed'] = QColor(rgb[0], rgb[1], rgb[2])
+
+        # Special zone colors
+        self._color_cache['marketplace_pen'] = QColor(get_color('MARKETPLACE_PEN'))
+        fill = get_color('MARKETPLACE_FILL')
+        self._color_cache['marketplace_fill'] = QColor(fill[0], fill[1], fill[2], fill[3])
+
+        self._color_cache['quarantine_pen'] = QColor(get_color('QUARANTINE_PEN'))
+        fill = get_color('QUARANTINE_FILL')
+        self._color_cache['quarantine_fill'] = QColor(fill[0], fill[1], fill[2], fill[3])
+
+        # Infection radius colors
+        self._color_cache['infection_radius_pen'] = QColor(255, 0, 0, 100)
+        self._color_cache['infection_radius_fill'] = QColor(255, 0, 0, 30)
+
     def paintEvent(self, event):
         """
         Qt paint event handler - renders the entire simulation state.
@@ -133,11 +172,9 @@ class SimulationCanvas(QWidget):
         if params.marketplace_enabled:
             center = self._to_screen(params.marketplace_x, params.marketplace_y)
             radius = int(0.25 * self.scale)  # Marketplace zone radius
-            # Use theme-aware colors for marketplace zone
-            pen_color = get_color('MARKETPLACE_PEN')
-            fill_color = get_color('MARKETPLACE_FILL')
-            painter.setPen(QPen(QColor(pen_color), 2, Qt.DashLine))
-            painter.setBrush(QBrush(QColor(fill_color[0], fill_color[1], fill_color[2], fill_color[3])))
+            # Use cached colors for better performance
+            painter.setPen(QPen(self._color_cache['marketplace_pen'], 2, Qt.DashLine))
+            painter.setBrush(QBrush(self._color_cache['marketplace_fill']))
             painter.drawEllipse(center[0] - radius, center[1] - radius, radius * 2, radius * 2)
 
         # Draw quarantine zone if enabled (always visible when enabled)
@@ -145,11 +182,9 @@ class SimulationCanvas(QWidget):
             # Quarantine box (lower-left corner)
             tl = self._to_screen(-0.95, -0.6)
             br = self._to_screen(-0.6, -0.95)
-            # Use theme-aware colors for quarantine zone
-            pen_color = get_color('QUARANTINE_PEN')
-            fill_color = get_color('QUARANTINE_FILL')
-            painter.setPen(QPen(QColor(pen_color), 3))
-            painter.setBrush(QBrush(QColor(fill_color[0], fill_color[1], fill_color[2], fill_color[3])))
+            # Use cached colors for better performance
+            painter.setPen(QPen(self._color_cache['quarantine_pen'], 3))
+            painter.setBrush(QBrush(self._color_cache['quarantine_fill']))
             painter.drawRect(tl[0], tl[1], br[0] - tl[0], br[1] - tl[1])
 
             # Draw quarantined particles if any
@@ -180,11 +215,9 @@ class SimulationCanvas(QWidget):
 
             # Highlight center tile (marketplace) if marketplace enabled
             if params.marketplace_enabled and comm_id == params.marketplace_community_id:
-                # Use theme-aware colors for marketplace community
-                pen_color = get_color('MARKETPLACE_PEN')
-                fill_color = get_color('MARKETPLACE_FILL')
-                painter.setPen(QPen(QColor(pen_color), 3))
-                painter.setBrush(QBrush(QColor(fill_color[0], fill_color[1], fill_color[2], fill_color[3])))
+                # Use cached colors for better performance
+                painter.setPen(QPen(self._color_cache['marketplace_pen'], 3))
+                painter.setBrush(QBrush(self._color_cache['marketplace_fill']))
             else:
                 painter.setPen(QPen(QColor(BORDER_GREEN), 2))
                 painter.setBrush(Qt.NoBrush)
@@ -200,11 +233,9 @@ class SimulationCanvas(QWidget):
             # Highlight with red border and fill
             tl = self._to_screen(-2.9, -1.1)
             br = self._to_screen(-1.1, -2.9)
-            # Use theme-aware colors for quarantine zone
-            pen_color = get_color('QUARANTINE_PEN')
-            fill_color = get_color('QUARANTINE_FILL')
-            painter.setPen(QPen(QColor(pen_color), 4))
-            painter.setBrush(QBrush(QColor(fill_color[0], fill_color[1], fill_color[2], fill_color[3])))
+            # Use cached colors for better performance
+            painter.setPen(QPen(self._color_cache['quarantine_pen'], 4))
+            painter.setBrush(QBrush(self._color_cache['quarantine_fill']))
             painter.drawRect(tl[0], tl[1], br[0] - tl[0], br[1] - tl[1])
 
             # Draw quarantined particles if any
@@ -224,7 +255,7 @@ class SimulationCanvas(QWidget):
         Enhanced features:
         - Glow effect for infected particles (larger semi-transparent halo)
         - Infection radius visualization
-        - Theme-aware colors
+        - Cached colors for performance
 
         Args:
             painter (QPainter): Qt painter object for drawing
@@ -239,35 +270,32 @@ class SimulationCanvas(QWidget):
         if params.show_infection_radius and p.state == 'infected':
             radius_world = params.infection_radius
             radius_screen = int(radius_world * self.scale)
-            # Semi-transparent red circle
-            painter.setPen(QPen(QColor(255, 0, 0, 100), 1))
-            painter.setBrush(QBrush(QColor(255, 0, 0, 30)))
+            # Use cached colors for better performance
+            painter.setPen(QPen(self._color_cache['infection_radius_pen'], 1))
+            painter.setBrush(QBrush(self._color_cache['infection_radius_fill']))
             painter.drawEllipse(pos[0] - radius_screen, pos[1] - radius_screen,
                               radius_screen * 2, radius_screen * 2)
 
-        # Use theme-aware colors for particles
+        # Use cached colors for particles (major performance improvement)
         if p.state == 'susceptible':
-            rgb = get_color('PARTICLE_SUSCEPTIBLE')
-            color = QColor(rgb[0], rgb[1], rgb[2])
+            color = self._color_cache['susceptible']
         elif p.state == 'infected':
             if not p.shows_symptoms:
-                rgb = get_color('PARTICLE_INFECTED_ASYMP')
-                color = QColor(rgb[0], rgb[1], rgb[2])
+                color = self._color_cache['infected_asymp']
+                glow_color = self._color_cache['infected_asymp_glow']
             else:
-                rgb = get_color('PARTICLE_INFECTED_SYMP')
-                color = QColor(rgb[0], rgb[1], rgb[2])
+                color = self._color_cache['infected_symp']
+                glow_color = self._color_cache['infected_symp_glow']
 
             # Add glow effect for infected particles (visual enhancement)
             if self.enable_glow:
                 glow_size = int(params.particle_size * 2.5)
-                glow_color = QColor(rgb[0], rgb[1], rgb[2], 40)  # Semi-transparent
                 painter.setBrush(glow_color)
                 painter.setPen(Qt.NoPen)
                 painter.drawEllipse(pos[0] - glow_size//2, pos[1] - glow_size//2,
                                   glow_size, glow_size)
         else:
-            rgb = get_color('PARTICLE_REMOVED')
-            color = QColor(rgb[0], rgb[1], rgb[2])
+            color = self._color_cache['removed']
 
         # Draw main particle
         painter.setBrush(color)
