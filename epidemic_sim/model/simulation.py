@@ -84,6 +84,7 @@ class EpidemicSimulation(QObject):
             'infected': [0],
             'removed': [0],
             'dead': [0],  # Track deaths separately (SEIRD-ready)
+            'vaccinated': [0],  # Track cumulative vaccinations
             'day': [0]
         }
         self.initial_population = 0  # Set during initialization
@@ -91,14 +92,27 @@ class EpidemicSimulation(QObject):
         # Vaccination tracking
         # NOTE: These parameters should be added to parameters.py by Instance 4
         # For now, using hardcoded values with sensible defaults
+        self.vaccination_enabled = False  # Toggle vaccination system on/off
         self.vaccination_start_day = 30  # Start vaccinations on day 30
-        self.vaccination_daily_rate = 0.02  # Vaccinate 2% of population per day
-        self.vaccine_efficacy = 0.70  # 70% reduction in infection susceptibility
+        self.vaccination_daily_rate = 0.02  # Vaccinate 2% of population per day (0.0-1.0)
+        self.vaccine_efficacy = 0.70  # 70% reduction in infection susceptibility (0.0-1.0)
+
+        # Validate vaccination parameters
+        self.vaccination_start_day = max(0, self.vaccination_start_day)
+        self.vaccination_daily_rate = max(0.0, min(1.0, self.vaccination_daily_rate))
+        self.vaccine_efficacy = max(0.0, min(1.0, self.vaccine_efficacy))
 
         # SEIRD model - Exposed state (incubation period)
         # NOTE: This parameter should be added to parameters.py by Instance 4
         # For now, using hardcoded default based on typical disease incubation
         self.incubation_period = 5  # Days before exposed becomes infectious (5 days typical)
+
+        # Validate incubation period (must be at least 1 day to be meaningful)
+        self.incubation_period = max(1, self.incubation_period)
+
+        # Statistics tracking
+        self.total_vaccinated = 0  # Track cumulative vaccinations
+        self.total_exposed_transitions = 0  # Track E->I transitions
 
     def log(self, message):
         """
@@ -129,9 +143,12 @@ class EpidemicSimulation(QObject):
             'infected': [0],
             'removed': [0],
             'dead': [0],
+            'vaccinated': [0],
             'day': [0]
         }
         self.initial_population = 0  # Will be set based on mode
+        self.total_vaccinated = 0  # Reset vaccination counter
+        self.total_exposed_transitions = 0  # Reset transition counter
 
         self.log(f"INITIALIZING {self.mode.upper()} SIMULATION...")
 
@@ -496,6 +513,7 @@ class EpidemicSimulation(QObject):
                     p.state = 'infected'
                     p.days_infected = 0
                     became_infectious += 1
+                    self.total_exposed_transitions += 1
                 # Skip rest of infection logic for exposed particles
                 continue
             # Update quarantine duration for quarantined particles
@@ -564,6 +582,11 @@ class EpidemicSimulation(QObject):
         Returns:
             int: Number of particles vaccinated this day
         """
+        # Check if vaccination is enabled
+        if not self.vaccination_enabled:
+            return 0
+
+        # Check if we've reached the start day
         if self.day_count < self.vaccination_start_day:
             return 0
 
@@ -591,6 +614,7 @@ class EpidemicSimulation(QObject):
             # Reduce infection susceptibility by vaccine efficacy
             # Example: efficacy=0.7 means 70% reduction, so multiply by (1-0.7)=0.3
             p.infection_susceptibility *= (1.0 - self.vaccine_efficacy)
+            self.total_vaccinated += 1  # Track cumulative vaccinations
 
         return num_to_vaccinate
 
@@ -1079,6 +1103,10 @@ class EpidemicSimulation(QObject):
         # Deaths as percentage of initial population
         death_percent = (deaths / self.initial_population) * 100
         self.stats['dead'].append(death_percent)
+
+        # Vaccinations as percentage of initial population
+        vaccination_percent = (self.total_vaccinated / self.initial_population) * 100
+        self.stats['vaccinated'].append(vaccination_percent)
 
         self.stats['day'].append(self.day_count)
         self.stats_updated.emit(counts)

@@ -59,6 +59,7 @@ def test_vaccination():
     params.mortality_rate = 0.0
 
     sim = EpidemicSimulation('simple')
+    sim.vaccination_enabled = True  # Enable vaccination
     sim.vaccination_start_day = 5  # Start on day 5
     sim.vaccination_daily_rate = 0.10  # Vaccinate 10% per day
     sim.vaccine_efficacy = 0.70  # 70% efficacy
@@ -101,6 +102,7 @@ def test_combined():
 
     sim = EpidemicSimulation('simple')
     sim.incubation_period = 4
+    sim.vaccination_enabled = True  # Enable vaccination
     sim.vaccination_start_day = 10
     sim.vaccination_daily_rate = 0.05
     sim.vaccine_efficacy = 0.70
