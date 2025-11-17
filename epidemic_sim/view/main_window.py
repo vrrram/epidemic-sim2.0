@@ -717,9 +717,9 @@ Tip: Use keyboard shortcuts 1-9 to quickly load presets""")
         right_layout.addWidget(title_container)
 
         # === CONTROLS ===
-        ctrl_group = QWidget()
-        ctrl_group.setStyleSheet(f"background-color: {PANEL_BLACK}; border: 2px solid {BORDER_GREEN}; padding: 8px;")
-        ctrl_layout = QVBoxLayout(ctrl_group)
+        self.ctrl_group = QWidget()
+        self.ctrl_group.setStyleSheet(f"background-color: {PANEL_BLACK}; border: 2px solid {BORDER_GREEN}; padding: 8px;")
+        ctrl_layout = QVBoxLayout(self.ctrl_group)
         ctrl_layout.setSpacing(8)
 
         # Control buttons
@@ -755,10 +755,10 @@ Tip: Use keyboard shortcuts 1-9 to quickly load presets""")
         ctrl_layout.addLayout(btn_row)
 
         # Speed buttons
-        speed_label = QLabel("Speed:")
-        speed_label.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 5px;")
-        speed_label.setToolTip("Simulation speed multiplier\n\nControls how fast time progresses.\nDoes not affect physics or disease mechanics.")
-        ctrl_layout.addWidget(speed_label)
+        self.speed_label = QLabel("Speed:")
+        self.speed_label.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 5px;")
+        self.speed_label.setToolTip("Simulation speed multiplier\n\nControls how fast time progresses.\nDoes not affect physics or disease mechanics.")
+        ctrl_layout.addWidget(self.speed_label)
 
         speed_row = QHBoxLayout()
         speed_row.setSpacing(4)
@@ -784,9 +784,9 @@ Tip: Use keyboard shortcuts 1-9 to quickly load presets""")
         ctrl_layout.addLayout(speed_row)
 
         # Population
-        pop_label = QLabel("Population:")
-        pop_label.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 8px;")
-        ctrl_layout.addWidget(pop_label)
+        self.pop_label = QLabel("Population:")
+        self.pop_label.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 8px;")
+        ctrl_layout.addWidget(self.pop_label)
 
         pop_row = QHBoxLayout()
         self.population_spin = QSpinBox()
@@ -813,14 +813,14 @@ Requires clicking 'Apply' to take effect.""")
         pop_row.addWidget(apply_pop_btn)
         ctrl_layout.addLayout(pop_row)
 
-        right_layout.addWidget(ctrl_group)
+        right_layout.addWidget(self.ctrl_group)
 
         # === STATS ===
-        stats_container = QWidget()
-        stats_container.setStyleSheet(f"""
+        self.stats_container = QWidget()
+        self.stats_container.setStyleSheet(f"""
             background-color: {PANEL_BLACK}; border: 2px solid {NEON_GREEN}; padding: 10px;
         """)
-        stats_layout = QVBoxLayout(stats_container)
+        stats_layout = QVBoxLayout(self.stats_container)
         self.stats_label = QLabel("DAY: 0\nS: 100.0% | I: 0.0% | R: 0.0%")
         self.stats_label.setStyleSheet(f"""
             font-size: 16px; font-weight: bold; color: {NEON_GREEN};
@@ -836,7 +836,7 @@ R (Removed): Recovered or deceased
 
 These percentages sum to 100% at all times (classic SIR model)""")
         stats_layout.addWidget(self.stats_label)
-        right_layout.addWidget(stats_container)
+        right_layout.addWidget(self.stats_container)
 
         # === MODE ===
         mode_box = CollapsibleBox("SIMULATION MODE")
@@ -995,17 +995,17 @@ Updates in real-time as simulation progresses.""")
         right_layout.addWidget(self.status_label)
 
         # === SHORTCUTS ===
-        shortcuts = QLabel(
+        self.shortcuts_label = QLabel(
             "SHORTCUTS: SPACE=Pause | R=Reset | F=Fullscreen\n"
-            "Q=Quarantine | M=Marketplace | 1-9=Presets"
+            "Q=Quarantine | M=Marketplace | Alt+T=Theme | 1-9=Presets"
         )
-        shortcuts.setStyleSheet(f"""
+        self.shortcuts_label.setStyleSheet(f"""
             font-size: 9px; padding: 5px; color: {NEON_GREEN};
             background-color: {BG_BLACK}; border: 1px solid {BORDER_GREEN};
             font-family: 'Courier New', monospace;
         """)
-        shortcuts.setWordWrap(True)
-        right_layout.addWidget(shortcuts)
+        self.shortcuts_label.setWordWrap(True)
+        right_layout.addWidget(self.shortcuts_label)
 
         right_layout.addStretch()
 
@@ -1492,9 +1492,22 @@ Updates in real-time as simulation progresses.""")
         self.apply_theme()
 
         # Update panels with direct stylesheets
-        from epidemic_sim.view.theme import BG_BLACK as BG, BORDER_GREEN as BORDER
+        from epidemic_sim.view.theme import BG_BLACK as BG, BORDER_GREEN as BORDER, NEON_GREEN as TEXT, PANEL_BLACK as PANEL
         self.left_panel.setStyleSheet(f"background-color: {BG};")
         self.right_panel.setStyleSheet(f"background-color: {BG};")
+
+        # Update control panel background and borders
+        self.ctrl_group.setStyleSheet(f"background-color: {PANEL}; border: 2px solid {BORDER}; padding: 8px;")
+
+        # Update stats container background and borders
+        self.stats_container.setStyleSheet(f"background-color: {PANEL}; border: 2px solid {BORDER}; padding: 10px;")
+
+        # Update labels with theme-aware text colors
+        self.speed_label.setStyleSheet(f"color: {TEXT}; font-size: 11px; margin-top: 5px;")
+        self.pop_label.setStyleSheet(f"color: {TEXT}; font-size: 11px; margin-top: 8px;")
+        self.stats_label.setStyleSheet(f"font-size: 16px; font-weight: bold; color: {TEXT}; font-family: 'Courier New', monospace; background-color: transparent; border: none;")
+        self.status_label.setStyleSheet(f"font-size: 11px; padding: 8px; color: {TEXT}; background-color: {PANEL}; border: 1px solid {BORDER}; font-family: 'Courier New', monospace;")
+        self.shortcuts_label.setStyleSheet(f"font-size: 9px; padding: 5px; color: {TEXT}; background-color: {BG}; border: 1px solid {BORDER}; font-family: 'Courier New', monospace;")
 
         # Update all collapsible boxes
         for box in self.collapsible_boxes:
