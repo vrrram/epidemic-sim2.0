@@ -19,6 +19,22 @@ DARK_THEME = {
     'PARTICLE_INFECTED_SYMP': (255, 69, 69),  # Red
     'PARTICLE_INFECTED_ASYMP': (255, 165, 0),  # Orange
     'PARTICLE_REMOVED': (100, 100, 100),  # Gray
+    'PARTICLE_DEAD': (80, 0, 0),  # Dark red for dead particles
+    # Special zone colors (Dark Mode)
+    'MARKETPLACE_PEN': "#ffaa00",  # Orange outline
+    'MARKETPLACE_FILL': (255, 170, 0, 30),  # Semi-transparent orange
+    'QUARANTINE_PEN': "#ff0000",  # Red outline
+    'QUARANTINE_FILL': (255, 0, 0, 20),  # Semi-transparent red
+    # Infection radius visualization
+    'INFECTION_RADIUS_PEN': (255, 0, 0, 100),  # Semi-transparent red outline
+    'INFECTION_RADIUS_FILL': (255, 0, 0, 30),  # Very transparent red fill
+    # Pie chart colors (Dark Mode)
+    'PIE_SUSCEPTIBLE': '#00bfff',  # Cyan
+    'PIE_INFECTED_SYMP': '#ff4545',  # Bright red
+    'PIE_INFECTED_ASYMP': '#ffa500',  # Orange
+    'PIE_REMOVED': '#787878',  # Gray
+    'PIE_DEAD': '#cc0000',  # Visible red (brighter than particle)
+    'PIE_TEXT': '#ffffff',  # White text on slices
 }
 
 LIGHT_THEME = {
@@ -37,6 +53,22 @@ LIGHT_THEME = {
     'PARTICLE_INFECTED_SYMP': (211, 47, 47),  # Dark red
     'PARTICLE_INFECTED_ASYMP': (245, 124, 0),  # Orange
     'PARTICLE_REMOVED': (97, 97, 97),  # Dark gray
+    'PARTICLE_DEAD': (139, 0, 0),  # Dark red visible on light bg
+    # Special zone colors (Light Mode) - darker for visibility on light bg
+    'MARKETPLACE_PEN': "#d68400",  # Darker orange for visibility
+    'MARKETPLACE_FILL': (214, 132, 0, 50),  # More opaque orange fill
+    'QUARANTINE_PEN': "#c62828",  # Darker red for visibility
+    'QUARANTINE_FILL': (198, 40, 40, 40),  # More opaque red fill
+    # Infection radius visualization (Light Mode)
+    'INFECTION_RADIUS_PEN': (198, 40, 40, 120),  # Darker red outline
+    'INFECTION_RADIUS_FILL': (198, 40, 40, 40),  # More visible fill
+    # Pie chart colors (Light Mode) - adjusted for light background
+    'PIE_SUSCEPTIBLE': '#1976d2',  # Darker blue
+    'PIE_INFECTED_SYMP': '#d32f2f',  # Dark red
+    'PIE_INFECTED_ASYMP': '#f57c00',  # Darker orange
+    'PIE_REMOVED': '#616161',  # Dark gray
+    'PIE_DEAD': '#b71c1c',  # Dark red visible on light bg
+    'PIE_TEXT': '#ffffff',  # White text on slices (still visible)
 }
 
 # Current theme - can be 'dark' or 'light'
