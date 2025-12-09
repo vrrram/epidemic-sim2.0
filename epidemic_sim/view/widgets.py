@@ -186,11 +186,13 @@ class PieChartWidget(FigureCanvasQTAgg):
             dpi (int, optional): Dots per inch for rendering. Defaults to 100.
         """
         self.fig = Figure(figsize=(width, height), dpi=dpi)
-        self.fig.patch.set_facecolor(BG_BLACK)
+        # Use theme-aware background color
+        bg_color = get_color('GRAPH_BG')
+        self.fig.patch.set_facecolor(bg_color)
         self.axes = self.fig.add_subplot(111)
         super().__init__(self.fig)
         self.setParent(parent)
-        self.setStyleSheet(f"background-color: {BG_BLACK};")
+        self.setStyleSheet(f"background-color: {bg_color};")
 
     def update_chart(self, counts):
         """
@@ -224,7 +226,7 @@ class PieChartWidget(FigureCanvasQTAgg):
         asymptomatic = infected_total * params.prob_no_symptoms
         symptomatic = infected_total * (1 - params.prob_no_symptoms)
 
-        # Prepare data
+        # Prepare data with theme-aware colors
         labels = []
         sizes = []
         colors = []
@@ -269,9 +271,15 @@ class PieChartWidget(FigureCanvasQTAgg):
         )
 
         # Style percentage text to be readable
+        pie_text_color = get_color('PIE_TEXT')
         for autotext in autotexts:
-            autotext.set_color('white')
+            autotext.set_color(pie_text_color)
             autotext.set_fontsize(9)
+
+        # Get theme-aware colors for legend
+        bg_color = get_color('GRAPH_BG')
+        border_color = get_color('BORDER_GREEN') if theme_module.current_theme != LIGHT_THEME else get_color('BORDER_GRAY')
+        text_color = get_color('TEXT')
 
         # Add legend outside the pie to avoid overlap
         self.axes.legend(
@@ -280,11 +288,23 @@ class PieChartWidget(FigureCanvasQTAgg):
             bbox_to_anchor=(0.85, 0, 0.5, 1),
             fontsize=9,
             frameon=True,
-            facecolor=BG_BLACK,
-            edgecolor=NEON_GREEN,
-            labelcolor=NEON_GREEN
+            facecolor=bg_color,
+            edgecolor=border_color,
+            labelcolor=text_color
         )
 
-        self.axes.set_facecolor(BG_BLACK)
+        self.axes.set_facecolor(bg_color)
         self.fig.tight_layout()
+        self.draw()
+
+    def update_theme(self):
+        """
+        Update the pie chart styling to match the current theme.
+
+        This method should be called when the application theme changes to ensure
+        the chart's background and colors remain consistent with the selected theme.
+        """
+        bg_color = get_color('GRAPH_BG')
+        self.fig.patch.set_facecolor(bg_color)
+        self.setStyleSheet(f"background-color: {bg_color};")
         self.draw()

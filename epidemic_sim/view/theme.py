@@ -19,11 +19,15 @@ DARK_THEME = {
     'PARTICLE_INFECTED_SYMP': (255, 69, 69),  # Red
     'PARTICLE_INFECTED_ASYMP': (255, 165, 0),  # Orange
     'PARTICLE_REMOVED': (100, 100, 100),  # Gray
+    'PARTICLE_DEAD': (80, 0, 0),  # Dark red for dead particles
     # Special zone colors (Dark Mode)
     'MARKETPLACE_PEN': "#ffaa00",  # Orange
     'MARKETPLACE_FILL': (255, 170, 0, 30),  # Orange with alpha
     'QUARANTINE_PEN': "#ff0000",  # Red
     'QUARANTINE_FILL': (255, 0, 0, 20),  # Red with alpha
+    # Infection radius visualization
+    'INFECTION_RADIUS_PEN': (255, 0, 0, 100),  # Semi-transparent red outline
+    'INFECTION_RADIUS_FILL': (255, 0, 0, 30),  # Very transparent red fill
     # UI element hover colors
     'HOVER_BG': "#002200",  # Dark green for hover states
     # Tooltip colors
@@ -54,11 +58,15 @@ LIGHT_THEME = {
     'PARTICLE_INFECTED_SYMP': (211, 47, 47),  # Dark red
     'PARTICLE_INFECTED_ASYMP': (245, 124, 0),  # Orange
     'PARTICLE_REMOVED': (97, 97, 97),  # Dark gray
+    'PARTICLE_DEAD': (139, 0, 0),  # Dark red visible on light bg
     # Special zone colors (Light Mode) - darker for visibility on light background
     'MARKETPLACE_PEN': "#d68400",  # Darker orange
     'MARKETPLACE_FILL': (214, 132, 0, 50),  # Darker orange with alpha
     'QUARANTINE_PEN': "#c62828",  # Darker red
     'QUARANTINE_FILL': (198, 40, 40, 40),  # Darker red with alpha
+    # Infection radius visualization (Light Mode)
+    'INFECTION_RADIUS_PEN': (198, 40, 40, 120),  # Darker red outline
+    'INFECTION_RADIUS_FILL': (198, 40, 40, 40),  # More visible fill
     # UI element hover colors
     'HOVER_BG': "#e8f5e9",  # Light green for hover states
     # Tooltip colors
