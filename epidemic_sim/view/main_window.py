@@ -1058,9 +1058,9 @@ Updates in real-time as simulation progresses.""")
                     font-family: 'Courier New', monospace;
                 }}
                 QPushButton:hover {{
-                    background-color: #e8f5e9;
-                    border-color: #2e7d32;
-                    color: #1b5e20;
+                    background-color: {get_color('HOVER_BG')};
+                    border-color: {get_color('SECONDARY')};
+                    color: {get_color('TEXT')};
                 }}
                 QPushButton:checked {{
                     background-color: {get_color('SECONDARY')} !important;
