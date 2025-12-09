@@ -19,13 +19,18 @@ DARK_THEME = {
     'PARTICLE_INFECTED_SYMP': (255, 69, 69),  # Red
     'PARTICLE_INFECTED_ASYMP': (255, 165, 0),  # Orange
     'PARTICLE_REMOVED': (100, 100, 100),  # Gray
+    # Special zone colors (Dark Mode)
+    'MARKETPLACE_PEN': "#ffaa00",  # Orange
+    'MARKETPLACE_FILL': (255, 170, 0, 30),  # Orange with alpha
+    'QUARANTINE_PEN': "#ff0000",  # Red
+    'QUARANTINE_FILL': (255, 0, 0, 20),  # Red with alpha
     # UI element hover colors
     'HOVER_BG': "#002200",  # Dark green for hover states
     # Tooltip colors
     'TOOLTIP_BG': "#2b2b2b",  # Dark gray background
     'TOOLTIP_TEXT': "#00ff00",  # Neon green text
     'TOOLTIP_BORDER': "#00ff00",  # Neon green border
-    # Pie chart colors
+    # Pie chart colors (Dark Mode)
     'PIE_SUSCEPTIBLE': "#00bfff",  # Cyan
     'PIE_INFECTED_SYMP': "#ff4545",  # Red
     'PIE_INFECTED_ASYMP': "#ffa500",  # Orange
@@ -49,6 +54,11 @@ LIGHT_THEME = {
     'PARTICLE_INFECTED_SYMP': (211, 47, 47),  # Dark red
     'PARTICLE_INFECTED_ASYMP': (245, 124, 0),  # Orange
     'PARTICLE_REMOVED': (97, 97, 97),  # Dark gray
+    # Special zone colors (Light Mode) - darker for visibility on light background
+    'MARKETPLACE_PEN': "#d68400",  # Darker orange
+    'MARKETPLACE_FILL': (214, 132, 0, 50),  # Darker orange with alpha
+    'QUARANTINE_PEN': "#c62828",  # Darker red
+    'QUARANTINE_FILL': (198, 40, 40, 40),  # Darker red with alpha
     # UI element hover colors
     'HOVER_BG': "#e8f5e9",  # Light green for hover states
     # Tooltip colors

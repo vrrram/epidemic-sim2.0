@@ -252,6 +252,7 @@ class PieChartWidget(FigureCanvasQTAgg):
         if counts['dead'] > 0:
             labels.append('Dead')
             sizes.append(counts['dead'])
+            # Use theme-aware color for dead particles (visible in both themes)
             colors.append(get_color('PIE_DEAD'))
 
         if not sizes:
