@@ -40,19 +40,20 @@ DARK_THEME = {
     'PIE_INFECTED_ASYMP': "#ffa500",  # Orange
     'PIE_REMOVED': "#787878",  # Gray
     'PIE_DEAD': "#800000",  # Dark red (visible on dark background)
+    'PIE_TEXT': "#ffffff",  # White text for dark mode
 }
 
 LIGHT_THEME = {
     'name': 'Light',
-    'PRIMARY': "#1b5e20",  # Dark green for better contrast
-    'SECONDARY': "#4caf50",  # Medium green
-    'BG_WHITE': "#f5f5f5",  # Light gray (not pure white - easier on eyes)
-    'PANEL_GRAY': "#ffffff",  # White panels for contrast
-    'BORDER_GRAY': "#616161",  # Darker gray for visible borders
-    'TEXT': "#000000",  # Pure black for maximum readability
-    'CANVAS_BG': "#e8e8e8",  # Light gray canvas
-    'GRAPH_BG': "#ffffff",
-    'GRAPH_GRID': (97, 97, 97, 100),  # Gray grid lines (visible but subtle)
+    'PRIMARY': "#5d7a63",  # Muted sage green
+    'SECONDARY': "#8fa98e",  # Soft green
+    'BG_WHITE': "#e8f0e8",  # Soft pastel green background
+    'PANEL_GRAY': "#f5f9f5",  # Very light mint for panels
+    'BORDER_GRAY': "#a8b9a8",  # Muted green-gray borders
+    'TEXT': "#2d3a2e",  # Dark green-gray text (soft, not harsh black)
+    'CANVAS_BG': "#e0e8e0",  # Soft sage background for canvas
+    'GRAPH_BG': "#f8fbf8",  # Almost white with hint of green
+    'GRAPH_GRID': (141, 160, 141, 80),  # Soft green-gray grid
     # Particle colors (Light Mode) - adjusted for visibility on light background
     'PARTICLE_SUSCEPTIBLE': (25, 118, 210),  # Blue (darker for visibility)
     'PARTICLE_INFECTED_SYMP': (211, 47, 47),  # Dark red
@@ -68,17 +69,18 @@ LIGHT_THEME = {
     'INFECTION_RADIUS_PEN': (198, 40, 40, 120),  # Darker red outline
     'INFECTION_RADIUS_FILL': (198, 40, 40, 40),  # More visible fill
     # UI element hover colors
-    'HOVER_BG': "#e8f5e9",  # Light green for hover states
+    'HOVER_BG': "#d5e5d5",  # Soft green-gray hover
     # Tooltip colors
-    'TOOLTIP_BG': "#ffffff",  # White background
-    'TOOLTIP_TEXT': "#212121",  # Almost black text
-    'TOOLTIP_BORDER': "#2e7d32",  # Professional green border
+    'TOOLTIP_BG': "#f5f9f5",  # Soft mint background
+    'TOOLTIP_TEXT': "#2d3a2e",  # Dark green-gray text
+    'TOOLTIP_BORDER': "#8fa98e",  # Soft green border
     # Pie chart colors (adjusted for light background visibility)
-    'PIE_SUSCEPTIBLE': "#1976d2",  # Darker blue
-    'PIE_INFECTED_SYMP': "#d32f2f",  # Darker red
-    'PIE_INFECTED_ASYMP': "#f57c00",  # Darker orange
-    'PIE_REMOVED': "#616161",  # Darker gray
-    'PIE_DEAD': "#c62828",  # Dark red (visible on light background)
+    'PIE_SUSCEPTIBLE': "#5b9bd5",  # Soft blue
+    'PIE_INFECTED_SYMP': "#c55a5a",  # Muted red
+    'PIE_INFECTED_ASYMP': "#e09952",  # Soft orange
+    'PIE_REMOVED': "#8a8a8a",  # Medium gray
+    'PIE_DEAD': "#a85252",  # Muted dark red
+    'PIE_TEXT': "#2d3a2e",  # Dark green-gray for text
 }
 
 # Current theme - can be 'dark' or 'light'

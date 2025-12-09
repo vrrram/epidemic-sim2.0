@@ -1063,15 +1063,15 @@ Updates in real-time as simulation progresses.""")
                     color: #1b5e20;
                 }}
                 QPushButton:checked {{
-                    background-color: #66bb6a !important;
-                    color: #000000 !important;
-                    border: 2px solid #2e7d32 !important;
+                    background-color: {get_color('SECONDARY')} !important;
+                    color: {get_color('TEXT')} !important;
+                    border: 2px solid {get_color('PRIMARY')} !important;
                     font-weight: bold;
                 }}
                 QPushButton:checked:hover {{
-                    background-color: #4caf50 !important;
-                    color: #000000 !important;
-                    border: 2px solid #2e7d32 !important;
+                    background-color: {get_color('PRIMARY')} !important;
+                    color: #ffffff !important;
+                    border: 2px solid {get_color('PRIMARY')} !important;
                 }}
             """
         else:  # Dark theme
@@ -1126,17 +1126,17 @@ Updates in real-time as simulation progresses.""")
         """Apply current theme to all UI elements with appropriate colors and styles."""
         # Dynamic hover colors based on theme
         if theme_module.current_theme == LIGHT_THEME:
-            hover_bg = "#e8f5e9"  # Light green tint
-            hover_border = "#2e7d32"  # Darker green
-            hover_text = "#1b5e20"  # Dark green text
-            checked_bg = "#66bb6a"  # Light green background when checked
-            checked_text = "#000000"  # Black text when checked
-            checked_border = "#2e7d32"  # Dark green border when checked
-            checked_hover_bg = "#4caf50"  # Brighter green on hover
+            hover_bg = get_color('HOVER_BG')  # Soft green-gray
+            hover_border = get_color('SECONDARY')  # Soft green
+            hover_text = get_color('TEXT')  # Dark green-gray text
+            checked_bg = get_color('SECONDARY')  # Soft green when checked
+            checked_text = get_color('TEXT')  # Dark text when checked
+            checked_border = get_color('PRIMARY')  # Muted sage border when checked
+            checked_hover_bg = get_color('PRIMARY')  # Darker sage on hover
             # Tooltip colors for light mode
-            tooltip_bg = "#ffffff"  # White background
-            tooltip_text = "#000000"  # Black text
-            tooltip_border = "#2e7d32"  # Dark green border
+            tooltip_bg = get_color('TOOLTIP_BG')  # Soft mint
+            tooltip_text = get_color('TOOLTIP_TEXT')  # Dark green-gray
+            tooltip_border = get_color('TOOLTIP_BORDER')  # Soft green
         else:  # Dark theme
             hover_bg = "#1a1a1a"  # Dark gray
             hover_border = "#ffffff"  # White
