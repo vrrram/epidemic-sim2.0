@@ -940,6 +940,10 @@ Use for: Studying impact of mass gatherings on epidemic spread""")
 
         # Graph
         self.graph_widget = pg.PlotWidget()
+        # DISABLE mouse interactions - prevent accidental zoom/pan that breaks the view
+        self.graph_widget.setMouseEnabled(x=False, y=False)
+        self.graph_widget.getViewBox().setMenuEnabled(False)  # Disable right-click menu
+
         self.graph_widget.setBackground(BG_BLACK)
         self.graph_widget.setLabel('left', '% Population', color=NEON_GREEN)
         self.graph_widget.setLabel('bottom', 'Day', color=NEON_GREEN)
@@ -1006,6 +1010,28 @@ Updates in real-time as simulation progresses.""")
         """)
         self.shortcuts_label.setWordWrap(True)
         right_layout.addWidget(self.shortcuts_label)
+
+        # === HELP BUTTON ===
+        help_btn = QPushButton("📚 PARAMETER DOCUMENTATION (HELP)")
+        help_btn.setToolTip("Click to view comprehensive documentation for ALL parameters\nIncludes: Distributions, Disease params, Interventions, and more")
+        help_btn.clicked.connect(self.show_parameter_documentation)
+        help_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {BORDER_GREEN};
+                color: #000000;
+                border: 2px solid {NEON_GREEN};
+                padding: 12px;
+                font-weight: bold;
+                font-family: 'Courier New', monospace;
+                font-size: 12px;
+                margin-top: 5px;
+            }}
+            QPushButton:hover {{
+                background-color: {NEON_GREEN};
+                border: 2px solid #ffffff;
+            }}
+        """)
+        right_layout.addWidget(help_btn)
 
         right_layout.addStretch()
 
