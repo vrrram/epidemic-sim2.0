@@ -745,7 +745,7 @@ Tip: Use keyboard shortcuts 1-9 to quickly load presets""")
         self.fullscreen_btn.setMaximumWidth(50)
         btn_row.addWidget(self.fullscreen_btn)
 
-        self.theme_btn = QPushButton("☀ LIGHT")
+        self.theme_btn = QPushButton("LIGHT MODE")
         self.theme_btn.setToolTip("Toggle theme (Keyboard: Alt+T)\n\nSwitch between dark and light themes.\nPreference is saved automatically.")
         self.theme_btn.clicked.connect(self.toggle_theme)
         self.theme_btn.setMinimumHeight(32)
@@ -1000,7 +1000,7 @@ Updates in real-time as simulation progresses.""")
 
         # === SHORTCUTS ===
         self.shortcuts_label = QLabel(
-            "⌨️ SHORTCUTS: SPACE=Pause | R=Reset | Ctrl+R=Docs | F=Fullscreen\n"
+            "SHORTCUTS: SPACE=Pause | R=Reset | Ctrl+R=Docs | F=Fullscreen\n"
             "Q=Quarantine | M=Marketplace | Alt+T=Theme | 1-9=Presets"
         )
         self.shortcuts_label.setStyleSheet(f"""
@@ -1012,7 +1012,7 @@ Updates in real-time as simulation progresses.""")
         right_layout.addWidget(self.shortcuts_label)
 
         # === HELP BUTTON ===
-        help_btn = QPushButton("📚 PARAMETER DOCUMENTATION (HELP)")
+        help_btn = QPushButton("PARAMETER DOCUMENTATION (HELP)")
         help_btn.setToolTip("Click to view comprehensive documentation for ALL parameters\nIncludes: Distributions, Disease params, Interventions, and more")
         help_btn.clicked.connect(self.show_parameter_documentation)
         help_btn.setStyleSheet(f"""
@@ -1502,11 +1502,11 @@ Updates in real-time as simulation progresses.""")
         if theme_module.current_theme == DARK_THEME:
             theme_module.current_theme = LIGHT_THEME
             theme_name = "light"
-            self.theme_btn.setText("🌙 DARK")
+            self.theme_btn.setText("DARK MODE")
         else:
             theme_module.current_theme = DARK_THEME
             theme_name = "dark"
-            self.theme_btn.setText("☀ LIGHT")
+            self.theme_btn.setText("LIGHT MODE")
 
         # Update legacy colors
         theme_module.update_legacy_colors()
@@ -1719,7 +1719,7 @@ Updates in real-time as simulation progresses.""")
         from epidemic_sim.view.theme import get_color
 
         dialog = QDialog(self)
-        dialog.setWindowTitle("📚 Complete Parameter Documentation")
+        dialog.setWindowTitle("Complete Parameter Documentation")
         dialog.setMinimumSize(900, 700)
 
         layout = QVBoxLayout()
@@ -1750,7 +1750,7 @@ Population: {params.num_particles} particles
 Current Day: {self.sim.day_count}
 
 ═══════════════════════════════════════════════════════════════════════════════
-📊 STATISTICAL DISTRIBUTIONS (IHK Project Requirement)
+STATISTICAL DISTRIBUTIONS (IHK Project Requirement)
 ═══════════════════════════════════════════════════════════════════════════════
 
 The simulation implements THREE statistical distributions as required:
@@ -1818,7 +1818,7 @@ The simulation implements THREE statistical distributions as required:
    • Models random time until recovery event occurs
 
 ═══════════════════════════════════════════════════════════════════════════════
-🦠 DISEASE PARAMETERS (Epidemiological Model)
+DISEASE PARAMETERS (Epidemiological Model)
 ═══════════════════════════════════════════════════════════════════════════════
 
 Infection Radius: {params.infection_radius:.3f}
@@ -1873,7 +1873,7 @@ Mortality Rate: {params.mortality_rate:.1%}
    • Recommendation: 0-5% for most modern diseases
 
 ═══════════════════════════════════════════════════════════════════════════════
-👥 POPULATION PARAMETERS (Behavioral Model)
+POPULATION PARAMETERS (Behavioral Model)
 ═══════════════════════════════════════════════════════════════════════════════
 
 Population Size: {params.num_particles}
@@ -1916,7 +1916,7 @@ Initial Infected: {params.initial_infected}
    • Recommendation: 1-5 for realistic outbreak, 10+ for fast testing
 
 ═══════════════════════════════════════════════════════════════════════════════
-🏥 INTERVENTION PARAMETERS (Public Health Strategies)
+INTERVENTION PARAMETERS (Public Health Strategies)
 ═══════════════════════════════════════════════════════════════════════════════
 
 Quarantine Enabled: {params.quarantine_enabled}
@@ -1966,7 +1966,7 @@ Vaccination Rate: {getattr(self.sim, 'vaccination_rate', 0.0):.1%}/day
    • Epidemiological Context: Represents vaccination campaign speed
 
 ═══════════════════════════════════════════════════════════════════════════════
-🏘️ COMMUNITY PARAMETERS (Spatial Modeling) - COMMUNITIES MODE ONLY
+COMMUNITY PARAMETERS (Spatial Modeling) - COMMUNITIES MODE ONLY
 ═══════════════════════════════════════════════════════════════════════════════
 
 Particles per Community: {params.num_per_community}
@@ -1993,7 +1993,7 @@ Communities to Infect: {params.communities_to_infect}
    • Recommendation: 1 for single-source, 3-5 for multi-source outbreak
 
 ═══════════════════════════════════════════════════════════════════════════════
-🏪 MARKETPLACE PARAMETERS (Mass Gathering Events)
+MARKETPLACE PARAMETERS (Mass Gathering Events)
 ═══════════════════════════════════════════════════════════════════════════════
 
 Marketplace Enabled: {params.marketplace_enabled}
@@ -2032,7 +2032,7 @@ Marketplace Location:
    • Visual: Orange circle (simple) or orange community border
 
 ═══════════════════════════════════════════════════════════════════════════════
-⚙️ SIMULATION SETTINGS (Technical)
+SIMULATION SETTINGS (Technical)
 ═══════════════════════════════════════════════════════════════════════════════
 
 Time Steps per Day: {params.time_steps_per_day}
@@ -2052,7 +2052,7 @@ Show Infection Radius: {params.show_infection_radius}
    • Purpose: Visualize transmission range
 
 ═══════════════════════════════════════════════════════════════════════════════
-📈 EPIDEMIOLOGICAL CONCEPTS (For Understanding)
+EPIDEMIOLOGICAL CONCEPTS (For Understanding)
 ═══════════════════════════════════════════════════════════════════════════════
 
 R₀ (Basic Reproduction Number):
@@ -2082,7 +2082,7 @@ Herd Immunity Threshold:
    • Effect: Epidemic cannot sustain when threshold reached
 
 ═══════════════════════════════════════════════════════════════════════════════
-🎮 KEYBOARD SHORTCUTS
+KEYBOARD SHORTCUTS
 ═══════════════════════════════════════════════════════════════════════════════
 
 SPACE    - Pause/Resume simulation
@@ -2095,7 +2095,7 @@ Alt+T    - Toggle light/dark theme
 1-9      - Load preset scenarios (1=Baseline, 2=Aggressive, etc.)
 
 ═══════════════════════════════════════════════════════════════════════════════
-💡 RECOMMENDED SCENARIOS FOR EXPERIMENTATION
+RECOMMENDED SCENARIOS FOR EXPERIMENTATION
 ═══════════════════════════════════════════════════════════════════════════════
 
 Baseline Epidemic (No Intervention):
