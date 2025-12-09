@@ -19,6 +19,18 @@ DARK_THEME = {
     'PARTICLE_INFECTED_SYMP': (255, 69, 69),  # Red
     'PARTICLE_INFECTED_ASYMP': (255, 165, 0),  # Orange
     'PARTICLE_REMOVED': (100, 100, 100),  # Gray
+    # UI element hover colors
+    'HOVER_BG': "#002200",  # Dark green for hover states
+    # Tooltip colors
+    'TOOLTIP_BG': "#2b2b2b",  # Dark gray background
+    'TOOLTIP_TEXT': "#00ff00",  # Neon green text
+    'TOOLTIP_BORDER': "#00ff00",  # Neon green border
+    # Pie chart colors
+    'PIE_SUSCEPTIBLE': "#00bfff",  # Cyan
+    'PIE_INFECTED_SYMP': "#ff4545",  # Red
+    'PIE_INFECTED_ASYMP': "#ffa500",  # Orange
+    'PIE_REMOVED': "#787878",  # Gray
+    'PIE_DEAD': "#800000",  # Dark red (visible on dark background)
 }
 
 LIGHT_THEME = {
@@ -37,6 +49,18 @@ LIGHT_THEME = {
     'PARTICLE_INFECTED_SYMP': (211, 47, 47),  # Dark red
     'PARTICLE_INFECTED_ASYMP': (245, 124, 0),  # Orange
     'PARTICLE_REMOVED': (97, 97, 97),  # Dark gray
+    # UI element hover colors
+    'HOVER_BG': "#e8f5e9",  # Light green for hover states
+    # Tooltip colors
+    'TOOLTIP_BG': "#ffffff",  # White background
+    'TOOLTIP_TEXT': "#212121",  # Almost black text
+    'TOOLTIP_BORDER': "#2e7d32",  # Professional green border
+    # Pie chart colors (adjusted for light background visibility)
+    'PIE_SUSCEPTIBLE': "#1976d2",  # Darker blue
+    'PIE_INFECTED_SYMP': "#d32f2f",  # Darker red
+    'PIE_INFECTED_ASYMP': "#f57c00",  # Darker orange
+    'PIE_REMOVED': "#616161",  # Darker gray
+    'PIE_DEAD': "#c62828",  # Dark red (visible on light background)
 }
 
 # Current theme - can be 'dark' or 'light'

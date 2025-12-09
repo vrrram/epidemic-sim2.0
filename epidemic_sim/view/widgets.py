@@ -10,7 +10,7 @@ from PyQt5.QtWidgets import QWidget, QPushButton, QVBoxLayout
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 
-from epidemic_sim.view.theme import NEON_GREEN, DARK_GREEN, BG_BLACK, PANEL_BLACK, BORDER_GREEN
+from epidemic_sim.view.theme import NEON_GREEN, DARK_GREEN, BG_BLACK, PANEL_BLACK, BORDER_GREEN, get_color
 
 
 class CollapsibleBox(QWidget):
@@ -62,7 +62,7 @@ class CollapsibleBox(QWidget):
                 font-size: 12px;
             }}
             QPushButton:hover {{
-                background-color: #002200;
+                background-color: {get_color('HOVER_BG')};
                 border-color: {NEON_GREEN};
             }}
         """)
@@ -124,7 +124,7 @@ class CollapsibleBox(QWidget):
                 font-size: 12px;
             }}
             QPushButton:hover {{
-                background-color: {DARK_GREEN};
+                background-color: {get_color('HOVER_BG')};
                 border-color: {NEON_GREEN};
             }}
         """)
@@ -232,27 +232,27 @@ class PieChartWidget(FigureCanvasQTAgg):
         if counts['susceptible'] > 0:
             labels.append('Susceptible')
             sizes.append(counts['susceptible'])
-            colors.append('#00bfff')
+            colors.append(get_color('PIE_SUSCEPTIBLE'))
 
         if symptomatic > 0.5:
             labels.append('Infected (Symp.)')
             sizes.append(symptomatic)
-            colors.append('#ff4545')
+            colors.append(get_color('PIE_INFECTED_SYMP'))
 
         if asymptomatic > 0.5:
             labels.append('Infected (Asymp.)')
             sizes.append(asymptomatic)
-            colors.append('#ffa500')
+            colors.append(get_color('PIE_INFECTED_ASYMP'))
 
         if counts['removed'] > 0:
             labels.append('Removed')
             sizes.append(counts['removed'])
-            colors.append('#787878')
+            colors.append(get_color('PIE_REMOVED'))
 
         if counts['dead'] > 0:
             labels.append('Dead')
             sizes.append(counts['dead'])
-            colors.append('#500000')  # Dark red/black
+            colors.append(get_color('PIE_DEAD'))
 
         if not sizes:
             return
