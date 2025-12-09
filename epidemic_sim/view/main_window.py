@@ -1542,21 +1542,8 @@ Updates in real-time as simulation progresses.""")
         for i in range(self.mode_btns.buttons().__len__()):
             self.mode_btns.button(i).setStyleSheet(button_style)
 
-        # Refresh tooltips with new theme colors if they're enabled
-        if self.tooltips_enabled:
-            tooltip_bg = get_color('TOOLTIP_BG')
-            tooltip_text = get_color('TOOLTIP_TEXT')
-            tooltip_border = get_color('TOOLTIP_BORDER')
-            QApplication.instance().setStyleSheet(f"""
-                QToolTip {{
-                    background-color: {tooltip_bg};
-                    color: {tooltip_text};
-                    border: 1px solid {tooltip_border};
-                    padding: 5px;
-                    border-radius: 3px;
-                    font-size: 11px;
-                }}
-            """)
+        # Note: Tooltip styling is set once at startup to avoid flickering
+        # DO NOT set global stylesheets here - it causes tooltip flicker on every theme change
 
         # Force full UI refresh
         self.status_label.setText(f"Theme switched to {theme_name.title()} mode")
@@ -1698,22 +1685,10 @@ Updates in real-time as simulation progresses.""")
 
     def _configure_tooltips_simple(self):
         """Configure tooltips to work properly without flickering."""
-        # Set a reasonable tooltip delay (500ms)
-        # This prevents tooltips from appearing too quickly and flickering
-        app = QApplication.instance()
-        app.setAttribute(Qt.AA_EnableHighDpiScaling, True)
-
-        # Configure tooltip styling and behavior
-        app.setStyleSheet("""
-            QToolTip {
-                background-color: #2b2b2b;
-                color: #00ff00;
-                border: 1px solid #00ff00;
-                padding: 5px;
-                border-radius: 3px;
-                font-size: 11px;
-            }
-        """)
+        # Set tooltip delay to prevent instant appearance
+        # DO NOT call this repeatedly - it's called once at startup
+        # Tooltips are styled via the QMainWindow stylesheet in apply_theme()
+        pass  # No longer needed - tooltip styling is in the main stylesheet
 
     def keyPressEvent(self, event):
         """
