@@ -44,15 +44,15 @@ DARK_THEME = {
 
 LIGHT_THEME = {
     'name': 'Light',
-    'PRIMARY': "#2e7d32",  # Professional green
-    'SECONDARY': "#66bb6a",  # Light green accent
-    'BG_WHITE': "#ffffff",
-    'PANEL_GRAY': "#f5f5f5",
-    'BORDER_GRAY': "#bdbdbd",
-    'TEXT': "#212121",  # Almost black for text
-    'CANVAS_BG': "#fafafa",  # Very light gray
+    'PRIMARY': "#1b5e20",  # Dark green for better contrast
+    'SECONDARY': "#4caf50",  # Medium green
+    'BG_WHITE': "#f5f5f5",  # Light gray (not pure white - easier on eyes)
+    'PANEL_GRAY': "#ffffff",  # White panels for contrast
+    'BORDER_GRAY': "#616161",  # Darker gray for visible borders
+    'TEXT': "#000000",  # Pure black for maximum readability
+    'CANVAS_BG': "#e8e8e8",  # Light gray canvas
     'GRAPH_BG': "#ffffff",
-    'GRAPH_GRID': (33, 125, 50, 50),  # RGBA for pyqtgraph (green-ish)
+    'GRAPH_GRID': (97, 97, 97, 100),  # Gray grid lines (visible but subtle)
     # Particle colors (Light Mode) - adjusted for visibility on light background
     'PARTICLE_SUSCEPTIBLE': (25, 118, 210),  # Blue (darker for visibility)
     'PARTICLE_INFECTED_SYMP': (211, 47, 47),  # Dark red
