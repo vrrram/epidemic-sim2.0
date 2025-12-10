@@ -1890,13 +1890,13 @@ Particle Size: {params.particle_size} pixels
    • Effect: Larger → easier to see, but may overlap visually
    • Recommendation: 4-6 for 500 particles, 2-3 for 2000+ particles
 
-Particle Speed: {params.speed_multiplier:.2f}x
-   • Range: 0.1x - 3.0x
-   • Current: {params.speed_multiplier:.2f}x
-   • Meaning: Movement velocity multiplier
+Particle Speed: {params.speed_limit:.2f}
+   • Range: 0.01 - 1.0
+   • Current: {params.speed_limit:.2f}
+   • Meaning: Maximum particle velocity
    • Effect: Higher speed → more contacts, faster mixing
    • Epidemiological Context: Represents population mobility
-   • Recommendation: 0.5-1.5x for realistic movement
+   • Recommendation: 0.05-0.15 for realistic movement
 
 Social Distance Compliance: {params.social_distance_obedient:.1%}
    • Range: 0% - 100%

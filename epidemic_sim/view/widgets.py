@@ -10,7 +10,7 @@ from PyQt5.QtWidgets import QWidget, QPushButton, QVBoxLayout
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 
-from epidemic_sim.view.theme import NEON_GREEN, DARK_GREEN, BG_BLACK, PANEL_BLACK, BORDER_GREEN, get_color
+from epidemic_sim.view.theme import NEON_GREEN, DARK_GREEN, BG_BLACK, PANEL_BLACK, BORDER_GREEN, get_color, current_theme, LIGHT_THEME
 
 
 class CollapsibleBox(QWidget):
@@ -278,7 +278,7 @@ class PieChartWidget(FigureCanvasQTAgg):
 
         # Get theme-aware colors for legend
         bg_color = get_color('GRAPH_BG')
-        border_color = get_color('BORDER_GREEN') if theme_module.current_theme != LIGHT_THEME else get_color('BORDER_GRAY')
+        border_color = get_color('BORDER_GREEN') if current_theme != LIGHT_THEME else get_color('BORDER_GRAY')
         text_color = get_color('TEXT')
 
         # Add legend outside the pie to avoid overlap

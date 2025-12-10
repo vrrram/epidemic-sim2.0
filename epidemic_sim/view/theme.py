@@ -45,42 +45,42 @@ DARK_THEME = {
 
 LIGHT_THEME = {
     'name': 'Light',
-    'PRIMARY': "#5d7a63",  # Muted sage green
-    'SECONDARY': "#8fa98e",  # Soft green
-    'BG_WHITE': "#e8f0e8",  # Soft pastel green background
-    'PANEL_GRAY': "#f5f9f5",  # Very light mint for panels
-    'BORDER_GRAY': "#a8b9a8",  # Muted green-gray borders
-    'TEXT': "#2d3a2e",  # Dark green-gray text (soft, not harsh black)
-    'CANVAS_BG': "#e0e8e0",  # Soft sage background for canvas
-    'GRAPH_BG': "#f8fbf8",  # Almost white with hint of green
-    'GRAPH_GRID': (141, 160, 141, 80),  # Soft green-gray grid
-    # Particle colors (Light Mode) - adjusted for visibility on light background
-    'PARTICLE_SUSCEPTIBLE': (25, 118, 210),  # Blue (darker for visibility)
-    'PARTICLE_INFECTED_SYMP': (211, 47, 47),  # Dark red
-    'PARTICLE_INFECTED_ASYMP': (245, 124, 0),  # Orange
-    'PARTICLE_REMOVED': (97, 97, 97),  # Dark gray
-    'PARTICLE_DEAD': (139, 0, 0),  # Dark red visible on light bg
-    # Special zone colors (Light Mode) - darker for visibility on light background
-    'MARKETPLACE_PEN': "#d68400",  # Darker orange
-    'MARKETPLACE_FILL': (214, 132, 0, 50),  # Darker orange with alpha
-    'QUARANTINE_PEN': "#c62828",  # Darker red
-    'QUARANTINE_FILL': (198, 40, 40, 40),  # Darker red with alpha
+    'PRIMARY': "#2e7d32",  # Clean forest green
+    'SECONDARY': "#66bb6a",  # Vibrant light green
+    'BG_WHITE': "#ffffff",  # Pure white background
+    'PANEL_GRAY': "#f5f5f5",  # Light gray for panels
+    'BORDER_GRAY': "#9e9e9e",  # Clean gray borders
+    'TEXT': "#212121",  # Clean dark text
+    'CANVAS_BG': "#fafafa",  # Off-white for canvas
+    'GRAPH_BG': "#ffffff",  # Pure white graph background
+    'GRAPH_GRID': (158, 158, 158, 60),  # Clean gray grid
+    # Particle colors (Light Mode) - vibrant for visibility
+    'PARTICLE_SUSCEPTIBLE': (33, 150, 243),  # Bright blue
+    'PARTICLE_INFECTED_SYMP': (244, 67, 54),  # Bright red
+    'PARTICLE_INFECTED_ASYMP': (255, 152, 0),  # Bright orange
+    'PARTICLE_REMOVED': (117, 117, 117),  # Medium gray
+    'PARTICLE_DEAD': (183, 28, 28),  # Dark red
+    # Special zone colors (Light Mode)
+    'MARKETPLACE_PEN': "#ff9800",  # Bright orange
+    'MARKETPLACE_FILL': (255, 152, 0, 50),  # Bright orange with alpha
+    'QUARANTINE_PEN': "#f44336",  # Bright red
+    'QUARANTINE_FILL': (244, 67, 54, 40),  # Bright red with alpha
     # Infection radius visualization (Light Mode)
-    'INFECTION_RADIUS_PEN': (198, 40, 40, 120),  # Darker red outline
-    'INFECTION_RADIUS_FILL': (198, 40, 40, 40),  # More visible fill
+    'INFECTION_RADIUS_PEN': (244, 67, 54, 120),  # Bright red outline
+    'INFECTION_RADIUS_FILL': (244, 67, 54, 40),  # Bright red fill
     # UI element hover colors
-    'HOVER_BG': "#d5e5d5",  # Soft green-gray hover
+    'HOVER_BG': "#e8f5e9",  # Light green hover
     # Tooltip colors
-    'TOOLTIP_BG': "#f5f9f5",  # Soft mint background
-    'TOOLTIP_TEXT': "#2d3a2e",  # Dark green-gray text
-    'TOOLTIP_BORDER': "#8fa98e",  # Soft green border
-    # Pie chart colors (adjusted for light background visibility)
-    'PIE_SUSCEPTIBLE': "#5b9bd5",  # Soft blue
-    'PIE_INFECTED_SYMP': "#c55a5a",  # Muted red
-    'PIE_INFECTED_ASYMP': "#e09952",  # Soft orange
-    'PIE_REMOVED': "#8a8a8a",  # Medium gray
-    'PIE_DEAD': "#a85252",  # Muted dark red
-    'PIE_TEXT': "#2d3a2e",  # Dark green-gray for text
+    'TOOLTIP_BG': "#ffffff",  # White background
+    'TOOLTIP_TEXT': "#212121",  # Dark text
+    'TOOLTIP_BORDER': "#2e7d32",  # Green border
+    # Pie chart colors (vibrant for clarity)
+    'PIE_SUSCEPTIBLE': "#2196f3",  # Bright blue
+    'PIE_INFECTED_SYMP': "#f44336",  # Bright red
+    'PIE_INFECTED_ASYMP': "#ff9800",  # Bright orange
+    'PIE_REMOVED': "#9e9e9e",  # Medium gray
+    'PIE_DEAD': "#d32f2f",  # Dark red
+    'PIE_TEXT': "#212121",  # Dark text
 }
 
 # Current theme - can be 'dark' or 'light'
@@ -120,7 +120,7 @@ def update_legacy_colors():
         DARK_GREEN = current_theme['SECONDARY']
         BG_BLACK = current_theme['BG_WHITE']
         PANEL_BLACK = current_theme['PANEL_GRAY']
-        BORDER_GREEN = current_theme['BORDER_GRAY']
+        BORDER_GREEN = current_theme['PRIMARY']  # Use PRIMARY for borders in light mode
 
 
 def set_theme(theme):
