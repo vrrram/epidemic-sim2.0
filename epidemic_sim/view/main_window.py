@@ -870,8 +870,8 @@ Use for: Geographic spread modeling, travel restrictions"""
         right_layout.addWidget(mode_box)
 
         # === INTERVENTIONS ===
-        interv_box = CollapsibleBox("INTERVENTIONS")
-        self.collapsible_boxes.append(interv_box)
+        self.interventions_box = CollapsibleBox("INTERVENTIONS")
+        self.collapsible_boxes.append(self.interventions_box)
 
         self.quarantine_checkbox = QCheckBox("Quarantine Zone")
         self.quarantine_checkbox.setChecked(params.quarantine_enabled)
