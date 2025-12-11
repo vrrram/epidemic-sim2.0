@@ -367,7 +367,7 @@ Tip: Asymptomatic particles never quarantine, continuing to spread disease"""
             lbl = QLabel(f"{label}: {default:.3g}")
             lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 13px; margin-top: 4px;")
             lbl.setToolTip(interv_tooltips.get(param, label))
-            interv_box.addWidget(lbl)
+            self.interv_box.addWidget(lbl)
             slider = QSlider(Qt.Horizontal)
             slider.setMinimum(int(min_val * 100))
             slider.setMaximum(int(max_val * 100))
@@ -377,9 +377,9 @@ Tip: Asymptomatic particles never quarantine, continuing to spread disease"""
             slider.valueChanged.connect(
                 lambda val, p=param, l=lbl, label=label: self.update_param(p, val/100, l, label)
             )
-            interv_box.addWidget(slider)
+            self.interv_box.addWidget(slider)
             self.sliders[param] = (slider, lbl, label)
-        left_layout.addWidget(interv_box)
+        left_layout.addWidget(self.interv_box)
 
         # === COMMUNITY PARAMETERS (Contextual - only shown in Communities mode) ===
         self.community_box = CollapsibleBox("COMMUNITY PARAMETERS")
