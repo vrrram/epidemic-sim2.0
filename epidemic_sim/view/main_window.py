@@ -949,6 +949,7 @@ Use for: Studying impact of mass gatherings on epidemic spread""")
         self.graph_widget.showGrid(x=True, y=True, alpha=0.15)
         self.graph_widget.setYRange(0, 100)
         self.graph_widget.setMinimumHeight(280)  # Reasonable height
+        self.graph_widget.setMaximumWidth(380)  # Prevent graph from being too wide
         self.graph_widget.setToolTip("""Time Series Graph: Track epidemic progression over time
 
 Shows percentage of population in each state:
