@@ -1858,6 +1858,390 @@ Press Ctrl+R to refresh this view with updated values
 """
 
         text_edit.setPlainText(doc_text)
+Current Day: {self.sim.day_count}
+
+═══════════════════════════════════════════════════════════════════════════════
+STATISTICAL DISTRIBUTIONS (IHK Project Requirement)
+═══════════════════════════════════════════════════════════════════════════════
+
+The simulation implements THREE statistical distributions as required:
+
+1. UNIFORM DISTRIBUTION (Gleichverteilung)
+   ────────────────────────────────────────────────────────────────
+   Mathematical Form:  f(x) = 1/(b-a) for x ∈ [a,b]
+
+   Used For:
+   • Particle initial positions (x, y) - Random spatial placement
+   • Particle velocities (vx, vy) - Unbiased movement direction
+   • Random travel decisions - No preference in community selection
+
+   Parameters: Range [-0.2, 0.2] for velocities
+   Justification: All values equally likely → No inherent bias in
+                  position or movement direction
+
+   Properties:
+   • Mean = (a+b)/2 = 0.0
+   • Variance = (b-a)²/12
+   • Every value in range has equal probability
+
+2. NORMAL DISTRIBUTION (Normalverteilung/Gaussian)
+   ────────────────────────────────────────────────────────────────
+   Mathematical Form:  f(x) = (1/σ√2π) * e^(-(x-μ)²/2σ²)
+
+   Used For: Individual Infection Susceptibility
+
+   Parameters:
+   • Mean (μ) = 1.0 (average person)
+   • Standard Deviation (σ) = 0.2 (biological variation)
+   • Range: Clamped to [0.1, ∞) to avoid negative susceptibility
+
+   Current Value: {1.0} (effective multiplier on infection probability)
+
+   Justification: Models natural biological variation in immune response.
+                  Most people cluster around average (68% within ±σ),
+                  with few being highly susceptible or highly resistant.
+
+   Properties:
+   • ~68% of population has susceptibility between 0.8 and 1.2
+   • ~95% of population has susceptibility between 0.6 and 1.4
+   • Bell curve represents Central Limit Theorem in biology
+
+3. EXPONENTIAL DISTRIBUTION (Exponentialverteilung)
+   ────────────────────────────────────────────────────────────────
+   Mathematical Form:  f(x) = λe^(-λx) for x ≥ 0
+
+   Used For: Individual Recovery Time Variation
+
+   Parameters:
+   • Scale (λ) = 1.0, therefore Mean = 1/λ = 1.0
+   • Range: Clamped to [0.5, 3.0] for realistic recovery times
+
+   Current Value: {1.0} (effective multiplier on infection duration)
+
+   Justification: Exponential distribution has "memoryless property"
+                  which perfectly models time-until-event phenomena.
+                  Some recover quickly (<1.0x), others take longer (>1.0x).
+                  Ideal for disease progression modeling.
+
+   Properties:
+   • Median < Mean (right-skewed distribution)
+   • P(recovery in next day) independent of days already infected
+   • Models random time until recovery event occurs
+
+═══════════════════════════════════════════════════════════════════════════════
+DISEASE PARAMETERS (Epidemiological Model)
+═══════════════════════════════════════════════════════════════════════════════
+
+Infection Radius: {params.infection_radius:.3f}
+   • Range: 0.01 - 0.40 (simulation units)
+   • Current: {params.infection_radius:.3f}
+   • Meaning: How close particles must be for disease transmission
+   • Epidemiological Context: Represents "contact distance" for airborne/
+                             droplet transmission (e.g., 1.5-2m in reality)
+   • Effect: Larger radius → faster spread, more contacts per timestep
+   • Recommendation: 0.10-0.20 for realistic airborne diseases
+
+Infection Probability: {params.prob_infection:.1%}
+   • Range: 0% - 100%
+   • Current: {params.prob_infection:.1%} ({params.prob_infection:.3f})
+   • Meaning: Chance of transmission per contact PER TIMESTEP
+   • IMPORTANT: Adjusted by individual susceptibility (Normal distribution)
+   • Formula: effective_prob = base_prob × susceptibility / steps_per_day
+   • Epidemiological Context: R₀ (basic reproduction number) depends on:
+                             infection_prob × contacts_per_day × infection_duration
+   • Effect: Higher probability → more aggressive spread, higher R₀
+   • Recommendation: 20-40% for moderate diseases like influenza
+
+Infection Duration: {params.infection_duration:.1f} days
+   • Range: 1 - 90 days
+   • Current: {params.infection_duration:.1f} days
+   • Meaning: How long a particle remains infectious
+   • IMPORTANT: Adjusted by individual recovery modifier (Exponential distribution)
+   • Formula: effective_duration = base_duration × recovery_modifier
+   • Epidemiological Context: Matches typical disease infectious periods
+                             (flu ~7 days, COVID-19 ~10-14 days)
+   • Effect: Longer duration → more transmission opportunities per case
+   • Recommendation: 7-21 days for most respiratory diseases
+
+Asymptomatic Probability: {params.prob_no_symptoms:.1%}
+   • Range: 0% - 100%
+   • Current: {params.prob_no_symptoms:.1%}
+   • Meaning: Percentage of infected who show NO symptoms
+   • Epidemiological Context: Asymptomatic carriers crucial for COVID-19,
+                             less common in symptomatic diseases like measles
+   • Effect on Behavior: Asymptomatic → no quarantine even if enabled
+   • Visualization: Orange particles (vs red symptomatic)
+   • Recommendation: 20-40% for COVID-like diseases, 0-10% for measles
+
+Mortality Rate: {params.mortality_rate:.1%}
+   • Range: 0% - 100%
+   • Current: {params.mortality_rate:.1%}
+   • Meaning: Percentage of infected who DIE (vs recover)
+   • Epidemiological Context: Case Fatality Rate (CFR)
+   • Roll timing: When infection_duration expires
+   • Effect: Dead particles stop moving, turn dark red
+   • Historical Context: Spanish Flu ~2-3%, COVID-19 ~1-2%, Ebola ~50%
+   • Recommendation: 0-5% for most modern diseases
+
+═══════════════════════════════════════════════════════════════════════════════
+POPULATION PARAMETERS (Behavioral Model)
+═══════════════════════════════════════════════════════════════════════════════
+
+Population Size: {params.num_particles}
+   • Range: 50 - 5000 particles
+   • Current: {params.num_particles}
+   • Meaning: Total number of individuals in simulation
+   • Performance Impact: >1000 may slow simulation on older machines
+   • Recommendation: 200-500 for good visualization, 1000+ for statistics
+
+Particle Size: {params.particle_size} pixels
+   • Range: 2 - 12 pixels
+   • Current: {params.particle_size} pixels
+   • Meaning: Visual size of each particle on canvas
+   • Effect: Larger → easier to see, but may overlap visually
+   • Recommendation: 4-6 for 500 particles, 2-3 for 2000+ particles
+
+Particle Speed: {params.speed_limit:.2f}
+   • Range: 0.01 - 1.0
+   • Current: {params.speed_limit:.2f}
+   • Meaning: Maximum particle velocity
+   • Effect: Higher speed → more contacts, faster mixing
+   • Epidemiological Context: Represents population mobility
+   • Recommendation: 0.05-0.15 for realistic movement
+
+Social Distance Compliance: {params.social_distance_obedient:.1%}
+   • Range: 0% - 100%
+   • Current: {params.social_distance_obedient:.1%}
+   • Meaning: % of population that practices social distancing
+   • Behavior: Compliant particles keep ≥2x infection radius apart
+   • Epidemiological Context: Models voluntary behavioral change
+   • Effect: Higher compliance → slower spread, lower R₀
+   • Recommendation: 0% (baseline), 60-80% (moderate intervention)
+
+Initial Infected: {int(params.fraction_infected_init * params.num_particles)}
+   • Range: Fraction: 0.0 - 1.0 (0% - 100%)
+   • Current: {params.fraction_infected_init:.2%} = {int(params.fraction_infected_init * params.num_particles)} particles
+   • Meaning: "Patient Zero" - fraction/number of infected at day 0
+   • Epidemiological Context: Index cases that seed the outbreak
+   • Effect: More initial → faster initial growth, less randomness
+   • Recommendation: 0.5-2% for realistic outbreak, 5%+ for fast testing
+
+═══════════════════════════════════════════════════════════════════════════════
+INTERVENTION PARAMETERS (Public Health Strategies)
+═══════════════════════════════════════════════════════════════════════════════
+
+Quarantine Enabled: {params.quarantine_enabled}
+   • Toggle: Keyboard 'Q' or checkbox
+   • Current: {'ACTIVE' if params.quarantine_enabled else 'DISABLED'}
+   • Meaning: Isolate symptomatic infected particles
+   • Mechanism: Move to quarantine zone, reduce movement
+   • Epidemiological Context: Historical quarantine (isolation of sick)
+   • Effect: Reduces R₀ by removing infectious from circulation
+   • Limitation: Only catches SYMPTOMATIC (misses asymptomatic)
+
+Quarantine After: {params.quarantine_after} days
+   • Range: 0 - 365 days
+   • Current: {params.quarantine_after} days (if enabled)
+   • Meaning: Days AFTER infection before quarantine begins
+   • Epidemiological Context: Represents incubation + detection delay
+   • Effect: 0 days = instant quarantine, 5-10 days = realistic delay
+   • Recommendation: 5-10 days for COVID-like disease
+
+Quarantine Duration: {params.quarantine_duration:.1f} days
+   • Range: 5 - 90 days
+   • Current: {params.quarantine_duration:.1f} days (if enabled)
+   • Meaning: How long particles remain quarantined
+   • Release: After duration OR recovery (whichever first)
+   • Recommendation: Match or exceed infection_duration
+
+Vaccination Enabled: {getattr(self.sim, 'vaccination_enabled', False)}
+   • Toggle: Must reset simulation to enable
+   • Current: {'ACTIVE' if getattr(self.sim, 'vaccination_enabled', False) else 'DISABLED'}
+   • Meaning: Vaccinate susceptible particles over time
+   • Mechanism: Reduces infection_susceptibility by vaccine_efficacy
+   • Formula: new_susceptibility = old × (1 - efficacy)
+   • Example: 70% efficacy → susceptibility reduced to 30% of original
+
+Vaccine Efficacy: {getattr(self.sim, 'vaccine_efficacy', 0.0):.1%}
+   • Range: 0% - 100%
+   • Current: {getattr(self.sim, 'vaccine_efficacy', 0.0):.1%} (if vaccination enabled)
+   • Meaning: How much vaccine REDUCES infection risk
+   • Real-world: Pfizer/Moderna ~95%, AstraZeneca ~70%, flu ~40-60%
+   • Effect: Higher efficacy → fewer vaccinated infections
+
+Vaccination Rate: {getattr(self.sim, 'vaccination_rate', 0.0):.1%}/day
+   • Range: 0% - 10%/day
+   • Current: {getattr(self.sim, 'vaccination_rate', 0.0):.1%}/day (if enabled)
+   • Meaning: % of susceptible population vaccinated per day
+   • Example: 1%/day → 100 days to vaccinate all susceptible
+   • Epidemiological Context: Represents vaccination campaign speed
+
+═══════════════════════════════════════════════════════════════════════════════
+COMMUNITY PARAMETERS (Spatial Modeling) - COMMUNITIES MODE ONLY
+═══════════════════════════════════════════════════════════════════════════════
+
+Particles per Community: {params.num_per_community}
+   • Range: 50 - 500 per community
+   • Current: {params.num_per_community}
+   • Meaning: Population of each community in grid
+   • Total Communities: 9 (3×3 grid)
+   • Total Population: {params.num_per_community * 9}
+
+Travel Probability: {params.travel_probability:.1%}
+   • Range: 0% - 10%
+   • Current: {params.travel_probability:.1%}
+   • Meaning: Chance per timestep that particle travels to new community
+   • Epidemiological Context: Models inter-community mixing
+   • Effect: Higher travel → faster spatial spread, earlier epidemics in remote communities
+   • Recommendation: 0.1-1% for low mobility, 3-5% for high mobility
+
+Communities to Infect: {params.communities_to_infect}
+   • Range: 1 - 9
+   • Current: {params.communities_to_infect}
+   • Meaning: How many communities start with infections
+   • Pattern: Center community always infected first
+   • Effect: More → simultaneous outbreaks, less spatial lag
+   • Recommendation: 1 for single-source, 3-5 for multi-source outbreak
+
+═══════════════════════════════════════════════════════════════════════════════
+MARKETPLACE PARAMETERS (Mass Gathering Events)
+═══════════════════════════════════════════════════════════════════════════════
+
+Marketplace Enabled: {params.marketplace_enabled}
+   • Toggle: Keyboard 'M' or checkbox
+   • Current: {'ACTIVE' if params.marketplace_enabled else 'DISABLED'}
+   • Meaning: Periodic gatherings at central location
+   • Epidemiological Context: Super-spreader events (concerts, markets, etc.)
+   • Effect: Creates transmission hotspots, increases R₀ during events
+
+Marketplace Interval: {params.marketplace_interval:.1f} hours
+   • Range: 6 - 168 hours (0.25 - 7 days)
+   • Current: {params.marketplace_interval:.1f} hours = {params.marketplace_interval/24:.1f} days
+   • Meaning: Time between marketplace events
+   • Example: 24 hours = daily market, 168 hours = weekly event
+   • Recommendation: 24-48 hours for frequent, 168 for rare events
+
+Marketplace Duration: {params.marketplace_duration:.1f} hours
+   • Range: 0.5 - 24 hours
+   • Current: {params.marketplace_duration:.1f} hours
+   • Meaning: How long each gathering lasts
+   • Epidemiological Context: Longer events → more transmission opportunities
+   • Recommendation: 2-4 hours for market, 8-12 for festival
+
+Marketplace Attendance: {params.marketplace_attendance:.1%}
+   • Range: 0% - 100%
+   • Current: {params.marketplace_attendance:.1%}
+   • Meaning: % of population attending each event
+   • Selection: Random each time (Uniform distribution)
+   • Effect: Higher attendance → more mixing, super-spreader potential
+   • Recommendation: 20-40% for routine events, 60-80% for major gatherings
+
+Marketplace Location:
+   • X: {params.marketplace_x:.2f}, Y: {params.marketplace_y:.2f}
+   • Simple Mode: Center of simulation space
+   • Communities Mode: Center community in grid
+   • Visual: Orange circle (simple) or orange community border
+
+═══════════════════════════════════════════════════════════════════════════════
+SIMULATION SETTINGS (Technical)
+═══════════════════════════════════════════════════════════════════════════════
+
+Time Steps per Day: {params.time_steps_per_day}
+   • Current: {params.time_steps_per_day} steps = {24/params.time_steps_per_day:.1f} hours/step
+   • Meaning: Time resolution of simulation
+   • Effect on Calculations: Infection probability DIVIDED by this value
+   • Recommendation: Keep at 24 for balance of speed and accuracy
+
+Simulation Speed: {self.speed}x
+   • Current: {self.speed}x (real-time multiplier)
+   • Effect: Visual only - does NOT change disease mechanics
+   • Keyboard: 1-4 for speed presets
+
+Show Infection Radius: {params.show_infection_radius}
+   • Toggle: Checkbox in visualization
+   • Effect: Display red circles around infected particles
+   • Purpose: Visualize transmission range
+
+═══════════════════════════════════════════════════════════════════════════════
+EPIDEMIOLOGICAL CONCEPTS (For Understanding)
+═══════════════════════════════════════════════════════════════════════════════
+
+R₀ (Basic Reproduction Number):
+   • Definition: Average # of people ONE infected person infects
+   • Factors: infection_prob × contacts_per_day × infection_duration
+   • Interpretation: R₀ > 1 → epidemic grows
+                    R₀ = 1 → endemic (stable)
+                    R₀ < 1 → epidemic dies out
+   • Real Diseases: Measles ~15-18, COVID-19 ~2-3, Flu ~1-2
+
+SIR Model (Classic):
+   • S = Susceptible (blue/cyan particles)
+   • I = Infected (red/orange particles)
+   • R = Removed/Recovered (gray particles)
+
+SEIRD Model (Enhanced - This Simulation):
+   • S = Susceptible
+   • E = Exposed (infected but not yet infectious - incubation)
+   • I = Infectious (can spread disease)
+   • R = Recovered (immune)
+   • D = Dead
+
+Herd Immunity Threshold:
+   • Formula: 1 - (1/R₀)
+   • Example: R₀=3 → threshold = 1-(1/3) = 66.7% immune needed
+   • Achieved by: Recovery OR Vaccination
+   • Effect: Epidemic cannot sustain when threshold reached
+
+═══════════════════════════════════════════════════════════════════════════════
+KEYBOARD SHORTCUTS
+═══════════════════════════════════════════════════════════════════════════════
+
+SPACE    - Pause/Resume simulation
+R        - Reset simulation (keeps current parameters)
+F        - Toggle fullscreen mode
+Q        - Toggle quarantine on/off
+M        - Toggle marketplace on/off
+Ctrl+R   - Show this documentation (Parameter Reference)
+Alt+T    - Toggle light/dark theme
+1-9      - Load preset scenarios (1=Baseline, 2=Aggressive, etc.)
+
+═══════════════════════════════════════════════════════════════════════════════
+RECOMMENDED SCENARIOS FOR EXPERIMENTATION
+═══════════════════════════════════════════════════════════════════════════════
+
+Baseline Epidemic (No Intervention):
+   • Quarantine: OFF
+   • Marketplace: OFF
+   • Social Distance: 0%
+   • Observe: Natural disease spread, peak infection day
+
+Effect of Quarantine:
+   • Start with baseline
+   • Enable quarantine after day 20
+   • Observe: "Flattening the curve" effect
+
+Super-Spreader Events:
+   • Marketplace: ON
+   • Attendance: 60-80%
+   • Interval: 24-48 hours
+   • Observe: Periodic spikes in infections
+
+Vaccination Campaign:
+   • Enable vaccination
+   • Efficacy: 70-90%
+   • Rate: 1-2%/day
+   • Observe: Approach to herd immunity threshold
+
+═══════════════════════════════════════════════════════════════════════════════
+
+Documentation Version: 3.0
+Last Updated: 2024-12-09
+IHK Project: Three Statistical Distributions in Epidemic Simulation
+
+═══════════════════════════════════════════════════════════════════════════════
+"""
+
+        text_edit.setPlainText(doc_text)
         layout.addWidget(text_edit)
 
         # Close button
@@ -2080,10 +2464,9 @@ Press Ctrl+R to refresh this view with updated values
                 )
                 self.graph_widget.addItem(d_curve)
 
-            # Set graph range - use minimum of 30 days to prevent stretching at start
-            # This ensures graph doesn't look stretched when only a few days have passed
-            x_max = max(max(days), 30)  # At least 30 days visible
-            self.graph_widget.setXRange(0, x_max, padding=0)
+            # Auto-range X to show full epidemic curve from start to current
+            # This ensures the entire development is visible, not stuck on first 15 days
+            self.graph_widget.setXRange(0, max(days), padding=0.02)
             # Always keep Y-axis fixed at 0-100 for percentage data
             self.graph_widget.setYRange(0, 100, padding=0)
             self.graph_widget.enableAutoRange(axis='x', enable=False)
