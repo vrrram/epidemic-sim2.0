@@ -165,8 +165,8 @@ class EpidemicApp(QMainWindow):
         self.sliders = {}
 
         # DISEASE PARAMETERS
-        disease_box = CollapsibleBox("DISEASE PARAMETERS")
-        self.collapsible_boxes.append(disease_box)
+        self.disease_box = CollapsibleBox("DISEASE PARAMETERS")
+        self.collapsible_boxes.append(self.disease_box)
 
         # Define tooltips for disease parameters
         disease_tooltips = {
@@ -226,9 +226,9 @@ Tip: Lower values show clearer epidemic curve development"""
         ]
         for param, label, min_val, max_val, default in disease_params:
             lbl = QLabel(f"{label}: {default:.3g}")
-            lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+            lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 13px; margin-top: 4px;")
             lbl.setToolTip(disease_tooltips.get(param, label))
-            disease_box.addWidget(lbl)
+            self.disease_box.addWidget(lbl)
             slider = QSlider(Qt.Horizontal)
             slider.setMinimum(int(min_val * 100))
             slider.setMaximum(int(max_val * 100))
@@ -238,13 +238,13 @@ Tip: Lower values show clearer epidemic curve development"""
             slider.valueChanged.connect(
                 lambda val, p=param, l=lbl, label=label: self.update_param(p, val/100, l, label)
             )
-            disease_box.addWidget(slider)
+            self.disease_box.addWidget(slider)
             self.sliders[param] = (slider, lbl, label)
-        left_layout.addWidget(disease_box)
+        left_layout.addWidget(self.disease_box)
 
         # POPULATION PARAMETERS
-        pop_box = CollapsibleBox("POPULATION PARAMETERS")
-        self.collapsible_boxes.append(pop_box)
+        self.pop_box = CollapsibleBox("POPULATION PARAMETERS")
+        self.collapsible_boxes.append(self.pop_box)
 
         # Define tooltips for population parameters
         pop_tooltips = {
@@ -278,9 +278,9 @@ Tip: Combine with distance strength to model intervention effectiveness"""
 
         # Population size slider (integer, requires reset)
         pop_lbl = QLabel(f"Population Size: {params.num_particles} (reset to apply)")
-        pop_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+        pop_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 13px; margin-top: 4px;")
         pop_lbl.setToolTip(pop_tooltips['num_particles'])
-        pop_box.addWidget(pop_lbl)
+        self.pop_box.addWidget(pop_lbl)
         pop_slider = QSlider(Qt.Horizontal)
         pop_slider.setMinimum(50)
         pop_slider.setMaximum(1000)
@@ -290,7 +290,7 @@ Tip: Combine with distance strength to model intervention effectiveness"""
         pop_slider.valueChanged.connect(
             lambda val: self.update_param('num_particles', val, pop_lbl, 'Population Size', is_int=True)
         )
-        pop_box.addWidget(pop_slider)
+        self.pop_box.addWidget(pop_slider)
         self.sliders['num_particles'] = (pop_slider, pop_lbl, 'Population Size')
 
         # Other population parameters (floats)
@@ -300,9 +300,9 @@ Tip: Combine with distance strength to model intervention effectiveness"""
         ]
         for param, label, min_val, max_val, default in pop_params:
             lbl = QLabel(f"{label}: {default:.3g}")
-            lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+            lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 13px; margin-top: 4px;")
             lbl.setToolTip(pop_tooltips.get(param, label))
-            pop_box.addWidget(lbl)
+            self.pop_box.addWidget(lbl)
             slider = QSlider(Qt.Horizontal)
             slider.setMinimum(int(min_val * 100))
             slider.setMaximum(int(max_val * 100))
@@ -312,13 +312,13 @@ Tip: Combine with distance strength to model intervention effectiveness"""
             slider.valueChanged.connect(
                 lambda val, p=param, l=lbl, label=label: self.update_param(p, val/100, l, label)
             )
-            pop_box.addWidget(slider)
+            self.pop_box.addWidget(slider)
             self.sliders[param] = (slider, lbl, label)
-        left_layout.addWidget(pop_box)
+        left_layout.addWidget(self.pop_box)
 
         # INTERVENTION PARAMETERS
-        interv_box = CollapsibleBox("INTERVENTION PARAMETERS")
-        self.collapsible_boxes.append(interv_box)
+        self.interv_box = CollapsibleBox("INTERVENTION PARAMETERS")
+        self.collapsible_boxes.append(self.interv_box)
 
         # Define tooltips for intervention parameters
         interv_tooltips = {
@@ -365,7 +365,7 @@ Tip: Asymptomatic particles never quarantine, continuing to spread disease"""
         ]
         for param, label, min_val, max_val, default in interv_params:
             lbl = QLabel(f"{label}: {default:.3g}")
-            lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+            lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 13px; margin-top: 4px;")
             lbl.setToolTip(interv_tooltips.get(param, label))
             interv_box.addWidget(lbl)
             slider = QSlider(Qt.Horizontal)
@@ -417,7 +417,7 @@ Tip: Models multiple introduction events"""
 
         # Particles Per Community - INTEGER slider
         num_lbl = QLabel(f"Particles Per Community: {params.num_per_community}")
-        num_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+        num_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 13px; margin-top: 4px;")
         num_lbl.setToolTip(community_tooltips['num_per_community'])
         self.community_box.addWidget(num_lbl)
         num_slider = QSlider(Qt.Horizontal)
@@ -434,7 +434,7 @@ Tip: Models multiple introduction events"""
 
         # Travel Probability - PERCENTAGE slider (0-100%)
         travel_lbl = QLabel(f"Travel Probability: {params.travel_probability*100:.1f}%")
-        travel_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+        travel_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 13px; margin-top: 4px;")
         travel_lbl.setToolTip(community_tooltips['travel_probability'])
         self.community_box.addWidget(travel_lbl)
         travel_slider = QSlider(Qt.Horizontal)
@@ -451,7 +451,7 @@ Tip: Models multiple introduction events"""
 
         # Initially Infected Communities - INTEGER slider
         infect_lbl = QLabel(f"Initially Infected Communities: {params.communities_to_infect}")
-        infect_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+        infect_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 13px; margin-top: 4px;")
         infect_lbl.setToolTip(community_tooltips['communities_to_infect'])
         self.community_box.addWidget(infect_lbl)
         infect_slider = QSlider(Qt.Horizontal)
@@ -481,7 +481,7 @@ Tip: Models multiple introduction events"""
         ]
         for param, label, min_val, max_val, default in quarantine_params:
             lbl = QLabel(f"{label}: {default:.3g}")
-            lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+            lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 13px; margin-top: 4px;")
             lbl.setToolTip(interv_tooltips.get(param, label))
             self.quarantine_params_box.addWidget(lbl)
             slider = QSlider(Qt.Horizontal)
@@ -551,7 +551,7 @@ Tip: (0, 0) places marketplace at canvas center"""
 
         # Marketplace interval (integer spinbox)
         interval_lbl = QLabel(f"Marketplace Interval: {params.marketplace_interval}")
-        interval_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+        interval_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 13px; margin-top: 4px;")
         interval_lbl.setToolTip(marketplace_tooltips['marketplace_interval'])
         self.marketplace_params_box.addWidget(interval_lbl)
         interval_slider = QSlider(Qt.Horizontal)
@@ -568,7 +568,7 @@ Tip: (0, 0) places marketplace at canvas center"""
 
         # Marketplace duration (integer slider)
         duration_lbl = QLabel(f"Marketplace Duration: {params.marketplace_duration}")
-        duration_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+        duration_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 13px; margin-top: 4px;")
         duration_lbl.setToolTip(marketplace_tooltips['marketplace_duration'])
         self.marketplace_params_box.addWidget(duration_lbl)
         duration_slider = QSlider(Qt.Horizontal)
@@ -585,7 +585,7 @@ Tip: (0, 0) places marketplace at canvas center"""
 
         # Marketplace attendance (float slider)
         attendance_lbl = QLabel(f"Marketplace Attendance: {params.marketplace_attendance:.2f}")
-        attendance_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+        attendance_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 13px; margin-top: 4px;")
         attendance_lbl.setToolTip(marketplace_tooltips['marketplace_attendance'])
         self.marketplace_params_box.addWidget(attendance_lbl)
         attendance_slider = QSlider(Qt.Horizontal)
@@ -602,7 +602,7 @@ Tip: (0, 0) places marketplace at canvas center"""
 
         # Marketplace X coordinate (float slider)
         x_lbl = QLabel(f"Marketplace X: {params.marketplace_x:.2f}")
-        x_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+        x_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 13px; margin-top: 4px;")
         x_lbl.setToolTip(marketplace_tooltips['marketplace_x'])
         self.marketplace_params_box.addWidget(x_lbl)
         x_slider = QSlider(Qt.Horizontal)
@@ -619,7 +619,7 @@ Tip: (0, 0) places marketplace at canvas center"""
 
         # Marketplace Y coordinate (float slider)
         y_lbl = QLabel(f"Marketplace Y: {params.marketplace_y:.2f}")
-        y_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+        y_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 13px; margin-top: 4px;")
         y_lbl.setToolTip(marketplace_tooltips['marketplace_y'])
         self.marketplace_params_box.addWidget(y_lbl)
         y_slider = QSlider(Qt.Horizontal)
@@ -638,8 +638,8 @@ Tip: (0, 0) places marketplace at canvas center"""
         self.marketplace_params_box.hide()  # Hidden by default, shown when marketplace enabled
 
         # PRESETS
-        presets_box = CollapsibleBox("PRESETS")
-        self.collapsible_boxes.append(presets_box)
+        self.presets_box = CollapsibleBox("PRESETS")
+        self.collapsible_boxes.append(self.presets_box)
         self.preset_combo = QComboBox()
         self.preset_combo.addItem("-- Select Preset --")
         for preset_name in PRESETS.keys():
@@ -656,8 +656,8 @@ Available presets:
 • Communities: Isolated population groups
 
 Tip: Use keyboard shortcuts 1-9 to quickly load presets""")
-        presets_box.addWidget(self.preset_combo)
-        left_layout.addWidget(presets_box)
+        self.presets_box.addWidget(self.preset_combo)
+        left_layout.addWidget(self.presets_box)
 
         left_layout.addStretch()
 
@@ -752,7 +752,7 @@ Tip: Use keyboard shortcuts 1-9 to quickly load presets""")
 
         # Speed buttons
         self.speed_label = QLabel("Speed:")
-        self.speed_label.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 5px;")
+        self.speed_label.setStyleSheet(f"color: {NEON_GREEN}; font-size: 13px; margin-top: 5px;")
         self.speed_label.setToolTip("Simulation speed multiplier\n\nControls how fast time progresses.\nDoes not affect physics or disease mechanics.")
         ctrl_layout.addWidget(self.speed_label)
 
@@ -781,7 +781,7 @@ Tip: Use keyboard shortcuts 1-9 to quickly load presets""")
 
         # Population
         self.pop_label = QLabel("Population:")
-        self.pop_label.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 8px;")
+        self.pop_label.setStyleSheet(f"color: {NEON_GREEN}; font-size: 13px; margin-top: 8px;")
         ctrl_layout.addWidget(self.pop_label)
 
         pop_row = QHBoxLayout()
@@ -884,7 +884,7 @@ When enabled:
 • Asymptomatic cases remain in main population
 
 Use for: Testing isolation effectiveness, intervention strategies""")
-        interv_box.addWidget(self.quarantine_checkbox)
+        self.interventions_box.addWidget(self.quarantine_checkbox)
 
         self.marketplace_checkbox = QCheckBox("Marketplace Gatherings")
         self.marketplace_checkbox.setChecked(params.marketplace_enabled)
@@ -897,12 +897,12 @@ When enabled:
 • Models superspreader events (concerts, festivals, etc.)
 
 Use for: Studying impact of mass gatherings on epidemic spread""")
-        interv_box.addWidget(self.marketplace_checkbox)
+        self.interventions_box.addWidget(self.marketplace_checkbox)
 
         # Note: Marketplace parameters (interval, attendance, location) are now in the left panel
         # under "MARKETPLACE PARAMETERS" section, shown only when marketplace is enabled.
 
-        right_layout.addWidget(interv_box)
+        right_layout.addWidget(self.interventions_box)
 
         # === VISUALIZATIONS ===
         vis_box = CollapsibleBox("VISUALIZATIONS")
@@ -926,7 +926,7 @@ Use for: Studying impact of mass gatherings on epidemic spread""")
             QTabBar::tab {{
                 background-color: {PANEL_BLACK}; color: {NEON_GREEN};
                 border: 1px solid {BORDER_GREEN}; padding: 8px 15px;
-                margin-right: 2px; font-family: 'Courier New', monospace; font-size: 11px;
+                margin-right: 2px; font-family: 'Courier New', monospace; font-size: 13px;
             }}
             QTabBar::tab:selected {{
                 background-color: {BORDER_GREEN}; color: {BG_BLACK}; font-weight: bold;
@@ -987,7 +987,7 @@ Updates in real-time as simulation progresses.""")
         # === STATUS ===
         self.status_label = QLabel("Ready")
         self.status_label.setStyleSheet(f"""
-            font-size: 11px; padding: 8px; color: {NEON_GREEN};
+            font-size: 13px; padding: 8px; color: {NEON_GREEN};
             background-color: {PANEL_BLACK}; border: 1px solid {BORDER_GREEN};
             font-family: 'Courier New', monospace;
         """)
@@ -1000,7 +1000,7 @@ Updates in real-time as simulation progresses.""")
             "Q=Quarantine | M=Marketplace | Alt+T=Theme | 1-9=Presets"
         )
         self.shortcuts_label.setStyleSheet(f"""
-            font-size: 9px; padding: 5px; color: {NEON_GREEN};
+            font-size: 11px; padding: 5px; color: {NEON_GREEN};
             background-color: {BG_BLACK}; border: 1px solid {BORDER_GREEN};
             font-family: 'Courier New', monospace;
         """)
@@ -1165,7 +1165,7 @@ Updates in real-time as simulation progresses.""")
                 padding: 8px;
                 margin: 0px;
                 font-family: 'Courier New', monospace;
-                font-size: 11px;
+                font-size: 13px;
                 opacity: 255;
             }}
             QScrollArea {{
@@ -1256,7 +1256,7 @@ Updates in real-time as simulation progresses.""")
                 color: {NEON_GREEN};
                 border: 2px solid {BORDER_GREEN};
                 font-family: 'Courier New', monospace;
-                font-size: 11px;
+                font-size: 13px;
             }}
             QSlider::groove:horizontal {{
                 border: 1px solid {BORDER_GREEN};
@@ -1295,7 +1295,7 @@ Updates in real-time as simulation progresses.""")
                 border: 2px solid {BORDER_GREEN};
                 padding: 3px;
                 font-family: 'Courier New', monospace;
-                font-size: 11px;
+                font-size: 13px;
             }}
             QSpinBox::up-button, QDoubleSpinBox::up-button {{
                 background-color: {PANEL_BLACK};
@@ -1528,11 +1528,11 @@ Updates in real-time as simulation progresses.""")
         self.stats_container.setStyleSheet(f"background-color: {PANEL}; border: 2px solid {BORDER}; padding: 10px;")
 
         # Update labels with theme-aware text colors
-        self.speed_label.setStyleSheet(f"color: {TEXT}; font-size: 11px; margin-top: 5px;")
-        self.pop_label.setStyleSheet(f"color: {TEXT}; font-size: 11px; margin-top: 8px;")
+        self.speed_label.setStyleSheet(f"color: {TEXT}; font-size: 13px; margin-top: 5px;")
+        self.pop_label.setStyleSheet(f"color: {TEXT}; font-size: 13px; margin-top: 8px;")
         self.stats_label.setStyleSheet(f"font-size: 16px; font-weight: bold; color: {TEXT}; font-family: 'Courier New', monospace; background-color: transparent; border: none;")
-        self.status_label.setStyleSheet(f"font-size: 11px; padding: 8px; color: {TEXT}; background-color: {PANEL}; border: 1px solid {BORDER}; font-family: 'Courier New', monospace;")
-        self.shortcuts_label.setStyleSheet(f"font-size: 9px; padding: 5px; color: {TEXT}; background-color: {BG}; border: 1px solid {BORDER}; font-family: 'Courier New', monospace;")
+        self.status_label.setStyleSheet(f"font-size: 13px; padding: 8px; color: {TEXT}; background-color: {PANEL}; border: 1px solid {BORDER}; font-family: 'Courier New', monospace;")
+        self.shortcuts_label.setStyleSheet(f"font-size: 11px; padding: 5px; color: {TEXT}; background-color: {BG}; border: 1px solid {BORDER}; font-family: 'Courier New', monospace;")
 
         # Update all collapsible boxes
         for box in self.collapsible_boxes:
@@ -1600,21 +1600,24 @@ Updates in real-time as simulation progresses.""")
     def update_mode_visibility(self):
         """Update visibility of parameter boxes based on current mode."""
         if self.mode == "BASIC":
-            # BASIC mode: Hide advanced features
-            if hasattr(self, 'pop_box'):
-                self.pop_box.setVisible(False)
-            if hasattr(self, 'intervention_box'):
-                self.intervention_box.setVisible(False)
-            if hasattr(self, 'preset_box'):
-                self.preset_box.setVisible(False)
+            # BASIC mode: Hide advanced features (show only DISEASE PARAMETERS)
+            self.pop_box.setVisible(False)
+            self.interv_box.setVisible(False)
+            self.presets_box.setVisible(False)
+            self.interventions_box.setVisible(False)
+            # Also hide community and marketplace param boxes
+            if hasattr(self, 'community_box'):
+                self.community_box.setVisible(False)
+            if hasattr(self, 'marketplace_params_box'):
+                self.marketplace_params_box.setVisible(False)
         else:
             # ADVANCED mode: Show all
-            if hasattr(self, 'pop_box'):
-                self.pop_box.setVisible(True)
-            if hasattr(self, 'intervention_box'):
-                self.intervention_box.setVisible(True)
-            if hasattr(self, 'preset_box'):
-                self.preset_box.setVisible(True)
+            self.pop_box.setVisible(True)
+            self.interv_box.setVisible(True)
+            self.presets_box.setVisible(True)
+            self.interventions_box.setVisible(True)
+            # Community and marketplace boxes have their own visibility logic
+            # so we don't force them visible here
 
     def toggle_tooltips(self):
         """Toggle tooltips on/off globally (Ctrl+T)."""
@@ -1632,7 +1635,7 @@ Updates in real-time as simulation progresses.""")
                     border: 1px solid {tooltip_border};
                     padding: 5px;
                     border-radius: 3px;
-                    font-size: 11px;
+                    font-size: 13px;
                 }}
             """)
             self.add_log("Tooltips enabled (Ctrl+T)")
@@ -1752,7 +1755,7 @@ Updates in real-time as simulation progresses.""")
 
         dialog = QDialog(self)
         dialog.setWindowTitle("Complete Parameter Documentation")
-        dialog.setMinimumSize(900, 700)
+        dialog.setMinimumSize(1100, 800)  # Increased for better readability
 
         layout = QVBoxLayout()
 
@@ -1764,7 +1767,7 @@ Updates in real-time as simulation progresses.""")
                 background-color: {get_color('BG_WHITE') if theme_module.current_theme == LIGHT_THEME else '#0a0a0a'};
                 color: {get_color('TEXT')};
                 font-family: 'Courier New', monospace;
-                font-size: 11px;
+                font-size: 13px;
                 border: 2px solid {get_color('BORDER_GREEN') if theme_module.current_theme == DARK_THEME else get_color('BORDER_GRAY')};
                 padding: 15px;
             }}
@@ -2385,8 +2388,10 @@ IHK Project: Three Statistical Distributions in Epidemic Simulation
                 )
                 self.graph_widget.addItem(d_curve)
 
-            # Auto-range to show full epidemic curve from start to current
+            # Auto-range X to show full epidemic curve from start to current
             # This ensures the entire development is visible, not stuck on first 15 days
-            self.graph_widget.enableAutoRange(axis='x', enable=True)
-            self.graph_widget.enableAutoRange(axis='y', enable=False)  # Keep Y at 0-100
             self.graph_widget.setXRange(0, max(days), padding=0.02)
+            # Always keep Y-axis fixed at 0-100 for percentage data
+            self.graph_widget.setYRange(0, 100, padding=0)
+            self.graph_widget.enableAutoRange(axis='x', enable=False)
+            self.graph_widget.enableAutoRange(axis='y', enable=False)
