@@ -86,8 +86,11 @@ class EpidemicApp(QMainWindow):
 
         # Simulation control
         self.speed = 1.0
-        self.paused = False
+        self.paused = True  # Start paused to allow parameter configuration
         self.speed_accumulator = 0.0  # For smooth fractional speed
+
+        # Mode control (BASIC or ADVANCED)
+        self.mode = "BASIC"  # Start in BASIC mode
 
         # Track collapsible boxes for theme updates
         self.collapsible_boxes = []
@@ -726,10 +729,10 @@ Tip: Use keyboard shortcuts 1-9 to quickly load presets""")
         btn_row = QHBoxLayout()
         btn_row.setSpacing(4)
 
-        self.pause_btn = QPushButton("PAUSE")
+        self.pause_btn = QPushButton("START")
         self.pause_btn.clicked.connect(self.toggle_pause)
         self.pause_btn.setMinimumHeight(32)
-        self.pause_btn.setToolTip("Pause/Resume simulation (Keyboard: SPACE)\n\nPauses the simulation while keeping all state intact.\nUse to examine current situation or adjust parameters.")
+        self.pause_btn.setToolTip("Start/Pause simulation (Keyboard: SPACE)\n\nStarts or pauses the simulation.\nUse to configure parameters before starting or examine current situation.")
         btn_row.addWidget(self.pause_btn)
 
         reset_btn = QPushButton("RESET")
@@ -738,19 +741,12 @@ Tip: Use keyboard shortcuts 1-9 to quickly load presets""")
         reset_btn.setToolTip("Reset simulation (Keyboard: R)\n\nResets simulation to day 0 with current parameters.\nCreates new particle population with random positions.")
         btn_row.addWidget(reset_btn)
 
-        self.fullscreen_btn = QPushButton("FULL")
-        self.fullscreen_btn.setToolTip("Fullscreen mode (Keyboard: F)\n\nToggle fullscreen display.\nPress F or ESC to exit fullscreen.")
-        self.fullscreen_btn.clicked.connect(self.toggle_fullscreen)
-        self.fullscreen_btn.setMinimumHeight(32)
-        self.fullscreen_btn.setMaximumWidth(50)
-        btn_row.addWidget(self.fullscreen_btn)
-
-        self.theme_btn = QPushButton("LIGHT MODE")
-        self.theme_btn.setToolTip("Toggle theme (Keyboard: Alt+T)\n\nSwitch between dark and light themes.\nPreference is saved automatically.")
-        self.theme_btn.clicked.connect(self.toggle_theme)
-        self.theme_btn.setMinimumHeight(32)
-        self.theme_btn.setMaximumWidth(60)
-        btn_row.addWidget(self.theme_btn)
+        self.mode_btn = QPushButton("ADVANCED")
+        self.mode_btn.setToolTip("Toggle BASIC/ADVANCED mode (Keyboard: B)\n\nBASIC: Simple controls, visible infection radius\nADVANCED: All parameters and features")
+        self.mode_btn.clicked.connect(self.toggle_mode)
+        self.mode_btn.setMinimumHeight(32)
+        self.mode_btn.setMaximumWidth(90)
+        btn_row.addWidget(self.mode_btn)
 
         ctrl_layout.addLayout(btn_row)
 
@@ -1039,6 +1035,9 @@ Updates in real-time as simulation progresses.""")
 
         # Initialize contextual parameter visibility based on current state
         self._init_contextual_visibility()
+
+        # Apply initial mode visibility
+        self.update_mode_visibility()
 
     def get_checkable_button_stylesheet(self):
         """
@@ -1584,6 +1583,39 @@ Updates in real-time as simulation progresses.""")
         else:
             self.fullscreen_btn.setText("FULL")
 
+    def toggle_mode(self):
+        """Toggle between BASIC and ADVANCED mode."""
+        self.mode = "ADVANCED" if self.mode == "BASIC" else "BASIC"
+        self.mode_btn.setText("ADVANCED" if self.mode == "BASIC" else "BASIC")
+
+        # Update parameter panel visibility
+        self.update_mode_visibility()
+
+        # In BASIC mode, enable infection radius by default
+        if self.mode == "BASIC":
+            params.show_infection_radius = True
+
+        self.status_label.setText(f"Switched to {self.mode} mode")
+
+    def update_mode_visibility(self):
+        """Update visibility of parameter boxes based on current mode."""
+        if self.mode == "BASIC":
+            # BASIC mode: Hide advanced features
+            if hasattr(self, 'pop_box'):
+                self.pop_box.setVisible(False)
+            if hasattr(self, 'intervention_box'):
+                self.intervention_box.setVisible(False)
+            if hasattr(self, 'preset_box'):
+                self.preset_box.setVisible(False)
+        else:
+            # ADVANCED mode: Show all
+            if hasattr(self, 'pop_box'):
+                self.pop_box.setVisible(True)
+            if hasattr(self, 'intervention_box'):
+                self.intervention_box.setVisible(True)
+            if hasattr(self, 'preset_box'):
+                self.preset_box.setVisible(True)
+
     def toggle_tooltips(self):
         """Toggle tooltips on/off globally (Ctrl+T)."""
         self.tooltips_enabled = not self.tooltips_enabled
@@ -1651,7 +1683,7 @@ Updates in real-time as simulation progresses.""")
     def toggle_pause(self):
         """Toggle simulation pause state."""
         self.paused = not self.paused
-        self.pause_btn.setText("RESUME" if self.paused else "PAUSE")
+        self.pause_btn.setText("START" if self.paused else "PAUSE")
         if self.paused:
             self.status_label.setText(f"⏸ Simulation PAUSED at Day {self.sim.day_count}. Adjust parameters or press SPACE to resume.")
         else:
@@ -1907,13 +1939,13 @@ Social Distance Compliance: {params.social_distance_obedient:.1%}
    • Effect: Higher compliance → slower spread, lower R₀
    • Recommendation: 0% (baseline), 60-80% (moderate intervention)
 
-Initial Infected: {params.initial_infected}
-   • Range: 1 - 50
-   • Current: {params.initial_infected}
-   • Meaning: "Patient Zero" - number of infected at day 0
+Initial Infected: {int(params.fraction_infected_init * params.num_particles)}
+   • Range: Fraction: 0.0 - 1.0 (0% - 100%)
+   • Current: {params.fraction_infected_init:.2%} = {int(params.fraction_infected_init * params.num_particles)} particles
+   • Meaning: "Patient Zero" - fraction/number of infected at day 0
    • Epidemiological Context: Index cases that seed the outbreak
    • Effect: More initial → faster initial growth, less randomness
-   • Recommendation: 1-5 for realistic outbreak, 10+ for fast testing
+   • Recommendation: 0.5-2% for realistic outbreak, 5%+ for fast testing
 
 ═══════════════════════════════════════════════════════════════════════════════
 INTERVENTION PARAMETERS (Public Health Strategies)
@@ -1928,13 +1960,13 @@ Quarantine Enabled: {params.quarantine_enabled}
    • Effect: Reduces R₀ by removing infectious from circulation
    • Limitation: Only catches SYMPTOMATIC (misses asymptomatic)
 
-Quarantine Delay: {params.quarantine_delay:.1f} days
-   • Range: 0 - 10 days
-   • Current: {params.quarantine_delay:.1f} days (if enabled)
-   • Meaning: Days AFTER showing symptoms before quarantine
-   • Epidemiological Context: Represents testing/detection delay
-   • Effect: 0 days = instant detection, 3-5 days = realistic delay
-   • Recommendation: 2-3 days for COVID-like disease
+Quarantine After: {params.quarantine_after} days
+   • Range: 0 - 365 days
+   • Current: {params.quarantine_after} days (if enabled)
+   • Meaning: Days AFTER infection before quarantine begins
+   • Epidemiological Context: Represents incubation + detection delay
+   • Effect: 0 days = instant quarantine, 5-10 days = realistic delay
+   • Recommendation: 5-10 days for COVID-like disease
 
 Quarantine Duration: {params.quarantine_duration:.1f} days
    • Range: 5 - 90 days
@@ -1973,8 +2005,8 @@ Particles per Community: {params.num_per_community}
    • Range: 50 - 500 per community
    • Current: {params.num_per_community}
    • Meaning: Population of each community in grid
-   • Total Communities: {params.num_communities} ({int(params.num_communities**0.5)}×{int(params.num_communities**0.5)} grid)
-   • Total Population: {params.num_per_community * params.num_communities}
+   • Total Communities: 9 (3×3 grid)
+   • Total Population: {params.num_per_community * 9}
 
 Travel Probability: {params.travel_probability:.1%}
    • Range: 0% - 10%
@@ -2234,6 +2266,11 @@ IHK Project: Three Statistical Distributions in Epidemic Simulation
         if key == Qt.Key_M:
             new_state = not params.marketplace_enabled
             self.marketplace_checkbox.setChecked(new_state)
+            return
+
+        # B: Toggle BASIC/ADVANCED mode
+        if key == Qt.Key_B:
+            self.toggle_mode()
             return
 
         # F: Toggle fullscreen
