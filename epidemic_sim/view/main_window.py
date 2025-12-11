@@ -92,6 +92,9 @@ class EpidemicApp(QMainWindow):
         # Mode control (BASIC or ADVANCED)
         self.mode = "BASIC"  # Start in BASIC mode
 
+        # Enable infection radius visualization by default in BASIC mode
+        params.show_infection_radius = True
+
         # Track collapsible boxes for theme updates
         self.collapsible_boxes = []
 
@@ -1591,19 +1594,21 @@ Updates in real-time as simulation progresses.""")
         # Update parameter panel visibility
         self.update_mode_visibility()
 
-        # In BASIC mode, enable infection radius by default
+        # In BASIC mode, enable infection radius by default and update checkbox
         if self.mode == "BASIC":
             params.show_infection_radius = True
+            if hasattr(self, 'show_radius_checkbox'):
+                self.show_radius_checkbox.setChecked(True)
 
         self.status_label.setText(f"Switched to {self.mode} mode")
 
     def update_mode_visibility(self):
         """Update visibility of parameter boxes based on current mode."""
         if self.mode == "BASIC":
-            # BASIC mode: Hide advanced features (show only DISEASE PARAMETERS)
+            # BASIC mode: Show DISEASE PARAMETERS and PRESETS only
             self.pop_box.setVisible(False)
             self.interv_box.setVisible(False)
-            self.presets_box.setVisible(False)
+            self.presets_box.setVisible(True)  # Keep presets available in BASIC mode
             self.interventions_box.setVisible(False)
             # Also hide community and marketplace param boxes
             if hasattr(self, 'community_box'):
