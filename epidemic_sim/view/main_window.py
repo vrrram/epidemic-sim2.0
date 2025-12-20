@@ -956,7 +956,8 @@ Use for: Studying impact of mass gatherings on epidemic spread""")
 Shows percentage of population in each state:
 • Blue (Cyan): Susceptible - healthy, can be infected
 • Red: Infected - currently infectious
-• Green: Removed - recovered or deceased
+• Green: Recovered - immune, no longer infectious
+• Dark Red: Dead - victims of the disease
 
 Watch for:
 • Peak infection rate (epidemic peak)
@@ -2066,26 +2067,25 @@ Press Ctrl+R to refresh this view with updated values
             )
             self.graph_widget.addItem(i_curve)
 
-            # Removed - Gray line
+            # Removed (Recovered) - Green line
             r_curve = pg.PlotDataItem(
                 days, r_data,
-                pen=pg.mkPen(color=(120, 120, 120), width=3),
+                pen=pg.mkPen(color=(50, 205, 50), width=3),  # Lime green for recovered
                 brush=None,  # NO FILL
                 fillLevel=None,
-                name='Removed'
+                name='Recovered'
             )
             self.graph_widget.addItem(r_curve)
 
-            # Dead - Dark red/black line
-            if max(d_data) > 0:  # Only show if there are deaths
-                d_curve = pg.PlotDataItem(
-                    days, d_data,
-                    pen=pg.mkPen(color=(80, 0, 0), width=3),
-                    brush=None,  # NO FILL
-                    fillLevel=None,
-                    name='Dead'
-                )
-                self.graph_widget.addItem(d_curve)
+            # Dead - Dark red line (always show even if 0 for legend consistency)
+            d_curve = pg.PlotDataItem(
+                days, d_data,
+                pen=pg.mkPen(color=(139, 0, 0), width=3),  # Brighter dark red for visibility
+                brush=None,  # NO FILL
+                fillLevel=None,
+                name='Dead'
+            )
+            self.graph_widget.addItem(d_curve)
 
             # Set graph range - use minimum of 30 days to prevent stretching at start
             # This ensures graph doesn't look stretched when only a few days have passed
