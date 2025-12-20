@@ -86,8 +86,14 @@ class EpidemicApp(QMainWindow):
 
         # Simulation control
         self.speed = 1.0
-        self.paused = False
+        self.paused = True  # Start paused to allow parameter configuration
         self.speed_accumulator = 0.0  # For smooth fractional speed
+
+        # Mode control (BASIC or ADVANCED)
+        self.mode = "BASIC"  # Start in BASIC mode
+
+        # Enable infection radius visualization by default in BASIC mode
+        params.show_infection_radius = True
 
         # Track collapsible boxes for theme updates
         self.collapsible_boxes = []
@@ -162,8 +168,8 @@ class EpidemicApp(QMainWindow):
         self.sliders = {}
 
         # DISEASE PARAMETERS
-        disease_box = CollapsibleBox("DISEASE PARAMETERS")
-        self.collapsible_boxes.append(disease_box)
+        self.disease_box = CollapsibleBox("DISEASE PARAMETERS")
+        self.collapsible_boxes.append(self.disease_box)
 
         # Define tooltips for disease parameters
         disease_tooltips = {
@@ -223,9 +229,9 @@ Tip: Lower values show clearer epidemic curve development"""
         ]
         for param, label, min_val, max_val, default in disease_params:
             lbl = QLabel(f"{label}: {default:.3g}")
-            lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+            lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 13px; margin-top: 4px;")
             lbl.setToolTip(disease_tooltips.get(param, label))
-            disease_box.addWidget(lbl)
+            self.disease_box.addWidget(lbl)
             slider = QSlider(Qt.Horizontal)
             slider.setMinimum(int(min_val * 100))
             slider.setMaximum(int(max_val * 100))
@@ -235,13 +241,13 @@ Tip: Lower values show clearer epidemic curve development"""
             slider.valueChanged.connect(
                 lambda val, p=param, l=lbl, label=label: self.update_param(p, val/100, l, label)
             )
-            disease_box.addWidget(slider)
+            self.disease_box.addWidget(slider)
             self.sliders[param] = (slider, lbl, label)
-        left_layout.addWidget(disease_box)
+        left_layout.addWidget(self.disease_box)
 
         # POPULATION PARAMETERS
-        pop_box = CollapsibleBox("POPULATION PARAMETERS")
-        self.collapsible_boxes.append(pop_box)
+        self.pop_box = CollapsibleBox("POPULATION PARAMETERS")
+        self.collapsible_boxes.append(self.pop_box)
 
         # Define tooltips for population parameters
         pop_tooltips = {
@@ -275,9 +281,9 @@ Tip: Combine with distance strength to model intervention effectiveness"""
 
         # Population size slider (integer, requires reset)
         pop_lbl = QLabel(f"Population Size: {params.num_particles} (reset to apply)")
-        pop_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+        pop_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 13px; margin-top: 4px;")
         pop_lbl.setToolTip(pop_tooltips['num_particles'])
-        pop_box.addWidget(pop_lbl)
+        self.pop_box.addWidget(pop_lbl)
         pop_slider = QSlider(Qt.Horizontal)
         pop_slider.setMinimum(50)
         pop_slider.setMaximum(1000)
@@ -287,7 +293,7 @@ Tip: Combine with distance strength to model intervention effectiveness"""
         pop_slider.valueChanged.connect(
             lambda val: self.update_param('num_particles', val, pop_lbl, 'Population Size', is_int=True)
         )
-        pop_box.addWidget(pop_slider)
+        self.pop_box.addWidget(pop_slider)
         self.sliders['num_particles'] = (pop_slider, pop_lbl, 'Population Size')
 
         # Other population parameters (floats)
@@ -297,9 +303,9 @@ Tip: Combine with distance strength to model intervention effectiveness"""
         ]
         for param, label, min_val, max_val, default in pop_params:
             lbl = QLabel(f"{label}: {default:.3g}")
-            lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+            lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 13px; margin-top: 4px;")
             lbl.setToolTip(pop_tooltips.get(param, label))
-            pop_box.addWidget(lbl)
+            self.pop_box.addWidget(lbl)
             slider = QSlider(Qt.Horizontal)
             slider.setMinimum(int(min_val * 100))
             slider.setMaximum(int(max_val * 100))
@@ -309,13 +315,13 @@ Tip: Combine with distance strength to model intervention effectiveness"""
             slider.valueChanged.connect(
                 lambda val, p=param, l=lbl, label=label: self.update_param(p, val/100, l, label)
             )
-            pop_box.addWidget(slider)
+            self.pop_box.addWidget(slider)
             self.sliders[param] = (slider, lbl, label)
-        left_layout.addWidget(pop_box)
+        left_layout.addWidget(self.pop_box)
 
         # INTERVENTION PARAMETERS
-        interv_box = CollapsibleBox("INTERVENTION PARAMETERS")
-        self.collapsible_boxes.append(interv_box)
+        self.interv_box = CollapsibleBox("INTERVENTION PARAMETERS")
+        self.collapsible_boxes.append(self.interv_box)
 
         # Define tooltips for intervention parameters
         interv_tooltips = {
@@ -362,9 +368,9 @@ Tip: Asymptomatic particles never quarantine, continuing to spread disease"""
         ]
         for param, label, min_val, max_val, default in interv_params:
             lbl = QLabel(f"{label}: {default:.3g}")
-            lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+            lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 13px; margin-top: 4px;")
             lbl.setToolTip(interv_tooltips.get(param, label))
-            interv_box.addWidget(lbl)
+            self.interv_box.addWidget(lbl)
             slider = QSlider(Qt.Horizontal)
             slider.setMinimum(int(min_val * 100))
             slider.setMaximum(int(max_val * 100))
@@ -374,9 +380,9 @@ Tip: Asymptomatic particles never quarantine, continuing to spread disease"""
             slider.valueChanged.connect(
                 lambda val, p=param, l=lbl, label=label: self.update_param(p, val/100, l, label)
             )
-            interv_box.addWidget(slider)
+            self.interv_box.addWidget(slider)
             self.sliders[param] = (slider, lbl, label)
-        left_layout.addWidget(interv_box)
+        left_layout.addWidget(self.interv_box)
 
         # === COMMUNITY PARAMETERS (Contextual - only shown in Communities mode) ===
         self.community_box = CollapsibleBox("COMMUNITY PARAMETERS")
@@ -414,7 +420,7 @@ Tip: Models multiple introduction events"""
 
         # Particles Per Community - INTEGER slider
         num_lbl = QLabel(f"Particles Per Community: {params.num_per_community}")
-        num_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+        num_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 13px; margin-top: 4px;")
         num_lbl.setToolTip(community_tooltips['num_per_community'])
         self.community_box.addWidget(num_lbl)
         num_slider = QSlider(Qt.Horizontal)
@@ -431,7 +437,7 @@ Tip: Models multiple introduction events"""
 
         # Travel Probability - PERCENTAGE slider (0-100%)
         travel_lbl = QLabel(f"Travel Probability: {params.travel_probability*100:.1f}%")
-        travel_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+        travel_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 13px; margin-top: 4px;")
         travel_lbl.setToolTip(community_tooltips['travel_probability'])
         self.community_box.addWidget(travel_lbl)
         travel_slider = QSlider(Qt.Horizontal)
@@ -448,7 +454,7 @@ Tip: Models multiple introduction events"""
 
         # Initially Infected Communities - INTEGER slider
         infect_lbl = QLabel(f"Initially Infected Communities: {params.communities_to_infect}")
-        infect_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+        infect_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 13px; margin-top: 4px;")
         infect_lbl.setToolTip(community_tooltips['communities_to_infect'])
         self.community_box.addWidget(infect_lbl)
         infect_slider = QSlider(Qt.Horizontal)
@@ -478,7 +484,7 @@ Tip: Models multiple introduction events"""
         ]
         for param, label, min_val, max_val, default in quarantine_params:
             lbl = QLabel(f"{label}: {default:.3g}")
-            lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+            lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 13px; margin-top: 4px;")
             lbl.setToolTip(interv_tooltips.get(param, label))
             self.quarantine_params_box.addWidget(lbl)
             slider = QSlider(Qt.Horizontal)
@@ -548,7 +554,7 @@ Tip: (0, 0) places marketplace at canvas center"""
 
         # Marketplace interval (integer spinbox)
         interval_lbl = QLabel(f"Marketplace Interval: {params.marketplace_interval}")
-        interval_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+        interval_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 13px; margin-top: 4px;")
         interval_lbl.setToolTip(marketplace_tooltips['marketplace_interval'])
         self.marketplace_params_box.addWidget(interval_lbl)
         interval_slider = QSlider(Qt.Horizontal)
@@ -565,7 +571,7 @@ Tip: (0, 0) places marketplace at canvas center"""
 
         # Marketplace duration (integer slider)
         duration_lbl = QLabel(f"Marketplace Duration: {params.marketplace_duration}")
-        duration_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+        duration_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 13px; margin-top: 4px;")
         duration_lbl.setToolTip(marketplace_tooltips['marketplace_duration'])
         self.marketplace_params_box.addWidget(duration_lbl)
         duration_slider = QSlider(Qt.Horizontal)
@@ -582,7 +588,7 @@ Tip: (0, 0) places marketplace at canvas center"""
 
         # Marketplace attendance (float slider)
         attendance_lbl = QLabel(f"Marketplace Attendance: {params.marketplace_attendance:.2f}")
-        attendance_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+        attendance_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 13px; margin-top: 4px;")
         attendance_lbl.setToolTip(marketplace_tooltips['marketplace_attendance'])
         self.marketplace_params_box.addWidget(attendance_lbl)
         attendance_slider = QSlider(Qt.Horizontal)
@@ -599,7 +605,7 @@ Tip: (0, 0) places marketplace at canvas center"""
 
         # Marketplace X coordinate (float slider)
         x_lbl = QLabel(f"Marketplace X: {params.marketplace_x:.2f}")
-        x_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+        x_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 13px; margin-top: 4px;")
         x_lbl.setToolTip(marketplace_tooltips['marketplace_x'])
         self.marketplace_params_box.addWidget(x_lbl)
         x_slider = QSlider(Qt.Horizontal)
@@ -616,7 +622,7 @@ Tip: (0, 0) places marketplace at canvas center"""
 
         # Marketplace Y coordinate (float slider)
         y_lbl = QLabel(f"Marketplace Y: {params.marketplace_y:.2f}")
-        y_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 4px;")
+        y_lbl.setStyleSheet(f"color: {NEON_GREEN}; font-size: 13px; margin-top: 4px;")
         y_lbl.setToolTip(marketplace_tooltips['marketplace_y'])
         self.marketplace_params_box.addWidget(y_lbl)
         y_slider = QSlider(Qt.Horizontal)
@@ -635,8 +641,8 @@ Tip: (0, 0) places marketplace at canvas center"""
         self.marketplace_params_box.hide()  # Hidden by default, shown when marketplace enabled
 
         # PRESETS
-        presets_box = CollapsibleBox("PRESETS")
-        self.collapsible_boxes.append(presets_box)
+        self.presets_box = CollapsibleBox("PRESETS")
+        self.collapsible_boxes.append(self.presets_box)
         self.preset_combo = QComboBox()
         self.preset_combo.addItem("-- Select Preset --")
         for preset_name in PRESETS.keys():
@@ -653,8 +659,8 @@ Available presets:
 • Communities: Isolated population groups
 
 Tip: Use keyboard shortcuts 1-9 to quickly load presets""")
-        presets_box.addWidget(self.preset_combo)
-        left_layout.addWidget(presets_box)
+        self.presets_box.addWidget(self.preset_combo)
+        left_layout.addWidget(self.presets_box)
 
         left_layout.addStretch()
 
@@ -726,10 +732,10 @@ Tip: Use keyboard shortcuts 1-9 to quickly load presets""")
         btn_row = QHBoxLayout()
         btn_row.setSpacing(4)
 
-        self.pause_btn = QPushButton("PAUSE")
+        self.pause_btn = QPushButton("START")
         self.pause_btn.clicked.connect(self.toggle_pause)
         self.pause_btn.setMinimumHeight(32)
-        self.pause_btn.setToolTip("Pause/Resume simulation (Keyboard: SPACE)\n\nPauses the simulation while keeping all state intact.\nUse to examine current situation or adjust parameters.")
+        self.pause_btn.setToolTip("Start/Pause simulation (Keyboard: SPACE)\n\nStarts or pauses the simulation.\nUse to configure parameters before starting or examine current situation.")
         btn_row.addWidget(self.pause_btn)
 
         reset_btn = QPushButton("RESET")
@@ -738,25 +744,18 @@ Tip: Use keyboard shortcuts 1-9 to quickly load presets""")
         reset_btn.setToolTip("Reset simulation (Keyboard: R)\n\nResets simulation to day 0 with current parameters.\nCreates new particle population with random positions.")
         btn_row.addWidget(reset_btn)
 
-        self.fullscreen_btn = QPushButton("FULL")
-        self.fullscreen_btn.setToolTip("Fullscreen mode (Keyboard: F)\n\nToggle fullscreen display.\nPress F or ESC to exit fullscreen.")
-        self.fullscreen_btn.clicked.connect(self.toggle_fullscreen)
-        self.fullscreen_btn.setMinimumHeight(32)
-        self.fullscreen_btn.setMaximumWidth(50)
-        btn_row.addWidget(self.fullscreen_btn)
-
-        self.theme_btn = QPushButton("LIGHT MODE")
-        self.theme_btn.setToolTip("Toggle theme (Keyboard: Alt+T)\n\nSwitch between dark and light themes.\nPreference is saved automatically.")
-        self.theme_btn.clicked.connect(self.toggle_theme)
-        self.theme_btn.setMinimumHeight(32)
-        self.theme_btn.setMaximumWidth(60)
-        btn_row.addWidget(self.theme_btn)
+        self.mode_btn = QPushButton("ADVANCED")
+        self.mode_btn.setToolTip("Toggle BASIC/ADVANCED mode (Keyboard: B)\n\nBASIC: Simple controls, visible infection radius\nADVANCED: All parameters and features")
+        self.mode_btn.clicked.connect(self.toggle_mode)
+        self.mode_btn.setMinimumHeight(32)
+        self.mode_btn.setMaximumWidth(90)
+        btn_row.addWidget(self.mode_btn)
 
         ctrl_layout.addLayout(btn_row)
 
         # Speed buttons
         self.speed_label = QLabel("Speed:")
-        self.speed_label.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 5px;")
+        self.speed_label.setStyleSheet(f"color: {NEON_GREEN}; font-size: 13px; margin-top: 5px;")
         self.speed_label.setToolTip("Simulation speed multiplier\n\nControls how fast time progresses.\nDoes not affect physics or disease mechanics.")
         ctrl_layout.addWidget(self.speed_label)
 
@@ -785,7 +784,7 @@ Tip: Use keyboard shortcuts 1-9 to quickly load presets""")
 
         # Population
         self.pop_label = QLabel("Population:")
-        self.pop_label.setStyleSheet(f"color: {NEON_GREEN}; font-size: 11px; margin-top: 8px;")
+        self.pop_label.setStyleSheet(f"color: {NEON_GREEN}; font-size: 13px; margin-top: 8px;")
         ctrl_layout.addWidget(self.pop_label)
 
         pop_row = QHBoxLayout()
@@ -874,8 +873,8 @@ Use for: Geographic spread modeling, travel restrictions"""
         right_layout.addWidget(mode_box)
 
         # === INTERVENTIONS ===
-        interv_box = CollapsibleBox("INTERVENTIONS")
-        self.collapsible_boxes.append(interv_box)
+        self.interventions_box = CollapsibleBox("INTERVENTIONS")
+        self.collapsible_boxes.append(self.interventions_box)
 
         self.quarantine_checkbox = QCheckBox("Quarantine Zone")
         self.quarantine_checkbox.setChecked(params.quarantine_enabled)
@@ -888,7 +887,7 @@ When enabled:
 • Asymptomatic cases remain in main population
 
 Use for: Testing isolation effectiveness, intervention strategies""")
-        interv_box.addWidget(self.quarantine_checkbox)
+        self.interventions_box.addWidget(self.quarantine_checkbox)
 
         self.marketplace_checkbox = QCheckBox("Marketplace Gatherings")
         self.marketplace_checkbox.setChecked(params.marketplace_enabled)
@@ -901,12 +900,12 @@ When enabled:
 • Models superspreader events (concerts, festivals, etc.)
 
 Use for: Studying impact of mass gatherings on epidemic spread""")
-        interv_box.addWidget(self.marketplace_checkbox)
+        self.interventions_box.addWidget(self.marketplace_checkbox)
 
         # Note: Marketplace parameters (interval, attendance, location) are now in the left panel
         # under "MARKETPLACE PARAMETERS" section, shown only when marketplace is enabled.
 
-        right_layout.addWidget(interv_box)
+        right_layout.addWidget(self.interventions_box)
 
         # === VISUALIZATIONS ===
         vis_box = CollapsibleBox("VISUALIZATIONS")
@@ -930,7 +929,7 @@ Use for: Studying impact of mass gatherings on epidemic spread""")
             QTabBar::tab {{
                 background-color: {PANEL_BLACK}; color: {NEON_GREEN};
                 border: 1px solid {BORDER_GREEN}; padding: 8px 15px;
-                margin-right: 2px; font-family: 'Courier New', monospace; font-size: 11px;
+                margin-right: 2px; font-family: 'Courier New', monospace; font-size: 13px;
             }}
             QTabBar::tab:selected {{
                 background-color: {BORDER_GREEN}; color: {BG_BLACK}; font-weight: bold;
@@ -949,7 +948,9 @@ Use for: Studying impact of mass gatherings on epidemic spread""")
         self.graph_widget.setLabel('bottom', 'Day', color=NEON_GREEN)
         self.graph_widget.showGrid(x=True, y=True, alpha=0.15)
         self.graph_widget.setYRange(0, 100)
-        self.graph_widget.setMinimumHeight(280)  # Reasonable height
+        self.graph_widget.setMinimumHeight(280)  # Minimum height
+        self.graph_widget.setMaximumHeight(280)  # Maximum height - FIXED size
+        self.graph_widget.setMaximumWidth(380)  # Maximum width - prevent stretching
         self.graph_widget.setToolTip("""Time Series Graph: Track epidemic progression over time
 
 Shows percentage of population in each state:
@@ -991,7 +992,7 @@ Updates in real-time as simulation progresses.""")
         # === STATUS ===
         self.status_label = QLabel("Ready")
         self.status_label.setStyleSheet(f"""
-            font-size: 11px; padding: 8px; color: {NEON_GREEN};
+            font-size: 13px; padding: 8px; color: {NEON_GREEN};
             background-color: {PANEL_BLACK}; border: 1px solid {BORDER_GREEN};
             font-family: 'Courier New', monospace;
         """)
@@ -1004,7 +1005,7 @@ Updates in real-time as simulation progresses.""")
             "Q=Quarantine | M=Marketplace | Alt+T=Theme | 1-9=Presets"
         )
         self.shortcuts_label.setStyleSheet(f"""
-            font-size: 9px; padding: 5px; color: {NEON_GREEN};
+            font-size: 11px; padding: 5px; color: {NEON_GREEN};
             background-color: {BG_BLACK}; border: 1px solid {BORDER_GREEN};
             font-family: 'Courier New', monospace;
         """)
@@ -1039,6 +1040,9 @@ Updates in real-time as simulation progresses.""")
 
         # Initialize contextual parameter visibility based on current state
         self._init_contextual_visibility()
+
+        # Apply initial mode visibility
+        self.update_mode_visibility()
 
     def get_checkable_button_stylesheet(self):
         """
@@ -1166,7 +1170,7 @@ Updates in real-time as simulation progresses.""")
                 padding: 8px;
                 margin: 0px;
                 font-family: 'Courier New', monospace;
-                font-size: 11px;
+                font-size: 13px;
                 opacity: 255;
             }}
             QScrollArea {{
@@ -1257,7 +1261,7 @@ Updates in real-time as simulation progresses.""")
                 color: {NEON_GREEN};
                 border: 2px solid {BORDER_GREEN};
                 font-family: 'Courier New', monospace;
-                font-size: 11px;
+                font-size: 13px;
             }}
             QSlider::groove:horizontal {{
                 border: 1px solid {BORDER_GREEN};
@@ -1296,7 +1300,7 @@ Updates in real-time as simulation progresses.""")
                 border: 2px solid {BORDER_GREEN};
                 padding: 3px;
                 font-family: 'Courier New', monospace;
-                font-size: 11px;
+                font-size: 13px;
             }}
             QSpinBox::up-button, QDoubleSpinBox::up-button {{
                 background-color: {PANEL_BLACK};
@@ -1529,11 +1533,11 @@ Updates in real-time as simulation progresses.""")
         self.stats_container.setStyleSheet(f"background-color: {PANEL}; border: 2px solid {BORDER}; padding: 10px;")
 
         # Update labels with theme-aware text colors
-        self.speed_label.setStyleSheet(f"color: {TEXT}; font-size: 11px; margin-top: 5px;")
-        self.pop_label.setStyleSheet(f"color: {TEXT}; font-size: 11px; margin-top: 8px;")
+        self.speed_label.setStyleSheet(f"color: {TEXT}; font-size: 13px; margin-top: 5px;")
+        self.pop_label.setStyleSheet(f"color: {TEXT}; font-size: 13px; margin-top: 8px;")
         self.stats_label.setStyleSheet(f"font-size: 16px; font-weight: bold; color: {TEXT}; font-family: 'Courier New', monospace; background-color: transparent; border: none;")
-        self.status_label.setStyleSheet(f"font-size: 11px; padding: 8px; color: {TEXT}; background-color: {PANEL}; border: 1px solid {BORDER}; font-family: 'Courier New', monospace;")
-        self.shortcuts_label.setStyleSheet(f"font-size: 9px; padding: 5px; color: {TEXT}; background-color: {BG}; border: 1px solid {BORDER}; font-family: 'Courier New', monospace;")
+        self.status_label.setStyleSheet(f"font-size: 13px; padding: 8px; color: {TEXT}; background-color: {PANEL}; border: 1px solid {BORDER}; font-family: 'Courier New', monospace;")
+        self.shortcuts_label.setStyleSheet(f"font-size: 11px; padding: 5px; color: {TEXT}; background-color: {BG}; border: 1px solid {BORDER}; font-family: 'Courier New', monospace;")
 
         # Update all collapsible boxes
         for box in self.collapsible_boxes:
@@ -1584,6 +1588,44 @@ Updates in real-time as simulation progresses.""")
         else:
             self.fullscreen_btn.setText("FULL")
 
+    def toggle_mode(self):
+        """Toggle between BASIC and ADVANCED mode."""
+        self.mode = "ADVANCED" if self.mode == "BASIC" else "BASIC"
+        self.mode_btn.setText("ADVANCED" if self.mode == "BASIC" else "BASIC")
+
+        # Update parameter panel visibility
+        self.update_mode_visibility()
+
+        # In BASIC mode, enable infection radius by default and update checkbox
+        if self.mode == "BASIC":
+            params.show_infection_radius = True
+            if hasattr(self, 'show_radius_checkbox'):
+                self.show_radius_checkbox.setChecked(True)
+
+        self.status_label.setText(f"Switched to {self.mode} mode")
+
+    def update_mode_visibility(self):
+        """Update visibility of parameter boxes based on current mode."""
+        if self.mode == "BASIC":
+            # BASIC mode: Show DISEASE PARAMETERS and PRESETS only
+            self.pop_box.setVisible(False)
+            self.interv_box.setVisible(False)
+            self.presets_box.setVisible(True)  # Keep presets available in BASIC mode
+            self.interventions_box.setVisible(False)
+            # Also hide community and marketplace param boxes
+            if hasattr(self, 'community_box'):
+                self.community_box.setVisible(False)
+            if hasattr(self, 'marketplace_params_box'):
+                self.marketplace_params_box.setVisible(False)
+        else:
+            # ADVANCED mode: Show all
+            self.pop_box.setVisible(True)
+            self.interv_box.setVisible(True)
+            self.presets_box.setVisible(True)
+            self.interventions_box.setVisible(True)
+            # Community and marketplace boxes have their own visibility logic
+            # so we don't force them visible here
+
     def toggle_tooltips(self):
         """Toggle tooltips on/off globally (Ctrl+T)."""
         self.tooltips_enabled = not self.tooltips_enabled
@@ -1600,7 +1642,7 @@ Updates in real-time as simulation progresses.""")
                     border: 1px solid {tooltip_border};
                     padding: 5px;
                     border-radius: 3px;
-                    font-size: 11px;
+                    font-size: 13px;
                 }}
             """)
             self.add_log("Tooltips enabled (Ctrl+T)")
@@ -1651,7 +1693,7 @@ Updates in real-time as simulation progresses.""")
     def toggle_pause(self):
         """Toggle simulation pause state."""
         self.paused = not self.paused
-        self.pause_btn.setText("RESUME" if self.paused else "PAUSE")
+        self.pause_btn.setText("START" if self.paused else "PAUSE")
         if self.paused:
             self.status_label.setText(f"⏸ Simulation PAUSED at Day {self.sim.day_count}. Adjust parameters or press SPACE to resume.")
         else:
@@ -1705,21 +1747,13 @@ Updates in real-time as simulation progresses.""")
 
     def show_parameter_documentation(self):
         """
-        Show comprehensive parameter documentation dialog (Ctrl+R).
-
-        Displays detailed documentation for ALL simulation parameters including:
-        - Disease parameters with epidemiological context
-        - Population parameters with behavioral models
-        - Intervention parameters with public health strategies
-        - Community parameters for spatial modeling
-        - Marketplace parameters for gathering dynamics
-        - Statistical distributions and their mathematical justification
+        Show current parameter values and descriptions.
         """
         from PyQt5.QtWidgets import QDialog, QVBoxLayout, QTextEdit, QPushButton
         from epidemic_sim.view.theme import get_color
 
         dialog = QDialog(self)
-        dialog.setWindowTitle("Complete Parameter Documentation")
+        dialog.setWindowTitle("Current Parameter Values")
         dialog.setMinimumSize(900, 700)
 
         layout = QVBoxLayout()
@@ -1732,402 +1766,102 @@ Updates in real-time as simulation progresses.""")
                 background-color: {get_color('BG_WHITE') if theme_module.current_theme == LIGHT_THEME else '#0a0a0a'};
                 color: {get_color('TEXT')};
                 font-family: 'Courier New', monospace;
-                font-size: 11px;
+                font-size: 12px;
                 border: 2px solid {get_color('BORDER_GREEN') if theme_module.current_theme == DARK_THEME else get_color('BORDER_GRAY')};
                 padding: 15px;
             }}
         """)
 
-        # Comprehensive documentation content
+        # Simple documentation showing current values
         doc_text = f"""
-╔════════════════════════════════════════════════════════════════════════════╗
-║              EPIDEMIC SIMULATOR - COMPLETE PARAMETER GUIDE                 ║
-║                    Scientific Documentation & Reference                     ║
-╚════════════════════════════════════════════════════════════════════════════╝
+═══════════════════════════════════════════════════════════════════
+                    CURRENT PARAMETER VALUES
+═══════════════════════════════════════════════════════════════════
 
-Current Configuration: {self.sim.mode.upper()} MODE
-Population: {params.num_particles} particles
-Current Day: {self.sim.day_count}
+DISEASE PARAMETERS
+──────────────────────────────────────────────────────────────────
+Infection Radius:        {params.infection_radius:.3f}
+  Range within which disease can spread between particles
 
-═══════════════════════════════════════════════════════════════════════════════
-STATISTICAL DISTRIBUTIONS (IHK Project Requirement)
-═══════════════════════════════════════════════════════════════════════════════
+Infection Probability:   {params.prob_infection:.2%}
+  Chance of transmission per contact per timestep
 
-The simulation implements THREE statistical distributions as required:
+Infection Duration:      {params.infection_duration} days
+  How long a particle remains infected
 
-1. UNIFORM DISTRIBUTION (Gleichverteilung)
-   ────────────────────────────────────────────────────────────────
-   Mathematical Form:  f(x) = 1/(b-a) for x ∈ [a,b]
+Mortality Rate:          {params.mortality_rate:.1%}
+  Percentage of infected who die
 
-   Used For:
-   • Particle initial positions (x, y) - Random spatial placement
-   • Particle velocities (vx, vy) - Unbiased movement direction
-   • Random travel decisions - No preference in community selection
+Initial Infected:        {params.fraction_infected_init:.2%} = {int(params.fraction_infected_init * params.num_particles)} particles
+  Starting number of infected (Patient Zero)
 
-   Parameters: Range [-0.2, 0.2] for velocities
-   Justification: All values equally likely → No inherent bias in
-                  position or movement direction
+Asymptomatic Rate:       {params.prob_no_symptoms:.1%}
+  Percentage who show no symptoms (orange particles)
 
-   Properties:
-   • Mean = (a+b)/2 = 0.0
-   • Variance = (b-a)²/12
-   • Every value in range has equal probability
+POPULATION PARAMETERS
+──────────────────────────────────────────────────────────────────
+Population Size:         {params.num_particles}
+  Total number of particles in simulation
 
-2. NORMAL DISTRIBUTION (Normalverteilung/Gaussian)
-   ────────────────────────────────────────────────────────────────
-   Mathematical Form:  f(x) = (1/σ√2π) * e^(-(x-μ)²/2σ²)
-
-   Used For: Individual Infection Susceptibility
-
-   Parameters:
-   • Mean (μ) = 1.0 (average person)
-   • Standard Deviation (σ) = 0.2 (biological variation)
-   • Range: Clamped to [0.1, ∞) to avoid negative susceptibility
-
-   Current Value: {1.0} (effective multiplier on infection probability)
-
-   Justification: Models natural biological variation in immune response.
-                  Most people cluster around average (68% within ±σ),
-                  with few being highly susceptible or highly resistant.
-
-   Properties:
-   • ~68% of population has susceptibility between 0.8 and 1.2
-   • ~95% of population has susceptibility between 0.6 and 1.4
-   • Bell curve represents Central Limit Theorem in biology
-
-3. EXPONENTIAL DISTRIBUTION (Exponentialverteilung)
-   ────────────────────────────────────────────────────────────────
-   Mathematical Form:  f(x) = λe^(-λx) for x ≥ 0
-
-   Used For: Individual Recovery Time Variation
-
-   Parameters:
-   • Scale (λ) = 1.0, therefore Mean = 1/λ = 1.0
-   • Range: Clamped to [0.5, 3.0] for realistic recovery times
-
-   Current Value: {1.0} (effective multiplier on infection duration)
-
-   Justification: Exponential distribution has "memoryless property"
-                  which perfectly models time-until-event phenomena.
-                  Some recover quickly (<1.0x), others take longer (>1.0x).
-                  Ideal for disease progression modeling.
-
-   Properties:
-   • Median < Mean (right-skewed distribution)
-   • P(recovery in next day) independent of days already infected
-   • Models random time until recovery event occurs
-
-═══════════════════════════════════════════════════════════════════════════════
-DISEASE PARAMETERS (Epidemiological Model)
-═══════════════════════════════════════════════════════════════════════════════
-
-Infection Radius: {params.infection_radius:.3f}
-   • Range: 0.01 - 0.40 (simulation units)
-   • Current: {params.infection_radius:.3f}
-   • Meaning: How close particles must be for disease transmission
-   • Epidemiological Context: Represents "contact distance" for airborne/
-                             droplet transmission (e.g., 1.5-2m in reality)
-   • Effect: Larger radius → faster spread, more contacts per timestep
-   • Recommendation: 0.10-0.20 for realistic airborne diseases
-
-Infection Probability: {params.prob_infection:.1%}
-   • Range: 0% - 100%
-   • Current: {params.prob_infection:.1%} ({params.prob_infection:.3f})
-   • Meaning: Chance of transmission per contact PER TIMESTEP
-   • IMPORTANT: Adjusted by individual susceptibility (Normal distribution)
-   • Formula: effective_prob = base_prob × susceptibility / steps_per_day
-   • Epidemiological Context: R₀ (basic reproduction number) depends on:
-                             infection_prob × contacts_per_day × infection_duration
-   • Effect: Higher probability → more aggressive spread, higher R₀
-   • Recommendation: 20-40% for moderate diseases like influenza
-
-Infection Duration: {params.infection_duration:.1f} days
-   • Range: 1 - 90 days
-   • Current: {params.infection_duration:.1f} days
-   • Meaning: How long a particle remains infectious
-   • IMPORTANT: Adjusted by individual recovery modifier (Exponential distribution)
-   • Formula: effective_duration = base_duration × recovery_modifier
-   • Epidemiological Context: Matches typical disease infectious periods
-                             (flu ~7 days, COVID-19 ~10-14 days)
-   • Effect: Longer duration → more transmission opportunities per case
-   • Recommendation: 7-21 days for most respiratory diseases
-
-Asymptomatic Probability: {params.prob_no_symptoms:.1%}
-   • Range: 0% - 100%
-   • Current: {params.prob_no_symptoms:.1%}
-   • Meaning: Percentage of infected who show NO symptoms
-   • Epidemiological Context: Asymptomatic carriers crucial for COVID-19,
-                             less common in symptomatic diseases like measles
-   • Effect on Behavior: Asymptomatic → no quarantine even if enabled
-   • Visualization: Orange particles (vs red symptomatic)
-   • Recommendation: 20-40% for COVID-like diseases, 0-10% for measles
-
-Mortality Rate: {params.mortality_rate:.1%}
-   • Range: 0% - 100%
-   • Current: {params.mortality_rate:.1%}
-   • Meaning: Percentage of infected who DIE (vs recover)
-   • Epidemiological Context: Case Fatality Rate (CFR)
-   • Roll timing: When infection_duration expires
-   • Effect: Dead particles stop moving, turn dark red
-   • Historical Context: Spanish Flu ~2-3%, COVID-19 ~1-2%, Ebola ~50%
-   • Recommendation: 0-5% for most modern diseases
-
-═══════════════════════════════════════════════════════════════════════════════
-POPULATION PARAMETERS (Behavioral Model)
-═══════════════════════════════════════════════════════════════════════════════
-
-Population Size: {params.num_particles}
-   • Range: 50 - 5000 particles
-   • Current: {params.num_particles}
-   • Meaning: Total number of individuals in simulation
-   • Performance Impact: >1000 may slow simulation on older machines
-   • Recommendation: 200-500 for good visualization, 1000+ for statistics
-
-Particle Size: {params.particle_size} pixels
-   • Range: 2 - 12 pixels
-   • Current: {params.particle_size} pixels
-   • Meaning: Visual size of each particle on canvas
-   • Effect: Larger → easier to see, but may overlap visually
-   • Recommendation: 4-6 for 500 particles, 2-3 for 2000+ particles
-
-Particle Speed: {params.speed_multiplier:.2f}x
-   • Range: 0.1x - 3.0x
-   • Current: {params.speed_multiplier:.2f}x
-   • Meaning: Movement velocity multiplier
-   • Effect: Higher speed → more contacts, faster mixing
-   • Epidemiological Context: Represents population mobility
-   • Recommendation: 0.5-1.5x for realistic movement
+Social Distance Strength: {params.social_distance_factor:.2f}
+  Repulsive force between nearby particles
 
 Social Distance Compliance: {params.social_distance_obedient:.1%}
-   • Range: 0% - 100%
-   • Current: {params.social_distance_obedient:.1%}
-   • Meaning: % of population that practices social distancing
-   • Behavior: Compliant particles keep ≥2x infection radius apart
-   • Epidemiological Context: Models voluntary behavioral change
-   • Effect: Higher compliance → slower spread, lower R₀
-   • Recommendation: 0% (baseline), 60-80% (moderate intervention)
+  Percentage following distancing rules
 
-Initial Infected: {params.initial_infected}
-   • Range: 1 - 50
-   • Current: {params.initial_infected}
-   • Meaning: "Patient Zero" - number of infected at day 0
-   • Epidemiological Context: Index cases that seed the outbreak
-   • Effect: More initial → faster initial growth, less randomness
-   • Recommendation: 1-5 for realistic outbreak, 10+ for fast testing
+Particle Speed:          {params.speed_limit:.2f}
+  Maximum particle velocity
 
-═══════════════════════════════════════════════════════════════════════════════
-INTERVENTION PARAMETERS (Public Health Strategies)
-═══════════════════════════════════════════════════════════════════════════════
+INTERVENTION PARAMETERS
+──────────────────────────────────────────────────────────────────
+Quarantine Enabled:      {params.quarantine_enabled}
+  Isolate symptomatic infected particles
 
-Quarantine Enabled: {params.quarantine_enabled}
-   • Toggle: Keyboard 'Q' or checkbox
-   • Current: {'ACTIVE' if params.quarantine_enabled else 'DISABLED'}
-   • Meaning: Isolate symptomatic infected particles
-   • Mechanism: Move to quarantine zone, reduce movement
-   • Epidemiological Context: Historical quarantine (isolation of sick)
-   • Effect: Reduces R₀ by removing infectious from circulation
-   • Limitation: Only catches SYMPTOMATIC (misses asymptomatic)
+Quarantine After:        {params.quarantine_after} days
+  Days before quarantine begins
 
-Quarantine Delay: {params.quarantine_delay:.1f} days
-   • Range: 0 - 10 days
-   • Current: {params.quarantine_delay:.1f} days (if enabled)
-   • Meaning: Days AFTER showing symptoms before quarantine
-   • Epidemiological Context: Represents testing/detection delay
-   • Effect: 0 days = instant detection, 3-5 days = realistic delay
-   • Recommendation: 2-3 days for COVID-like disease
+Quarantine Start Day:    {params.start_quarantine}
+  Day when quarantine policy starts
 
-Quarantine Duration: {params.quarantine_duration:.1f} days
-   • Range: 5 - 90 days
-   • Current: {params.quarantine_duration:.1f} days (if enabled)
-   • Meaning: How long particles remain quarantined
-   • Release: After duration OR recovery (whichever first)
-   • Recommendation: Match or exceed infection_duration
+Quarantine Duration:     {params.quarantine_duration} days
+  How long particles remain quarantined
 
-Vaccination Enabled: {getattr(self.sim, 'vaccination_enabled', False)}
-   • Toggle: Must reset simulation to enable
-   • Current: {'ACTIVE' if getattr(self.sim, 'vaccination_enabled', False) else 'DISABLED'}
-   • Meaning: Vaccinate susceptible particles over time
-   • Mechanism: Reduces infection_susceptibility by vaccine_efficacy
-   • Formula: new_susceptibility = old × (1 - efficacy)
-   • Example: 70% efficacy → susceptibility reduced to 30% of original
+Social Distance Range:   {params.boxes_to_consider}
+  Grid cells checked for social distancing
 
-Vaccine Efficacy: {getattr(self.sim, 'vaccine_efficacy', 0.0):.1%}
-   • Range: 0% - 100%
-   • Current: {getattr(self.sim, 'vaccine_efficacy', 0.0):.1%} (if vaccination enabled)
-   • Meaning: How much vaccine REDUCES infection risk
-   • Real-world: Pfizer/Moderna ~95%, AstraZeneca ~70%, flu ~40-60%
-   • Effect: Higher efficacy → fewer vaccinated infections
-
-Vaccination Rate: {getattr(self.sim, 'vaccination_rate', 0.0):.1%}/day
-   • Range: 0% - 10%/day
-   • Current: {getattr(self.sim, 'vaccination_rate', 0.0):.1%}/day (if enabled)
-   • Meaning: % of susceptible population vaccinated per day
-   • Example: 1%/day → 100 days to vaccinate all susceptible
-   • Epidemiological Context: Represents vaccination campaign speed
-
-═══════════════════════════════════════════════════════════════════════════════
-COMMUNITY PARAMETERS (Spatial Modeling) - COMMUNITIES MODE ONLY
-═══════════════════════════════════════════════════════════════════════════════
-
+COMMUNITY PARAMETERS
+──────────────────────────────────────────────────────────────────
 Particles per Community: {params.num_per_community}
-   • Range: 50 - 500 per community
-   • Current: {params.num_per_community}
-   • Meaning: Population of each community in grid
-   • Total Communities: {params.num_communities} ({int(params.num_communities**0.5)}×{int(params.num_communities**0.5)} grid)
-   • Total Population: {params.num_per_community * params.num_communities}
+  Population in each community grid
 
-Travel Probability: {params.travel_probability:.1%}
-   • Range: 0% - 10%
-   • Current: {params.travel_probability:.1%}
-   • Meaning: Chance per timestep that particle travels to new community
-   • Epidemiological Context: Models inter-community mixing
-   • Effect: Higher travel → faster spatial spread, earlier epidemics in remote communities
-   • Recommendation: 0.1-1% for low mobility, 3-5% for high mobility
+Travel Probability:      {params.travel_probability:.2%}
+  Chance of traveling between communities
 
-Communities to Infect: {params.communities_to_infect}
-   • Range: 1 - 9
-   • Current: {params.communities_to_infect}
-   • Meaning: How many communities start with infections
-   • Pattern: Center community always infected first
-   • Effect: More → simultaneous outbreaks, less spatial lag
-   • Recommendation: 1 for single-source, 3-5 for multi-source outbreak
+Communities to Infect:   {params.communities_to_infect}
+  Initial communities with infections
 
-═══════════════════════════════════════════════════════════════════════════════
-MARKETPLACE PARAMETERS (Mass Gathering Events)
-═══════════════════════════════════════════════════════════════════════════════
+MARKETPLACE PARAMETERS
+──────────────────────────────────────────────────────────────────
+Marketplace Enabled:     {params.marketplace_enabled}
+  Periodic mass gathering events
 
-Marketplace Enabled: {params.marketplace_enabled}
-   • Toggle: Keyboard 'M' or checkbox
-   • Current: {'ACTIVE' if params.marketplace_enabled else 'DISABLED'}
-   • Meaning: Periodic gatherings at central location
-   • Epidemiological Context: Super-spreader events (concerts, markets, etc.)
-   • Effect: Creates transmission hotspots, increases R₀ during events
+Marketplace Interval:    {params.marketplace_interval} days
+  Days between marketplace events
 
-Marketplace Interval: {params.marketplace_interval:.1f} hours
-   • Range: 6 - 168 hours (0.25 - 7 days)
-   • Current: {params.marketplace_interval:.1f} hours = {params.marketplace_interval/24:.1f} days
-   • Meaning: Time between marketplace events
-   • Example: 24 hours = daily market, 168 hours = weekly event
-   • Recommendation: 24-48 hours for frequent, 168 for rare events
+Marketplace Duration:    {params.marketplace_duration} timesteps
+  How long particles stay at marketplace
 
-Marketplace Duration: {params.marketplace_duration:.1f} hours
-   • Range: 0.5 - 24 hours
-   • Current: {params.marketplace_duration:.1f} hours
-   • Meaning: How long each gathering lasts
-   • Epidemiological Context: Longer events → more transmission opportunities
-   • Recommendation: 2-4 hours for market, 8-12 for festival
+Marketplace Attendance:  {params.marketplace_attendance:.1%}
+  Fraction attending marketplace
 
-Marketplace Attendance: {params.marketplace_attendance:.1%}
-   • Range: 0% - 100%
-   • Current: {params.marketplace_attendance:.1%}
-   • Meaning: % of population attending each event
-   • Selection: Random each time (Uniform distribution)
-   • Effect: Higher attendance → more mixing, super-spreader potential
-   • Recommendation: 20-40% for routine events, 60-80% for major gatherings
+VISUALIZATION
+──────────────────────────────────────────────────────────────────
+Show Infection Radius:   {params.show_infection_radius}
+  Display infection radius circles
 
-Marketplace Location:
-   • X: {params.marketplace_x:.2f}, Y: {params.marketplace_y:.2f}
-   • Simple Mode: Center of simulation space
-   • Communities Mode: Center community in grid
-   • Visual: Orange circle (simple) or orange community border
-
-═══════════════════════════════════════════════════════════════════════════════
-SIMULATION SETTINGS (Technical)
-═══════════════════════════════════════════════════════════════════════════════
-
-Time Steps per Day: {params.time_steps_per_day}
-   • Current: {params.time_steps_per_day} steps = {24/params.time_steps_per_day:.1f} hours/step
-   • Meaning: Time resolution of simulation
-   • Effect on Calculations: Infection probability DIVIDED by this value
-   • Recommendation: Keep at 24 for balance of speed and accuracy
-
-Simulation Speed: {self.speed}x
-   • Current: {self.speed}x (real-time multiplier)
-   • Effect: Visual only - does NOT change disease mechanics
-   • Keyboard: 1-4 for speed presets
-
-Show Infection Radius: {params.show_infection_radius}
-   • Toggle: Checkbox in visualization
-   • Effect: Display red circles around infected particles
-   • Purpose: Visualize transmission range
-
-═══════════════════════════════════════════════════════════════════════════════
-EPIDEMIOLOGICAL CONCEPTS (For Understanding)
-═══════════════════════════════════════════════════════════════════════════════
-
-R₀ (Basic Reproduction Number):
-   • Definition: Average # of people ONE infected person infects
-   • Factors: infection_prob × contacts_per_day × infection_duration
-   • Interpretation: R₀ > 1 → epidemic grows
-                    R₀ = 1 → endemic (stable)
-                    R₀ < 1 → epidemic dies out
-   • Real Diseases: Measles ~15-18, COVID-19 ~2-3, Flu ~1-2
-
-SIR Model (Classic):
-   • S = Susceptible (blue/cyan particles)
-   • I = Infected (red/orange particles)
-   • R = Removed/Recovered (gray particles)
-
-SEIRD Model (Enhanced - This Simulation):
-   • S = Susceptible
-   • E = Exposed (infected but not yet infectious - incubation)
-   • I = Infectious (can spread disease)
-   • R = Recovered (immune)
-   • D = Dead
-
-Herd Immunity Threshold:
-   • Formula: 1 - (1/R₀)
-   • Example: R₀=3 → threshold = 1-(1/3) = 66.7% immune needed
-   • Achieved by: Recovery OR Vaccination
-   • Effect: Epidemic cannot sustain when threshold reached
-
-═══════════════════════════════════════════════════════════════════════════════
-KEYBOARD SHORTCUTS
-═══════════════════════════════════════════════════════════════════════════════
-
-SPACE    - Pause/Resume simulation
-R        - Reset simulation (keeps current parameters)
-F        - Toggle fullscreen mode
-Q        - Toggle quarantine on/off
-M        - Toggle marketplace on/off
-Ctrl+R   - Show this documentation (Parameter Reference)
-Alt+T    - Toggle light/dark theme
-1-9      - Load preset scenarios (1=Baseline, 2=Aggressive, etc.)
-
-═══════════════════════════════════════════════════════════════════════════════
-RECOMMENDED SCENARIOS FOR EXPERIMENTATION
-═══════════════════════════════════════════════════════════════════════════════
-
-Baseline Epidemic (No Intervention):
-   • Quarantine: OFF
-   • Marketplace: OFF
-   • Social Distance: 0%
-   • Observe: Natural disease spread, peak infection day
-
-Effect of Quarantine:
-   • Start with baseline
-   • Enable quarantine after day 20
-   • Observe: "Flattening the curve" effect
-
-Super-Spreader Events:
-   • Marketplace: ON
-   • Attendance: 60-80%
-   • Interval: 24-48 hours
-   • Observe: Periodic spikes in infections
-
-Vaccination Campaign:
-   • Enable vaccination
-   • Efficacy: 70-90%
-   • Rate: 1-2%/day
-   • Observe: Approach to herd immunity threshold
-
-═══════════════════════════════════════════════════════════════════════════════
-
-Documentation Version: 3.0
-Last Updated: 2024-12-09
-IHK Project: Three Statistical Distributions in Epidemic Simulation
-
-═══════════════════════════════════════════════════════════════════════════════
+═══════════════════════════════════════════════════════════════════
+Press Ctrl+R to refresh this view with updated values
+═══════════════════════════════════════════════════════════════════
 """
 
         text_edit.setPlainText(doc_text)
@@ -2234,6 +1968,11 @@ IHK Project: Three Statistical Distributions in Epidemic Simulation
         if key == Qt.Key_M:
             new_state = not params.marketplace_enabled
             self.marketplace_checkbox.setChecked(new_state)
+            return
+
+        # B: Toggle BASIC/ADVANCED mode
+        if key == Qt.Key_B:
+            self.toggle_mode()
             return
 
         # F: Toggle fullscreen
@@ -2348,8 +2087,11 @@ IHK Project: Three Statistical Distributions in Epidemic Simulation
                 )
                 self.graph_widget.addItem(d_curve)
 
-            # Auto-range to show full epidemic curve from start to current
-            # This ensures the entire development is visible, not stuck on first 15 days
-            self.graph_widget.enableAutoRange(axis='x', enable=True)
-            self.graph_widget.enableAutoRange(axis='y', enable=False)  # Keep Y at 0-100
-            self.graph_widget.setXRange(0, max(days), padding=0.02)
+            # Set graph range - use minimum of 30 days to prevent stretching at start
+            # This ensures graph doesn't look stretched when only a few days have passed
+            x_max = max(max(days), 30)  # At least 30 days visible
+            self.graph_widget.setXRange(0, x_max, padding=0)
+            # Always keep Y-axis fixed at 0-100 for percentage data
+            self.graph_widget.setYRange(0, 100, padding=0)
+            self.graph_widget.enableAutoRange(axis='x', enable=False)
+            self.graph_widget.enableAutoRange(axis='y', enable=False)

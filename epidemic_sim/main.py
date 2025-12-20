@@ -31,7 +31,7 @@ def main():
     app = QApplication(sys.argv)
 
     # Set default monospace font (retro terminal aesthetic)
-    font = QFont("Courier New", 10)
+    font = QFont("Courier New", 12)  # Increased from 10 to 12 for better readability
     font.setStyleHint(QFont.Monospace)
     app.setFont(font)
 

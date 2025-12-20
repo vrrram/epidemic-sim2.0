@@ -511,4 +511,54 @@ PRESETS = {
         'start_quarantine': 5,
         'prob_no_symptoms': 0.05,           # 5% asymptomatic carriers
     },
+
+    # === FICTIONAL/FUN SCENARIOS ===
+
+    "Zombie Virus": {
+        # Classic zombie outbreak scenario (The Walking Dead / 28 Days Later inspired)
+        # R0: 10+ | CFR: 100% (reanimation) | Incubation: 1 hour | Asymptomatic: 0%
+        'infection_radius': 0.08,           # Bite/scratch (very close contact)
+        'prob_infection': 0.95,             # Bite = almost certain infection
+        'fraction_infected_init': 0.002,    # Patient Zero: 0.2% (a few "zombies")
+        'infection_duration': 1,            # Turns quickly (1 day)
+        'mortality_rate': 1.0,              # 100% mortality (become zombie)
+        'social_distance_factor': 0.0,
+        'social_distance_obedient': 1.0,
+        'boxes_to_consider': 1,             # Very close contact needed
+        'quarantine_after': 0,              # Immediate quarantine attempt
+        'start_quarantine': 1,              # Panic response
+        'prob_no_symptoms': 0.0,            # Everyone turns visibly
+    },
+
+    "Super Flu": {
+        # Hyper-contagious fictional pandemic
+        # R0: 20+ | CFR: 30% | Incubation: 6 hours | Asymptomatic: 10%
+        'infection_radius': 0.35,           # Extremely airborne
+        'prob_infection': 0.15,             # Absurdly contagious
+        'fraction_infected_init': 0.01,     # Patient Zero: 1%
+        'infection_duration': 5,            # Rapid illness
+        'mortality_rate': 0.30,             # 30% CFR (devastating)
+        'social_distance_factor': 0.0,
+        'social_distance_obedient': 1.0,
+        'boxes_to_consider': 4,             # Long range transmission
+        'quarantine_after': 1,              # Very short incubation
+        'start_quarantine': 2,              # Emergency response
+        'prob_no_symptoms': 0.10,           # 10% asymptomatic super-spreaders
+    },
+
+    "Rage Virus (28 Days Later)": {
+        # Inspired by 28 Days Later - ultra-fast zombie virus
+        # R0: 15+ | CFR: 99% | Incubation: 20 seconds | Asymptomatic: 0%
+        'infection_radius': 0.10,           # Blood contact/bites
+        'prob_infection': 0.90,             # Blood = almost instant infection
+        'fraction_infected_init': 0.001,    # Patient Zero: 0.1%
+        'infection_duration': 0.5,          # Turns in 12 hours
+        'mortality_rate': 0.99,             # 99% mortality (rage zombies)
+        'social_distance_factor': 0.0,
+        'social_distance_obedient': 1.0,
+        'boxes_to_consider': 1,             # Direct contact only
+        'quarantine_after': 0,              # No time to quarantine
+        'start_quarantine': 1,              # Immediate collapse
+        'prob_no_symptoms': 0.0,            # Everyone turns violently
+    },
 }
