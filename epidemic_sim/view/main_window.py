@@ -21,9 +21,9 @@ from PyQt5.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QPushButton, QLabel, QSlider, QComboBox, QCheckBox, QSpinBox,
     QDoubleSpinBox, QScrollArea, QTabWidget, QButtonGroup, QTextEdit,
-    QDialog, QApplication, QListView
+    QDialog, QApplication, QListView, QStyle
 )
-from PyQt5.QtCore import Qt, QTimer, QSettings, QPoint
+from PyQt5.QtCore import Qt, QTimer, QSettings, QPoint, QRect
 from PyQt5.QtGui import QFont
 import pyqtgraph as pg
 
@@ -39,28 +39,38 @@ from epidemic_sim.view.theme import (
 )
 
 
-class FixedPositionComboBox(QComboBox):
+class LeftAlignedComboBox(QComboBox):
     """
-    Custom QComboBox that ensures the dropdown appears below the combo box,
-    not at arbitrary screen positions.
+    Custom QComboBox that FORCES dropdown to appear on the LEFT side,
+    directly below the combo box, not floating to the right.
     """
     def showPopup(self):
-        """Override to control popup positioning - force it below the combo box."""
-        # Get the popup (list view)
-        popup = self.view()
-        # Set popup width to match combo box width
-        popup.setMinimumWidth(self.width())
-        popup.setMaximumWidth(self.width())
-
-        # Call parent to show popup
+        """Override to force popup position below combo box on LEFT side."""
+        # Call parent first to create the popup
         super().showPopup()
 
-        # Force position the popup directly below the combo box
-        # Get combo box global position
-        combo_pos = self.mapToGlobal(QPoint(0, self.height()))
+        # Get the popup list view
+        popup = self.view()
+        if popup and popup.parent():
+            # Force popup to be at least as wide as the combo box
+            popup.setMinimumWidth(self.width())
 
-        # Move popup to be directly below combo box, aligned to left edge
-        popup.move(combo_pos)
+            # Calculate position: directly below combo box, aligned to left edge
+            # Get combo box position in global screen coordinates
+            combo_global_pos = self.mapToGlobal(QPoint(0, 0))
+
+            # Position popup directly below, same X coordinate (left-aligned)
+            popup_x = combo_global_pos.x()
+            popup_y = combo_global_pos.y() + self.height()
+
+            # Get the popup's container (QFrame)
+            popup_container = popup.parent()
+
+            # FORCE the position - move the container, not just the view
+            popup_container.move(popup_x, popup_y)
+
+            # Ensure popup is visible and sized correctly
+            popup_container.setMinimumWidth(self.width())
 
 
 class EpidemicApp(QMainWindow):
@@ -94,18 +104,6 @@ class EpidemicApp(QMainWindow):
         super().__init__()
         self.setWindowTitle("EPIDEMIC SIMULATION v3.0 - Enhanced Edition")
         self.setGeometry(50, 50, 1800, 1000)
-
-        # DISABLE ALL TOOLTIPS GLOBALLY to prevent flickering during 60 FPS simulation
-        # Tooltips flicker because widgets repaint constantly during simulation updates
-        # Users can access all help via the prominent HELP button (Keyboard: H or Ctrl+R)
-        QApplication.instance().setStyleSheet("""
-            QToolTip {
-                opacity: 0;
-                background: transparent;
-                color: transparent;
-                border: none;
-            }
-        """)
 
         # Load saved theme preference
         self.settings = QSettings("EpidemicSimulator", "Theme")
@@ -679,8 +677,8 @@ Tip: (0, 0) places marketplace at canvas center"""
         # PRESETS
         self.presets_box = CollapsibleBox("PRESETS")
         self.collapsible_boxes.append(self.presets_box)
-        # Use custom combo box with fixed positioning to prevent dropdown from appearing on right side
-        self.preset_combo = FixedPositionComboBox()
+        # Use left-aligned combo box - forces dropdown to appear on LEFT side below combo box
+        self.preset_combo = LeftAlignedComboBox()
         self.preset_combo.addItem("-- Select Preset --")
         for preset_name in PRESETS.keys():
             self.preset_combo.addItem(preset_name)
@@ -1205,14 +1203,10 @@ Updates in real-time as simulation progresses.""")
                 font-family: 'Courier New', monospace;
             }}
             QToolTip {{
-                background-color: {tooltip_bg};
-                color: {tooltip_text};
-                border: 2px solid {tooltip_border};
-                padding: 8px;
-                margin: 0px;
-                font-family: 'Courier New', monospace;
-                font-size: 13px;
-                opacity: 255;
+                opacity: 0;
+                background: transparent;
+                color: transparent;
+                border: none;
             }}
             QScrollArea {{
                 border: 2px solid {BORDER_GREEN};
