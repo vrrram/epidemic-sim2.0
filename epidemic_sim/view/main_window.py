@@ -39,6 +39,30 @@ from epidemic_sim.view.theme import (
 )
 
 
+class FixedPositionComboBox(QComboBox):
+    """
+    Custom QComboBox that ensures the dropdown appears below the combo box,
+    not at arbitrary screen positions.
+    """
+    def showPopup(self):
+        """Override to control popup positioning - force it below the combo box."""
+        # Get the popup (list view)
+        popup = self.view()
+        # Set popup width to match combo box width
+        popup.setMinimumWidth(self.width())
+        popup.setMaximumWidth(self.width())
+
+        # Call parent to show popup
+        super().showPopup()
+
+        # Force position the popup directly below the combo box
+        # Get combo box global position
+        combo_pos = self.mapToGlobal(QPoint(0, self.height()))
+
+        # Move popup to be directly below combo box, aligned to left edge
+        popup.move(combo_pos)
+
+
 class EpidemicApp(QMainWindow):
     """
     Main application window for the Epidemic Simulation.
@@ -643,7 +667,8 @@ Tip: (0, 0) places marketplace at canvas center"""
         # PRESETS
         self.presets_box = CollapsibleBox("PRESETS")
         self.collapsible_boxes.append(self.presets_box)
-        self.preset_combo = QComboBox()
+        # Use custom combo box with fixed positioning to prevent dropdown from appearing on right side
+        self.preset_combo = FixedPositionComboBox()
         self.preset_combo.addItem("-- Select Preset --")
         for preset_name in PRESETS.keys():
             self.preset_combo.addItem(preset_name)
@@ -659,14 +684,6 @@ Available presets:
 • Communities: Isolated population groups
 
 Tip: Use keyboard shortcuts 1-9 to quickly load presets""")
-
-        # Fix dropdown positioning: Force it to open aligned to the left edge of the combo box
-        # This prevents the dropdown from appearing on the right side of the screen
-        list_view = QListView()
-        self.preset_combo.setView(list_view)
-        # Set the view to match the combo box width and align to left edge
-        self.preset_combo.view().setMinimumWidth(self.preset_combo.minimumSizeHint().width())
-        # The dropdown will now open below the combo box, aligned to its left edge
 
         self.presets_box.addWidget(self.preset_combo)
         left_layout.addWidget(self.presets_box)
