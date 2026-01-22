@@ -75,7 +75,7 @@ class CustomPresetSelector(QWidget):
         for preset_name in PRESETS.keys():
             self.popup_widget.addItem(preset_name)
 
-        # Style the popup - matches theme
+        # Style the popup - matches theme, NO WHITE SCROLLBARS
         self.popup_widget.setStyleSheet(f"""
             QListWidget {{
                 background-color: {BG_BLACK};
@@ -96,6 +96,21 @@ class CustomPresetSelector(QWidget):
                 background-color: {NEON_GREEN};
                 color: {BG_BLACK};
             }}
+            QScrollBar:vertical {{
+                background-color: {BG_BLACK};
+                width: 12px;
+                border: 1px solid {BORDER_GREEN};
+            }}
+            QScrollBar::handle:vertical {{
+                background-color: {BORDER_GREEN};
+                min-height: 20px;
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+                height: 0px;
+            }}
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
+                background: {BG_BLACK};
+            }}
         """)
 
         # Connect selection
@@ -106,9 +121,9 @@ class CustomPresetSelector(QWidget):
         popup_x = button_global_pos.x()
         popup_y = button_global_pos.y() + self.button.height()
 
-        # Set size to match button width
+        # Set size to match button width, tall enough to show ~8 presets
         self.popup_widget.setFixedWidth(self.button.width())
-        self.popup_widget.setMaximumHeight(300)
+        self.popup_widget.setMaximumHeight(250)
 
         # MOVE to correct position and show
         self.popup_widget.move(popup_x, popup_y)
@@ -216,11 +231,11 @@ class EpidemicApp(QMainWindow):
         main_layout.setSpacing(0)
         main_layout.setContentsMargins(0, 0, 0, 0)
 
-        # === LEFT PANEL: PARAMETERS (COLLAPSIBLE) ===
+        # === LEFT PANEL: PARAMETERS ===
         self.left_panel = QWidget()
         self.left_panel.setStyleSheet(f"background-color: {BG_BLACK};")
-        self.left_panel.setMaximumWidth(350)
-        self.left_panel.setMinimumWidth(300)
+        self.left_panel.setMaximumWidth(280)
+        self.left_panel.setMinimumWidth(250)
 
         left_scroll = QScrollArea()
         left_scroll.setWidgetResizable(True)
@@ -243,13 +258,6 @@ class EpidemicApp(QMainWindow):
         left_layout = QVBoxLayout(self.left_panel)
         left_layout.setSpacing(10)
         left_layout.setContentsMargins(10, 10, 10, 10)
-
-        # Collapse button
-        collapse_btn = QPushButton("COLLAPSE PARAMETERS <<")
-        collapse_btn.clicked.connect(self.toggle_left_panel)
-        collapse_btn.setMinimumHeight(30)
-        left_layout.addWidget(collapse_btn)
-        self.left_collapse_btn = collapse_btn
 
         # === LEFT PANEL: ALL PARAMETERS ===
         self.sliders = {}
@@ -748,8 +756,8 @@ Tip: (0, 0) places marketplace at canvas center"""
         # === RIGHT PANEL: CONTROLS ===
         self.right_panel = QWidget()
         self.right_panel.setStyleSheet(f"background-color: {BG_BLACK};")
-        self.right_panel.setMaximumWidth(400)
-        self.right_panel.setMinimumWidth(350)
+        self.right_panel.setMaximumWidth(420)
+        self.right_panel.setMinimumWidth(380)
 
         right_scroll = QScrollArea()
         right_scroll.setWidgetResizable(True)
@@ -1181,15 +1189,6 @@ Updates in real-time as simulation progresses.""")
                     border: 2px solid #00dd00 !important;
                 }}
             """
-
-    def toggle_left_panel(self):
-        """Toggle left parameter panel visibility."""
-        is_visible = self.left_panel.parent().isVisible()
-        self.left_panel.parent().setVisible(not is_visible)
-        if is_visible:
-            self.left_collapse_btn.setText("SHOW PARAMETERS >>")
-        else:
-            self.left_collapse_btn.setText("COLLAPSE PARAMETERS <<")
 
     def on_population_changed(self, value):
         """Update status when population changes."""
