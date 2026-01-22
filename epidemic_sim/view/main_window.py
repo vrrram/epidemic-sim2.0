@@ -21,9 +21,9 @@ from PyQt5.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QPushButton, QLabel, QSlider, QComboBox, QCheckBox, QSpinBox,
     QDoubleSpinBox, QScrollArea, QTabWidget, QButtonGroup, QTextEdit,
-    QDialog, QApplication
+    QDialog, QApplication, QListView
 )
-from PyQt5.QtCore import Qt, QTimer, QSettings
+from PyQt5.QtCore import Qt, QTimer, QSettings, QPoint
 from PyQt5.QtGui import QFont
 import pyqtgraph as pg
 
@@ -659,6 +659,15 @@ Available presets:
 • Communities: Isolated population groups
 
 Tip: Use keyboard shortcuts 1-9 to quickly load presets""")
+
+        # Fix dropdown positioning: Force it to open aligned to the left edge of the combo box
+        # This prevents the dropdown from appearing on the right side of the screen
+        list_view = QListView()
+        self.preset_combo.setView(list_view)
+        # Set the view to match the combo box width and align to left edge
+        self.preset_combo.view().setMinimumWidth(self.preset_combo.minimumSizeHint().width())
+        # The dropdown will now open below the combo box, aligned to its left edge
+
         self.presets_box.addWidget(self.preset_combo)
         left_layout.addWidget(self.presets_box)
 
@@ -1898,10 +1907,25 @@ Press Ctrl+R to refresh this view with updated values
 
     def _configure_tooltips_simple(self):
         """Configure tooltips to work properly without flickering."""
-        # Set tooltip delay to prevent instant appearance
-        # DO NOT call this repeatedly - it's called once at startup
-        # Tooltips are styled via the QMainWindow stylesheet in apply_theme()
-        pass  # No longer needed - tooltip styling is in the main stylesheet
+        # Disable tooltips on all widgets that update frequently during simulation
+        # to prevent flickering as they repaint at 60 FPS
+        widgets_to_disable_tooltips = [
+            self.canvas,  # Already has WA_AlwaysShowToolTips disabled
+            self.stats_label,  # Updates every frame
+            self.status_label,  # Updates frequently
+        ]
+
+        for widget in widgets_to_disable_tooltips:
+            if widget:
+                widget.setToolTip("")  # Clear tooltip
+                widget.setAttribute(Qt.WA_AlwaysShowToolTips, False)
+
+        # Disable hover events on sliders to prevent tooltip flicker during simulation
+        # Tooltips will still show when hovering, but won't update during value changes
+        for param_name, (slider, label, label_text) in self.sliders.items():
+            # Keep tooltip but disable updates during tracking
+            slider.setMouseTracking(False)
+            label.setMouseTracking(False)
 
     def keyPressEvent(self, event):
         """
