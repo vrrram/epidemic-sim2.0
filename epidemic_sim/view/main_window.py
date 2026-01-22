@@ -39,30 +39,6 @@ from epidemic_sim.view.theme import (
 )
 
 
-class FixedPositionComboBox(QComboBox):
-    """
-    Custom QComboBox that ensures the dropdown appears below the combo box,
-    not at arbitrary screen positions.
-    """
-    def showPopup(self):
-        """Override to control popup positioning - force it below the combo box."""
-        # Get the popup (list view)
-        popup = self.view()
-        # Set popup width to match combo box width
-        popup.setMinimumWidth(self.width())
-        popup.setMaximumWidth(self.width())
-
-        # Call parent to show popup
-        super().showPopup()
-
-        # Force position the popup directly below the combo box
-        # Get combo box global position
-        combo_pos = self.mapToGlobal(QPoint(0, self.height()))
-
-        # Move popup to be directly below combo box, aligned to left edge
-        popup.move(combo_pos)
-
-
 class EpidemicApp(QMainWindow):
     """
     Main application window for the Epidemic Simulation.
@@ -94,18 +70,6 @@ class EpidemicApp(QMainWindow):
         super().__init__()
         self.setWindowTitle("EPIDEMIC SIMULATION v3.0 - Enhanced Edition")
         self.setGeometry(50, 50, 1800, 1000)
-
-        # DISABLE ALL TOOLTIPS GLOBALLY to prevent flickering during 60 FPS simulation
-        # Tooltips flicker because widgets repaint constantly during simulation updates
-        # Users can access all help via the prominent HELP button (Keyboard: H or Ctrl+R)
-        QApplication.instance().setStyleSheet("""
-            QToolTip {
-                opacity: 0;
-                background: transparent;
-                color: transparent;
-                border: none;
-            }
-        """)
 
         # Load saved theme preference
         self.settings = QSettings("EpidemicSimulator", "Theme")
@@ -679,8 +643,8 @@ Tip: (0, 0) places marketplace at canvas center"""
         # PRESETS
         self.presets_box = CollapsibleBox("PRESETS")
         self.collapsible_boxes.append(self.presets_box)
-        # Use custom combo box with fixed positioning to prevent dropdown from appearing on right side
-        self.preset_combo = FixedPositionComboBox()
+        # Standard combo box - dropdown positioning handled by Qt
+        self.preset_combo = QComboBox()
         self.preset_combo.addItem("-- Select Preset --")
         for preset_name in PRESETS.keys():
             self.preset_combo.addItem(preset_name)
@@ -1205,14 +1169,10 @@ Updates in real-time as simulation progresses.""")
                 font-family: 'Courier New', monospace;
             }}
             QToolTip {{
-                background-color: {tooltip_bg};
-                color: {tooltip_text};
-                border: 2px solid {tooltip_border};
-                padding: 8px;
-                margin: 0px;
-                font-family: 'Courier New', monospace;
-                font-size: 13px;
-                opacity: 255;
+                opacity: 0;
+                background: transparent;
+                color: transparent;
+                border: none;
             }}
             QScrollArea {{
                 border: 2px solid {BORDER_GREEN};
