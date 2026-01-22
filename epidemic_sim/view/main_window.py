@@ -21,10 +21,10 @@ from PyQt5.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QPushButton, QLabel, QSlider, QComboBox, QCheckBox, QSpinBox,
     QDoubleSpinBox, QScrollArea, QTabWidget, QButtonGroup, QTextEdit,
-    QDialog, QApplication, QListView, QStyle
+    QDialog, QApplication, QListWidget, QFrame
 )
 from PyQt5.QtCore import Qt, QTimer, QSettings, QPoint, QRect
-from PyQt5.QtGui import QFont
+from PyQt5.QtGui import QFont, QCursor
 import pyqtgraph as pg
 
 from epidemic_sim.config.parameters import params
@@ -39,38 +39,91 @@ from epidemic_sim.view.theme import (
 )
 
 
-class LeftAlignedComboBox(QComboBox):
+class CustomPresetSelector(QWidget):
     """
-    Custom QComboBox that FORCES dropdown to appear on the LEFT side,
-    directly below the combo box, not floating to the right.
+    COMPLETELY CUSTOM preset selector using button + list widget.
+    NO QComboBox - full control over positioning.
+    Dropdown appears EXACTLY below button on LEFT side.
     """
-    def showPopup(self):
-        """Override to force popup position below combo box on LEFT side."""
-        # Call parent first to create the popup
-        super().showPopup()
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.parent_window = parent
+        self.current_preset = "-- Select Preset --"
+        self.popup_widget = None
 
-        # Get the popup list view
-        popup = self.view()
-        if popup and popup.parent():
-            # Force popup to be at least as wide as the combo box
-            popup.setMinimumWidth(self.width())
+        # Create button that shows current selection
+        self.button = QPushButton(self.current_preset)
+        self.button.clicked.connect(self.show_preset_list)
+        self.button.setMinimumHeight(30)
 
-            # Calculate position: directly below combo box, aligned to left edge
-            # Get combo box position in global screen coordinates
-            combo_global_pos = self.mapToGlobal(QPoint(0, 0))
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.button)
 
-            # Position popup directly below, same X coordinate (left-aligned)
-            popup_x = combo_global_pos.x()
-            popup_y = combo_global_pos.y() + self.height()
+    def show_preset_list(self):
+        """Show preset list EXACTLY below the button on the LEFT side."""
+        if self.popup_widget and self.popup_widget.isVisible():
+            self.popup_widget.hide()
+            return
 
-            # Get the popup's container (QFrame)
-            popup_container = popup.parent()
+        # Create popup list widget
+        self.popup_widget = QListWidget()
+        self.popup_widget.setWindowFlags(Qt.Popup | Qt.FramelessWindowHint)
 
-            # FORCE the position - move the container, not just the view
-            popup_container.move(popup_x, popup_y)
+        # Add all presets
+        self.popup_widget.addItem("-- Select Preset --")
+        for preset_name in PRESETS.keys():
+            self.popup_widget.addItem(preset_name)
 
-            # Ensure popup is visible and sized correctly
-            popup_container.setMinimumWidth(self.width())
+        # Style the popup - matches theme
+        self.popup_widget.setStyleSheet(f"""
+            QListWidget {{
+                background-color: {BG_BLACK};
+                color: {NEON_GREEN};
+                border: 2px solid {BORDER_GREEN};
+                font-family: 'Courier New', monospace;
+                font-size: 12px;
+                padding: 5px;
+            }}
+            QListWidget::item {{
+                padding: 5px;
+            }}
+            QListWidget::item:hover {{
+                background-color: {BORDER_GREEN};
+                color: {BG_BLACK};
+            }}
+            QListWidget::item:selected {{
+                background-color: {NEON_GREEN};
+                color: {BG_BLACK};
+            }}
+        """)
+
+        # Connect selection
+        self.popup_widget.itemClicked.connect(self.preset_selected)
+
+        # Calculate position: DIRECTLY below button, LEFT-aligned
+        button_global_pos = self.button.mapToGlobal(QPoint(0, 0))
+        popup_x = button_global_pos.x()
+        popup_y = button_global_pos.y() + self.button.height()
+
+        # Set size to match button width
+        self.popup_widget.setFixedWidth(self.button.width())
+        self.popup_widget.setMaximumHeight(300)
+
+        # MOVE to correct position and show
+        self.popup_widget.move(popup_x, popup_y)
+        self.popup_widget.show()
+
+    def preset_selected(self, item):
+        """Handle preset selection."""
+        preset_name = item.text()
+        self.current_preset = preset_name
+        self.button.setText(preset_name)
+        self.popup_widget.hide()
+
+        # Trigger preset loading in parent
+        if self.parent_window and preset_name != "-- Select Preset --":
+            self.parent_window.load_preset(preset_name)
 
 
 class EpidemicApp(QMainWindow):
@@ -674,28 +727,12 @@ Tip: (0, 0) places marketplace at canvas center"""
         left_layout.addWidget(self.marketplace_params_box)
         self.marketplace_params_box.hide()  # Hidden by default, shown when marketplace enabled
 
-        # PRESETS
+        # PRESETS - using CUSTOM selector with full position control
         self.presets_box = CollapsibleBox("PRESETS")
         self.collapsible_boxes.append(self.presets_box)
-        # Use left-aligned combo box - forces dropdown to appear on LEFT side below combo box
-        self.preset_combo = LeftAlignedComboBox()
-        self.preset_combo.addItem("-- Select Preset --")
-        for preset_name in PRESETS.keys():
-            self.preset_combo.addItem(preset_name)
-        self.preset_combo.currentTextChanged.connect(self.load_preset)
-        self.preset_combo.setToolTip("""Preset Scenarios: Pre-configured parameter sets for common epidemic scenarios
-
-Available presets:
-• Baseline: No interventions, natural spread
-• Lockdown: Strict quarantine measures
-• Social Distance: Population-wide distancing
-• High Mortality: Severe disease scenario
-• Fast Spread: Highly contagious disease
-• Communities: Isolated population groups
-
-Tip: Use keyboard shortcuts 1-9 to quickly load presets""")
-
-        self.presets_box.addWidget(self.preset_combo)
+        # Custom preset selector - dropdown appears EXACTLY below button on LEFT side
+        self.preset_selector = CustomPresetSelector(parent=self)
+        self.presets_box.addWidget(self.preset_selector)
         left_layout.addWidget(self.presets_box)
 
         left_layout.addStretch()
@@ -1985,7 +2022,10 @@ Press Ctrl+R to refresh this view with updated values
             preset_names = list(PRESETS.keys())
             if preset_index < len(preset_names):
                 preset_name = preset_names[preset_index]
-                self.preset_combo.setCurrentText(preset_name)
+                # Update custom preset selector
+                self.preset_selector.current_preset = preset_name
+                self.preset_selector.button.setText(preset_name)
+                self.load_preset(preset_name)
             return
 
         # Q: Toggle quarantine
