@@ -39,6 +39,30 @@ from epidemic_sim.view.theme import (
 )
 
 
+class FixedPositionComboBox(QComboBox):
+    """
+    Custom QComboBox that ensures the dropdown appears below the combo box,
+    not at arbitrary screen positions.
+    """
+    def showPopup(self):
+        """Override to control popup positioning - force it below the combo box."""
+        # Get the popup (list view)
+        popup = self.view()
+        # Set popup width to match combo box width
+        popup.setMinimumWidth(self.width())
+        popup.setMaximumWidth(self.width())
+
+        # Call parent to show popup
+        super().showPopup()
+
+        # Force position the popup directly below the combo box
+        # Get combo box global position
+        combo_pos = self.mapToGlobal(QPoint(0, self.height()))
+
+        # Move popup to be directly below combo box, aligned to left edge
+        popup.move(combo_pos)
+
+
 class EpidemicApp(QMainWindow):
     """
     Main application window for the Epidemic Simulation.
@@ -70,6 +94,18 @@ class EpidemicApp(QMainWindow):
         super().__init__()
         self.setWindowTitle("EPIDEMIC SIMULATION v3.0 - Enhanced Edition")
         self.setGeometry(50, 50, 1800, 1000)
+
+        # DISABLE ALL TOOLTIPS GLOBALLY to prevent flickering during 60 FPS simulation
+        # Tooltips flicker because widgets repaint constantly during simulation updates
+        # Users can access all help via the prominent HELP button (Keyboard: H or Ctrl+R)
+        QApplication.instance().setStyleSheet("""
+            QToolTip {
+                opacity: 0;
+                background: transparent;
+                color: transparent;
+                border: none;
+            }
+        """)
 
         # Load saved theme preference
         self.settings = QSettings("EpidemicSimulator", "Theme")
@@ -643,7 +679,8 @@ Tip: (0, 0) places marketplace at canvas center"""
         # PRESETS
         self.presets_box = CollapsibleBox("PRESETS")
         self.collapsible_boxes.append(self.presets_box)
-        self.preset_combo = QComboBox()
+        # Use custom combo box with fixed positioning to prevent dropdown from appearing on right side
+        self.preset_combo = FixedPositionComboBox()
         self.preset_combo.addItem("-- Select Preset --")
         for preset_name in PRESETS.keys():
             self.preset_combo.addItem(preset_name)
@@ -659,14 +696,6 @@ Available presets:
 • Communities: Isolated population groups
 
 Tip: Use keyboard shortcuts 1-9 to quickly load presets""")
-
-        # Fix dropdown positioning: Force it to open aligned to the left edge of the combo box
-        # This prevents the dropdown from appearing on the right side of the screen
-        list_view = QListView()
-        self.preset_combo.setView(list_view)
-        # Set the view to match the combo box width and align to left edge
-        self.preset_combo.view().setMinimumWidth(self.preset_combo.minimumSizeHint().width())
-        # The dropdown will now open below the combo box, aligned to its left edge
 
         self.presets_box.addWidget(self.preset_combo)
         left_layout.addWidget(self.presets_box)
@@ -730,6 +759,29 @@ Tip: Use keyboard shortcuts 1-9 to quickly load presets""")
         # Removed: Theme toggle and font size buttons (not working properly)
 
         right_layout.addWidget(title_container)
+
+        # === QUICK HELP BUTTON (Prominent at top) ===
+        quick_help_btn = QPushButton("📖 HELP - Parameter Guide (Press H or Ctrl+R)")
+        quick_help_btn.clicked.connect(self.show_parameter_documentation)
+        quick_help_btn.setMinimumHeight(45)
+        quick_help_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {BORDER_GREEN};
+                color: #000000;
+                border: 3px solid {NEON_GREEN};
+                padding: 10px;
+                font-weight: bold;
+                font-family: 'Courier New', monospace;
+                font-size: 14px;
+                margin: 5px 0px;
+            }}
+            QPushButton:hover {{
+                background-color: {NEON_GREEN};
+                border: 3px solid #ffffff;
+                color: #000000;
+            }}
+        """)
+        right_layout.addWidget(quick_help_btn)
 
         # === CONTROLS ===
         self.ctrl_group = QWidget()
@@ -1010,8 +1062,8 @@ Updates in real-time as simulation progresses.""")
 
         # === SHORTCUTS ===
         self.shortcuts_label = QLabel(
-            "SHORTCUTS: SPACE=Pause | R=Reset | Ctrl+R=Docs | F=Fullscreen\n"
-            "Q=Quarantine | M=Marketplace | Alt+T=Theme | 1-9=Presets"
+            "SHORTCUTS: H=Help | SPACE=Pause | R=Reset | F=Fullscreen\n"
+            "Q=Quarantine | M=Marketplace | B=Mode | 1-9=Presets"
         )
         self.shortcuts_label.setStyleSheet(f"""
             font-size: 11px; padding: 5px; color: {NEON_GREEN};
@@ -1021,27 +1073,7 @@ Updates in real-time as simulation progresses.""")
         self.shortcuts_label.setWordWrap(True)
         right_layout.addWidget(self.shortcuts_label)
 
-        # === HELP BUTTON ===
-        help_btn = QPushButton("PARAMETER DOCUMENTATION (HELP)")
-        help_btn.setToolTip("Click to view comprehensive documentation for ALL parameters\nIncludes: Distributions, Disease params, Interventions, and more")
-        help_btn.clicked.connect(self.show_parameter_documentation)
-        help_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {BORDER_GREEN};
-                color: #000000;
-                border: 2px solid {NEON_GREEN};
-                padding: 12px;
-                font-weight: bold;
-                font-family: 'Courier New', monospace;
-                font-size: 12px;
-                margin-top: 5px;
-            }}
-            QPushButton:hover {{
-                background-color: {NEON_GREEN};
-                border: 2px solid #ffffff;
-            }}
-        """)
-        right_layout.addWidget(help_btn)
+        # HELP button moved to top of panel for better visibility
 
         right_layout.addStretch()
 
@@ -1906,40 +1938,25 @@ Press Ctrl+R to refresh this view with updated values
         dialog.exec_()
 
     def _configure_tooltips_simple(self):
-        """Configure tooltips to work properly without flickering."""
-        # Disable tooltips on all widgets that update frequently during simulation
-        # to prevent flickering as they repaint at 60 FPS
-        widgets_to_disable_tooltips = [
-            self.canvas,  # Already has WA_AlwaysShowToolTips disabled
-            self.stats_label,  # Updates every frame
-            self.status_label,  # Updates frequently
-        ]
-
-        for widget in widgets_to_disable_tooltips:
-            if widget:
-                widget.setToolTip("")  # Clear tooltip
-                widget.setAttribute(Qt.WA_AlwaysShowToolTips, False)
-
-        # Disable hover events on sliders to prevent tooltip flicker during simulation
-        # Tooltips will still show when hovering, but won't update during value changes
-        for param_name, (slider, label, label_text) in self.sliders.items():
-            # Keep tooltip but disable updates during tracking
-            slider.setMouseTracking(False)
-            label.setMouseTracking(False)
+        """
+        Tooltips are now globally disabled to prevent flickering.
+        All help is available via the prominent HELP button (Press H or Ctrl+R).
+        This function is kept for compatibility but does nothing.
+        """
+        pass  # Tooltips disabled globally in __init__
 
     def keyPressEvent(self, event):
         """
         Handle keyboard shortcuts for quick access to common functions.
 
         Shortcuts:
+            H or Ctrl+R: Show parameter documentation (HELP)
             SPACE: Pause/Resume
             R: Reset simulation
-            Ctrl+R: Show parameter documentation
             F: Fullscreen toggle
             Q: Toggle quarantine
             M: Toggle marketplace
-            Ctrl+T: Toggle tooltips
-            Alt+T: Toggle theme
+            B: Toggle BASIC/ADVANCED mode
             1-9: Load preset by number
 
         Args:
@@ -1948,24 +1965,19 @@ Press Ctrl+R to refresh this view with updated values
         key = event.key()
         modifiers = event.modifiers()
 
-        # Ctrl+T: Toggle tooltips
-        if key == Qt.Key_T and modifiers & Qt.ControlModifier:
-            self.toggle_tooltips()
+        # H: Show HELP documentation (new shortcut!)
+        if key == Qt.Key_H:
+            self.show_parameter_documentation()
             return
 
-        # Alt+T: Toggle theme
-        if key == Qt.Key_T and modifiers & Qt.AltModifier:
-            self.toggle_theme()
+        # Ctrl+R: Show parameter documentation (kept for compatibility)
+        if key == Qt.Key_R and modifiers & Qt.ControlModifier:
+            self.show_parameter_documentation()
             return
 
         # Space: Pause/Resume
         if key == Qt.Key_Space:
             self.toggle_pause()
-            return
-
-        # Ctrl+R: Show parameter documentation
-        if key == Qt.Key_R and modifiers & Qt.ControlModifier:
-            self.show_parameter_documentation()
             return
 
         # R: Reset (without Ctrl)
